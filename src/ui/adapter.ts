@@ -1,5 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 import type {
+  Direction,
   IREdge,
   IRNode,
   IRSubgraph,
@@ -47,6 +48,23 @@ const SG_PADDING = 24;
 const SG_HEADER = 30;
 const SG_MIN_W = 200;
 const SG_MIN_H = 100;
+
+const handlePairForDirection = (
+  direction: Direction,
+): Pick<FlowEdge, "sourceHandle" | "targetHandle"> => {
+  switch (direction) {
+    case "LR":
+      return { sourceHandle: "s-right", targetHandle: "t-left" };
+    case "RL":
+      return { sourceHandle: "s-left", targetHandle: "t-right" };
+    case "BT":
+      return { sourceHandle: "s-top", targetHandle: "t-bottom" };
+    case "TD":
+    case "TB":
+    default:
+      return { sourceHandle: "s-bottom", targetHandle: "t-top" };
+  }
+};
 
 const computeSgDepth = (subgraphs: IRSubgraph[]): Map<string, number> => {
   const byId = new Map(subgraphs.map((s) => [s.id, s] as const));
@@ -156,6 +174,7 @@ export const irToFlow = (
     id: e.id,
     source: e.source,
     target: e.target,
+    ...handlePairForDirection(ir.direction),
     label: e.label,
     type: "smoothstep",
     animated: e.style === "dotted",

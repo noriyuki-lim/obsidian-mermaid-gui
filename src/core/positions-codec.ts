@@ -107,3 +107,9 @@ export const encodeBlock = (ir: MermaidIR): string => {
   ];
   return out.join("\n");
 };
+
+export const stripGuiMetadata = (source: string): string => {
+  const decoded = decodeBlock(source);
+  if (!decoded.parse.ok) return source;
+  return generateMermaid(decoded.parse.ir);
+};

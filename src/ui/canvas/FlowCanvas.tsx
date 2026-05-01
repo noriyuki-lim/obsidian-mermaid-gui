@@ -5,9 +5,11 @@ import {
   Controls,
   MiniMap,
   MarkerType,
+  ConnectionMode,
   type Connection,
   type EdgeChange,
   type NodeChange,
+  type OnReconnect,
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -26,6 +28,7 @@ export const FlowCanvas = () => {
   const addNode = useEditorStore((s) => s.addNode);
   const setNodePosition = useEditorStore((s) => s.setNodePosition);
   const addEdge = useEditorStore((s) => s.addEdge);
+  const updateEdge = useEditorStore((s) => s.updateEdge);
   const setSelection = useEditorStore((s) => s.setSelection);
   const storeApi = useEditorStoreApi();
 
@@ -111,6 +114,14 @@ export const FlowCanvas = () => {
     [addEdge],
   );
 
+  const onReconnect = useCallback<OnReconnect<FlowEdge>>(
+    (oldEdge, c) => {
+      if (!c.source || !c.target) return;
+      updateEdge(oldEdge.id, { source: c.source, target: c.target });
+    },
+    [updateEdge],
+  );
+
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
@@ -140,6 +151,9 @@ export const FlowCanvas = () => {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onReconnect={onReconnect}
+        edgesReconnectable
+        connectionMode={ConnectionMode.Loose}
         onInit={(inst) => {
           flowInstance.current = inst;
         }}
