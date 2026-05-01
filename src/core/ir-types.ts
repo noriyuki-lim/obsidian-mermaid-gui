@@ -21,6 +21,15 @@ export type NodeShape =
 
 export type EdgeStyle = "solid" | "dotted" | "thick";
 export type EdgeHead = "none" | "arrow" | "circle" | "cross";
+export type EdgeHandleId =
+  | "s-top"
+  | "s-right"
+  | "s-bottom"
+  | "s-left"
+  | "t-top"
+  | "t-right"
+  | "t-bottom"
+  | "t-left";
 
 export interface IRNode {
   id: string;
@@ -40,6 +49,9 @@ export interface IREdge {
   label?: string;
   /** Number of dashes/equals in the connector — preserved for round-trip stability */
   length: number;
+  /** GUI-only anchor handles; Mermaid itself has no edge-side syntax. */
+  sourceHandle?: EdgeHandleId;
+  targetHandle?: EdgeHandleId;
 }
 
 export interface IRSubgraph {

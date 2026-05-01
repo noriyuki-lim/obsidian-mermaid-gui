@@ -1,6 +1,7 @@
 import type { Edge, Node } from "@xyflow/react";
 import type {
   Direction,
+  EdgeHandleId,
   IREdge,
   IRNode,
   IRSubgraph,
@@ -51,7 +52,7 @@ const SG_MIN_H = 100;
 
 const handlePairForDirection = (
   direction: Direction,
-): Pick<FlowEdge, "sourceHandle" | "targetHandle"> => {
+): { sourceHandle: EdgeHandleId; targetHandle: EdgeHandleId } => {
   switch (direction) {
     case "LR":
       return { sourceHandle: "s-right", targetHandle: "t-left" };
@@ -174,7 +175,8 @@ export const irToFlow = (
     id: e.id,
     source: e.source,
     target: e.target,
-    ...handlePairForDirection(ir.direction),
+    sourceHandle: e.sourceHandle ?? handlePairForDirection(ir.direction).sourceHandle,
+    targetHandle: e.targetHandle ?? handlePairForDirection(ir.direction).targetHandle,
     label: e.label,
     type: "smoothstep",
     animated: e.style === "dotted",

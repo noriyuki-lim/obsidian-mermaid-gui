@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { decodeBlock, encodeBlock, GUI_VERSION } from "../../src/core/positions-codec";
+import {
+  decodeBlock,
+  encodeBlock,
+  GUI_VERSION,
+  stripGuiMetadata,
+} from "../../src/core/positions-codec";
 import type { MermaidIR } from "../../src/core/ir-types";
 
 const SOURCE = `%% gui:positions {"A":[120,40],"B":[260,140]}
@@ -67,5 +72,40 @@ describe("positions-codec", () => {
     const again = decodeBlock(out);
     if (!again.parse.ok) throw new Error("re-parse failed");
     expect(again.positions).toEqual(decoded.positions);
+  });
+
+  it("round-trips GUI edge handles without leaking them into Mermaid", () => {
+    const ir: MermaidIR = {
+      direction: "TD",
+      nodes: [
+        { id: "A", shape: "rect", label: "A", subgraph: null },
+        { id: "B", shape: "rect", label: "B", subgraph: null },
+      ],
+      edges: [
+        {
+          id: "local-id",
+          source: "A",
+          target: "B",
+          style: "solid",
+          head: "arrow",
+          length: 2,
+          sourceHandle: "s-right",
+          targetHandle: "t-left",
+        },
+      ],
+      subgraphs: [],
+      rawLines: [],
+      positions: {},
+    };
+    const encoded = encodeBlock(ir);
+    expect(encoded).toContain("gui:edges");
+    expect(stripGuiMetadata(encoded)).not.toContain("gui:edges");
+
+    const decoded = decodeBlock(encoded);
+    if (!decoded.parse.ok) throw new Error("parse failed");
+    expect(decoded.parse.ir.edges[0]).toMatchObject({
+      sourceHandle: "s-right",
+      targetHandle: "t-left",
+    });
   });
 });

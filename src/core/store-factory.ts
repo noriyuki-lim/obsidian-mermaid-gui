@@ -8,6 +8,7 @@ import {
   type MermaidIR,
   type NodeShape,
   type Positions,
+  type EdgeHandleId,
 } from "./ir-types";
 import { generateMermaid } from "./generator";
 import { parseMermaid } from "./parser";
@@ -57,7 +58,11 @@ export interface EditorState {
     changes: Array<{ id: string; pos: { x: number; y: number } }>,
     opts?: { recordHistory?: boolean },
   ) => void;
-  addEdge: (source: string, target: string) => void;
+  addEdge: (
+    source: string,
+    target: string,
+    handles?: { sourceHandle?: EdgeHandleId; targetHandle?: EdgeHandleId },
+  ) => void;
   updateEdge: (id: string, patch: Partial<IREdge>, opts?: { recordHistory?: boolean }) => void;
   addSubgraph: (label?: string) => string;
   removeSubgraph: (id: string) => void;
@@ -267,7 +272,7 @@ export const createEditorStore = (): EditorStoreApi =>
         set({ ir: nextIR, text: project(nextIR) });
       },
 
-      addEdge: (source, target) => {
+      addEdge: (source, target, handles) => {
         if (!ensureTextCommitted()) return;
         const cur = cloneIR(get().ir);
         if (!cur.nodes.some((n) => n.id === source) || !cur.nodes.some((n) => n.id === target))
@@ -280,6 +285,7 @@ export const createEditorStore = (): EditorStoreApi =>
           style: "solid",
           head: "arrow",
           length: 2,
+          ...handles,
         });
         commit(cur);
       },

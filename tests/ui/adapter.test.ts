@@ -24,4 +24,12 @@ describe("irToFlow edge handles", () => {
     const { edges } = irToFlow(baseIR("TD"), baseIR("TD").positions);
     expect(edges[0]).toMatchObject({ sourceHandle: "s-bottom", targetHandle: "t-top" });
   });
+
+  it("prefers stored GUI handles over direction defaults", () => {
+    const ir = baseIR("TD");
+    ir.edges[0].sourceHandle = "s-right";
+    ir.edges[0].targetHandle = "t-left";
+    const { edges } = irToFlow(ir, ir.positions);
+    expect(edges[0]).toMatchObject({ sourceHandle: "s-right", targetHandle: "t-left" });
+  });
 });

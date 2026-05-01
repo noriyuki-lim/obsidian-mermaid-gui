@@ -1,15 +1,21 @@
 import { parseMermaid, type ParseOutcome } from "./parser";
 import { generateMermaid } from "./generator";
-import type { MermaidIR, Positions } from "./ir-types";
+import type { EdgeHandleId, MermaidIR, Positions } from "./ir-types";
 
 /**
  * Schema version for the `%% gui:meta` line. Bumping this lets future readers
  * know the on-disk format changed and gives us a place to hang migrations.
  */
-export const GUI_VERSION = 1;
+export const GUI_VERSION = 2;
 
 const POS_PREFIX = "%% gui:positions";
+const EDGES_PREFIX = "%% gui:edges";
 const META_PREFIX = "%% gui:meta";
+
+type EdgeHandleEntry = {
+  sourceHandle?: EdgeHandleId;
+  targetHandle?: EdgeHandleId;
+};
 
 interface DecodedBlock {
   parse: ParseOutcome;
@@ -25,6 +31,29 @@ const tryParseJson = <T,>(raw: string): T | null => {
   }
 };
 
+const isEdgeHandleId = (value: unknown): value is EdgeHandleId =>
+  value === "s-top" ||
+  value === "s-right" ||
+  value === "s-bottom" ||
+  value === "s-left" ||
+  value === "t-top" ||
+  value === "t-right" ||
+  value === "t-bottom" ||
+  value === "t-left";
+
+const normalizeEdgeHandleEntry = (value: unknown): EdgeHandleEntry | null => {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  const out: EdgeHandleEntry = {};
+  if (isEdgeHandleId(raw.sourceHandle) && raw.sourceHandle.startsWith("s-")) {
+    out.sourceHandle = raw.sourceHandle;
+  }
+  if (isEdgeHandleId(raw.targetHandle) && raw.targetHandle.startsWith("t-")) {
+    out.targetHandle = raw.targetHandle;
+  }
+  return out.sourceHandle || out.targetHandle ? out : null;
+};
+
 /**
  * Parse a single mermaid code-block body. Pre-scans the source for
  * `%% gui:positions` / `%% gui:meta` comments emitted by a previous save and
@@ -37,6 +66,7 @@ const tryParseJson = <T,>(raw: string): T | null => {
  */
 export const decodeBlock = (source: string): DecodedBlock => {
   const positions: Positions = {};
+  let edgeHandles: Array<EdgeHandleEntry | null> = [];
   let meta: DecodedBlock["meta"] = null;
   const cleaned: string[] = [];
 
@@ -55,6 +85,14 @@ export const decodeBlock = (source: string): DecodedBlock => {
       }
       continue;
     }
+    if (trimmed.startsWith(EDGES_PREFIX)) {
+      const tail = trimmed.slice(EDGES_PREFIX.length).trim();
+      const arr = tryParseJson<unknown[]>(tail);
+      if (Array.isArray(arr)) {
+        edgeHandles = arr.map((entry) => normalizeEdgeHandleEntry(entry));
+      }
+      continue;
+    }
     if (trimmed.startsWith(META_PREFIX)) {
       const tail = trimmed.slice(META_PREFIX.length).trim();
       const obj = tryParseJson<{ version?: number; layout?: string }>(tail);
@@ -69,6 +107,12 @@ export const decodeBlock = (source: string): DecodedBlock => {
   const parse = parseMermaid(cleaned.join("\n"));
   if (parse.ok) {
     parse.ir.positions = { ...parse.ir.positions, ...positions };
+    parse.ir.edges.forEach((edge, index) => {
+      const handles = edgeHandles[index];
+      if (!handles) return;
+      if (handles.sourceHandle) edge.sourceHandle = handles.sourceHandle;
+      if (handles.targetHandle) edge.targetHandle = handles.targetHandle;
+    });
   }
   return { parse, positions, meta };
 };
@@ -86,6 +130,17 @@ const formatPositions = (ir: MermaidIR): string => {
 
 const formatMeta = (): string => JSON.stringify({ version: GUI_VERSION, layout: "dagre" });
 
+const formatEdgeHandles = (ir: MermaidIR): string | null => {
+  const entries = ir.edges.map((edge) => {
+    if (!edge.sourceHandle && !edge.targetHandle) return null;
+    return {
+      ...(edge.sourceHandle ? { sourceHandle: edge.sourceHandle } : {}),
+      ...(edge.targetHandle ? { targetHandle: edge.targetHandle } : {}),
+    };
+  });
+  return entries.some(Boolean) ? JSON.stringify(entries) : null;
+};
+
 /**
  * Encode an IR back into the text that lives inside the ```mermaid fence.
  * Inserts the `%% gui:positions` / `%% gui:meta` comment lines just below the
@@ -96,7 +151,12 @@ export const encodeBlock = (ir: MermaidIR): string => {
   const text = generateMermaid(ir);
   const lines = text.split("\n");
   const headerIdx = lines.findIndex((l) => /^\s*(graph|flowchart)\s+(TD|TB|LR|RL|BT)\b/.test(l));
-  const insertion = [`${POS_PREFIX} ${formatPositions(ir)}`, `${META_PREFIX} ${formatMeta()}`];
+  const edgeHandles = formatEdgeHandles(ir);
+  const insertion = [
+    `${POS_PREFIX} ${formatPositions(ir)}`,
+    ...(edgeHandles ? [`${EDGES_PREFIX} ${edgeHandles}`] : []),
+    `${META_PREFIX} ${formatMeta()}`,
+  ];
   if (headerIdx === -1) {
     return [...insertion, ...lines].join("\n");
   }

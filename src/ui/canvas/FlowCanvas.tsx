@@ -18,8 +18,12 @@ import { ShapeNode } from "./ShapeNode";
 import { SubgraphNode } from "./SubgraphNode";
 import type { NodeShape } from "../../core/ir-types";
 import { irToFlow, isSubgraphFlowId, type FlowEdge, type FlowNode } from "../adapter";
+import type { EdgeHandleId } from "../../core/ir-types";
 
 const nodeTypes = { shape: ShapeNode, subgraph: SubgraphNode };
+
+const edgeHandleOrUndefined = (handle: string | null | undefined): EdgeHandleId | undefined =>
+  handle ? (handle as EdgeHandleId) : undefined;
 
 export const FlowCanvas = () => {
   const ir = useEditorStore((s) => s.ir);
@@ -109,7 +113,12 @@ export const FlowCanvas = () => {
 
   const onConnect = useCallback(
     (c: Connection) => {
-      if (c.source && c.target) addEdge(c.source, c.target);
+      if (c.source && c.target) {
+        addEdge(c.source, c.target, {
+          sourceHandle: edgeHandleOrUndefined(c.sourceHandle),
+          targetHandle: edgeHandleOrUndefined(c.targetHandle),
+        });
+      }
     },
     [addEdge],
   );
@@ -117,7 +126,12 @@ export const FlowCanvas = () => {
   const onReconnect = useCallback<OnReconnect<FlowEdge>>(
     (oldEdge, c) => {
       if (!c.source || !c.target) return;
-      updateEdge(oldEdge.id, { source: c.source, target: c.target });
+      updateEdge(oldEdge.id, {
+        source: c.source,
+        target: c.target,
+        sourceHandle: edgeHandleOrUndefined(c.sourceHandle),
+        targetHandle: edgeHandleOrUndefined(c.targetHandle),
+      });
     },
     [updateEdge],
   );
