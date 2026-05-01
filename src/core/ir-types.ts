@@ -65,6 +65,7 @@ export interface IRSubgraph {
 
 /** Per-node 2-D coordinates persisted to a sidecar JSON */
 export type Positions = Record<string, { x: number; y: number }>;
+export type SubgraphFrames = Record<string, { x: number; y: number; width: number; height: number }>;
 
 export interface MermaidIR {
   direction: Direction;
@@ -74,6 +75,10 @@ export interface MermaidIR {
   /** Raw lines that the parser could not understand — kept verbatim and re-emitted */
   rawLines: string[];
   positions: Positions;
+  /** GUI-only subgraph bounds; Mermaid itself derives subgraph boxes from contents. */
+  subgraphFrames: SubgraphFrames;
+  /** Whether encodeBlock should persist GUI position metadata on save. */
+  savePositions: boolean;
 }
 
 export const emptyIR = (direction: Direction = "TD"): MermaidIR => ({
@@ -83,4 +88,6 @@ export const emptyIR = (direction: Direction = "TD"): MermaidIR => ({
   subgraphs: [],
   rawLines: [],
   positions: {},
+  subgraphFrames: {},
+  savePositions: false,
 });

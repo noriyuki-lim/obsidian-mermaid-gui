@@ -12,6 +12,8 @@ const baseIR = (direction: MermaidIR["direction"]): MermaidIR => ({
   subgraphs: [],
   rawLines: [],
   positions: { A: { x: 0, y: 0 }, B: { x: 220, y: 0 } },
+  subgraphFrames: {},
+  savePositions: false,
 });
 
 describe("irToFlow edge handles", () => {
@@ -31,5 +33,20 @@ describe("irToFlow edge handles", () => {
     ir.edges[0].targetHandle = "t-left";
     const { edges } = irToFlow(ir, ir.positions);
     expect(edges[0]).toMatchObject({ sourceHandle: "s-right", targetHandle: "t-left" });
+  });
+
+  it("uses saved subgraph frames when present", () => {
+    const ir = baseIR("TD");
+    ir.nodes[0].subgraph = "S1";
+    ir.subgraphs = [{ id: "S1", label: "Group", parent: null }];
+    ir.subgraphFrames = { S1: { x: 15, y: 25, width: 260, height: 150 } };
+    const { nodes } = irToFlow(ir, ir.positions);
+    const sg = nodes.find((n) => n.id === ":sg:S1");
+    expect(sg).toMatchObject({
+      position: { x: 15, y: 25 },
+      draggable: false,
+      selectable: false,
+    });
+    expect(sg?.style).toMatchObject({ width: 260, height: 150 });
   });
 });

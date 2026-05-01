@@ -52,6 +52,8 @@ describe("positions-codec", () => {
       subgraphs: [],
       rawLines: [],
       positions: { A: { x: 120, y: 40 }, B: { x: 260, y: 140 } },
+      subgraphFrames: {},
+      savePositions: true,
     };
     const encoded = encodeBlock(ir);
     const lines = encoded.split("\n");
@@ -96,6 +98,8 @@ describe("positions-codec", () => {
       subgraphs: [],
       rawLines: [],
       positions: {},
+      subgraphFrames: {},
+      savePositions: false,
     };
     const encoded = encodeBlock(ir);
     expect(encoded).toContain("gui:edges");
@@ -107,6 +111,42 @@ describe("positions-codec", () => {
       sourceHandle: "s-right",
       targetHandle: "t-left",
     });
+  });
+
+  it("omits position metadata when persistence is disabled", () => {
+    const ir: MermaidIR = {
+      direction: "TD",
+      nodes: [{ id: "A", shape: "rect", label: "A", subgraph: "S1" }],
+      edges: [],
+      subgraphs: [{ id: "S1", label: "Group", parent: null }],
+      rawLines: [],
+      positions: { A: { x: 10, y: 20 } },
+      subgraphFrames: { S1: { x: 0, y: 0, width: 240, height: 140 } },
+      savePositions: false,
+    };
+    const encoded = encodeBlock(ir);
+    expect(encoded).not.toContain("gui:positions");
+    expect(encoded).not.toContain("gui:subgraphs");
+    expect(encoded).toContain('"savePositions":false');
+  });
+
+  it("round-trips subgraph frames", () => {
+    const ir: MermaidIR = {
+      direction: "TD",
+      nodes: [{ id: "A", shape: "rect", label: "A", subgraph: "S1" }],
+      edges: [],
+      subgraphs: [{ id: "S1", label: "Group", parent: null }],
+      rawLines: [],
+      positions: { A: { x: 10, y: 20 } },
+      subgraphFrames: { S1: { x: 0, y: 0, width: 240, height: 140 } },
+      savePositions: true,
+    };
+    const encoded = encodeBlock(ir);
+    expect(encoded).toContain("gui:subgraphs");
+    const decoded = decodeBlock(encoded);
+    if (!decoded.parse.ok) throw new Error("parse failed");
+    expect(decoded.subgraphFrames).toEqual({ S1: { x: 0, y: 0, width: 240, height: 140 } });
+    expect(decoded.parse.ir.subgraphFrames).toEqual(decoded.subgraphFrames);
   });
 
   it("returns renderable text from the flowchart header when parse fallback is needed", () => {

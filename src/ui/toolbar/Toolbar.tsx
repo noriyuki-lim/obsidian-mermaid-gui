@@ -23,6 +23,8 @@ export const Toolbar = ({ onSave, onCancel, onExportSvg, saving }: Props) => {
   const future = useEditorStore((s) => s.future.length);
   const autoLayout = useEditorStore((s) => s.autoLayout);
   const addSubgraph = useEditorStore((s) => s.addSubgraph);
+  const savePositions = useEditorStore((s) => s.ir.savePositions);
+  const setSavePositions = useEditorStore((s) => s.setSavePositions);
 
   return (
     <header className="mge-toolbar">
@@ -60,6 +62,14 @@ export const Toolbar = ({ onSave, onCancel, onExportSvg, saving }: Props) => {
         >
           Subgraph
         </button>
+        <label className="mge-toggle" title="Persist node and subgraph positions in gui comments">
+          <input
+            type="checkbox"
+            checked={savePositions}
+            onChange={(e) => setSavePositions(e.target.checked)}
+          />
+          Save positions
+        </label>
         {onExportSvg ? (
           <button onClick={onExportSvg} title="Export SVG to vault attachment">
             Export SVG

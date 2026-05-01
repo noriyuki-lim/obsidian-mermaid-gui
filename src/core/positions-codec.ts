@@ -1,6 +1,6 @@
 import { parseMermaid, type ParseOutcome } from "./parser";
 import { generateMermaid } from "./generator";
-import type { EdgeHandleId, MermaidIR, Positions } from "./ir-types";
+import type { EdgeHandleId, MermaidIR, Positions, SubgraphFrames } from "./ir-types";
 
 /**
  * Schema version for the `%% gui:meta` line. Bumping this lets future readers
@@ -9,6 +9,7 @@ import type { EdgeHandleId, MermaidIR, Positions } from "./ir-types";
 export const GUI_VERSION = 2;
 
 const POS_PREFIX = "%% gui:positions";
+const SUBGRAPH_PREFIX = "%% gui:subgraphs";
 const EDGES_PREFIX = "%% gui:edges";
 const META_PREFIX = "%% gui:meta";
 const FLOW_HEADER_RE = /^\s*(graph|flowchart)\s+(TD|TB|LR|RL|BT)\b/;
@@ -21,7 +22,8 @@ type EdgeHandleEntry = {
 interface DecodedBlock {
   parse: ParseOutcome;
   positions: Positions;
-  meta: { version: number; layout?: string } | null;
+  subgraphFrames: SubgraphFrames;
+  meta: { version: number; layout?: string; savePositions?: boolean } | null;
 }
 
 const tryParseJson = <T,>(raw: string): T | null => {
@@ -36,6 +38,7 @@ const isGuiMetadataLine = (line: string): boolean => {
   const trimmed = line.trim();
   return (
     trimmed.startsWith(POS_PREFIX) ||
+    trimmed.startsWith(SUBGRAPH_PREFIX) ||
     trimmed.startsWith(EDGES_PREFIX) ||
     trimmed.startsWith(META_PREFIX)
   );
@@ -88,6 +91,7 @@ const normalizeEdgeHandleEntry = (value: unknown): EdgeHandleEntry | null => {
  */
 export const decodeBlock = (source: string): DecodedBlock => {
   const positions: Positions = {};
+  const subgraphFrames: SubgraphFrames = {};
   let edgeHandles: Array<EdgeHandleEntry | null> = [];
   let meta: DecodedBlock["meta"] = null;
   const cleaned: string[] = [];
@@ -107,6 +111,34 @@ export const decodeBlock = (source: string): DecodedBlock => {
       }
       continue;
     }
+    if (trimmed.startsWith(SUBGRAPH_PREFIX)) {
+      const tail = trimmed.slice(SUBGRAPH_PREFIX.length).trim();
+      const obj = tryParseJson<
+        Record<string, [number, number, number, number] | { x: number; y: number; width: number; height: number }>
+      >(tail);
+      if (obj) {
+        for (const [id, v] of Object.entries(obj)) {
+          if (Array.isArray(v) && v.length === 4) {
+            subgraphFrames[id] = { x: v[0], y: v[1], width: v[2], height: v[3] };
+          } else if (
+            v &&
+            typeof v === "object" &&
+            "x" in v &&
+            "y" in v &&
+            "width" in v &&
+            "height" in v
+          ) {
+            subgraphFrames[id] = {
+              x: Number(v.x),
+              y: Number(v.y),
+              width: Number(v.width),
+              height: Number(v.height),
+            };
+          }
+        }
+      }
+      continue;
+    }
     if (trimmed.startsWith(EDGES_PREFIX)) {
       const tail = trimmed.slice(EDGES_PREFIX.length).trim();
       const arr = tryParseJson<unknown[]>(tail);
@@ -117,9 +149,9 @@ export const decodeBlock = (source: string): DecodedBlock => {
     }
     if (trimmed.startsWith(META_PREFIX)) {
       const tail = trimmed.slice(META_PREFIX.length).trim();
-      const obj = tryParseJson<{ version?: number; layout?: string }>(tail);
+      const obj = tryParseJson<{ version?: number; layout?: string; savePositions?: boolean }>(tail);
       if (obj && typeof obj.version === "number") {
-        meta = { version: obj.version, layout: obj.layout };
+        meta = { version: obj.version, layout: obj.layout, savePositions: obj.savePositions };
       }
       continue;
     }
@@ -129,6 +161,11 @@ export const decodeBlock = (source: string): DecodedBlock => {
   const parse = parseMermaid(cleaned.join("\n"));
   if (parse.ok) {
     parse.ir.positions = { ...parse.ir.positions, ...positions };
+    parse.ir.subgraphFrames = { ...parse.ir.subgraphFrames, ...subgraphFrames };
+    parse.ir.savePositions =
+      typeof meta?.savePositions === "boolean"
+        ? meta.savePositions
+        : Object.keys(positions).length > 0;
     parse.ir.edges.forEach((edge, index) => {
       const handles = edgeHandles[index];
       if (!handles) return;
@@ -136,7 +173,7 @@ export const decodeBlock = (source: string): DecodedBlock => {
       if (handles.targetHandle) edge.targetHandle = handles.targetHandle;
     });
   }
-  return { parse, positions, meta };
+  return { parse, positions, subgraphFrames, meta };
 };
 
 const formatPositions = (ir: MermaidIR): string => {
@@ -151,6 +188,25 @@ const formatPositions = (ir: MermaidIR): string => {
 };
 
 const formatMeta = (): string => JSON.stringify({ version: GUI_VERSION, layout: "dagre" });
+
+const formatSubgraphFrames = (ir: MermaidIR): string | null => {
+  const ids = new Set(ir.subgraphs.map((s) => s.id));
+  const ordered: Record<string, [number, number, number, number]> = {};
+  for (const id of ids) {
+    const f = ir.subgraphFrames[id];
+    if (!f) continue;
+    ordered[id] = [
+      Math.round(f.x),
+      Math.round(f.y),
+      Math.round(f.width),
+      Math.round(f.height),
+    ];
+  }
+  return Object.keys(ordered).length > 0 ? JSON.stringify(ordered) : null;
+};
+
+const formatMetaForIR = (ir: MermaidIR): string =>
+  JSON.stringify({ version: GUI_VERSION, layout: "dagre", savePositions: ir.savePositions });
 
 const formatEdgeHandles = (ir: MermaidIR): string | null => {
   const entries = ir.edges.map((edge) => {
@@ -174,10 +230,12 @@ export const encodeBlock = (ir: MermaidIR): string => {
   const lines = text.split("\n");
   const headerIdx = lines.findIndex((l) => FLOW_HEADER_RE.test(l));
   const edgeHandles = formatEdgeHandles(ir);
+  const subgraphFrames = ir.savePositions ? formatSubgraphFrames(ir) : null;
   const insertion = [
-    `${POS_PREFIX} ${formatPositions(ir)}`,
+    ...(ir.savePositions ? [`${POS_PREFIX} ${formatPositions(ir)}`] : []),
+    ...(subgraphFrames ? [`${SUBGRAPH_PREFIX} ${subgraphFrames}`] : []),
     ...(edgeHandles ? [`${EDGES_PREFIX} ${edgeHandles}`] : []),
-    `${META_PREFIX} ${formatMeta()}`,
+    `${META_PREFIX} ${formatMetaForIR(ir)}`,
   ];
   if (headerIdx === -1) {
     return [...insertion, ...lines].join("\n");

@@ -7,6 +7,7 @@ import type {
   IRSubgraph,
   MermaidIR,
   Positions,
+  SubgraphFrames,
 } from "../core/ir-types";
 import { NODE_SIZE } from "../core/dagre";
 
@@ -14,6 +15,8 @@ import { NODE_SIZE } from "../core/dagre";
 
 const SG_PREFIX = ":sg:";
 export const isSubgraphFlowId = (id: string): boolean => id.startsWith(SG_PREFIX);
+export const subgraphIdFromFlowId = (id: string): string | null =>
+  isSubgraphFlowId(id) ? id.slice(SG_PREFIX.length) : null;
 
 export type FlowNodeData = {
   label: string;
@@ -90,6 +93,7 @@ const computeSubgraphBboxes = (
   nodes: IRNode[],
   subgraphs: IRSubgraph[],
   positions: Positions,
+  frames: SubgraphFrames,
 ): Map<string, Bbox> => {
   const bboxes = new Map<string, Bbox>();
   if (subgraphs.length === 0) return bboxes;
@@ -99,6 +103,16 @@ const computeSubgraphBboxes = (
   );
 
   for (const sg of ordered) {
+    const saved = frames[sg.id];
+    if (saved) {
+      bboxes.set(sg.id, {
+        x: saved.x,
+        y: saved.y,
+        w: Math.max(SG_MIN_W, saved.width),
+        h: Math.max(SG_MIN_H, saved.height),
+      });
+      continue;
+    }
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
@@ -140,7 +154,7 @@ export const irToFlow = (
   ir: MermaidIR,
   positions: Positions,
 ): { nodes: FlowNode[]; edges: FlowEdge[] } => {
-  const bboxes = computeSubgraphBboxes(ir.nodes, ir.subgraphs, positions);
+  const bboxes = computeSubgraphBboxes(ir.nodes, ir.subgraphs, positions, ir.subgraphFrames);
 
   // Subgraph backdrop nodes — purely visual, render below regular nodes.
   const sgNodes: FlowNode[] = ir.subgraphs.map((sg) => {

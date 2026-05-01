@@ -8,6 +8,7 @@ import {
   type MermaidIR,
   type NodeShape,
   type Positions,
+  type SubgraphFrames,
   type EdgeHandleId,
 } from "./ir-types";
 import { generateMermaid } from "./generator";
@@ -56,6 +57,17 @@ export interface EditorState {
   setNodePosition: (id: string, pos: { x: number; y: number }) => void;
   setNodePositions: (
     changes: Array<{ id: string; pos: { x: number; y: number } }>,
+    opts?: { recordHistory?: boolean; subgraphs?: Array<{ id: string; subgraph: string | null }> },
+  ) => void;
+  moveSubgraph: (
+    id: string,
+    delta: { x: number; y: number },
+    frame: { x: number; y: number; width: number; height: number },
+    opts?: { recordHistory?: boolean },
+  ) => void;
+  resizeSubgraph: (
+    id: string,
+    frame: { x: number; y: number; width: number; height: number },
     opts?: { recordHistory?: boolean },
   ) => void;
   addEdge: (
@@ -67,6 +79,7 @@ export interface EditorState {
   addSubgraph: (label?: string) => string;
   removeSubgraph: (id: string) => void;
   setSelection: (sel: Selection) => void;
+  setSavePositions: (save: boolean) => void;
   autoLayout: () => void;
   recordHistorySnapshot: () => void;
   undo: () => void;
@@ -84,6 +97,8 @@ const cloneIR = (ir: MermaidIR): MermaidIR => ({
   subgraphs: ir.subgraphs.map((s) => ({ ...s })),
   rawLines: [...ir.rawLines],
   positions: { ...ir.positions },
+  subgraphFrames: { ...ir.subgraphFrames },
+  savePositions: ir.savePositions,
 });
 
 const newNodeId = (existing: Iterable<string>): string => {
@@ -125,6 +140,30 @@ const fillMissingPositions = (ir: MermaidIR, prev: Positions): Positions => {
   return out;
 };
 
+const filterSubgraphFrames = (ir: MermaidIR, prev: SubgraphFrames): SubgraphFrames => {
+  const valid = new Set(ir.subgraphs.map((s) => s.id));
+  const out: SubgraphFrames = {};
+  for (const [id, frame] of Object.entries(prev)) {
+    if (valid.has(id)) out[id] = frame;
+  }
+  return out;
+};
+
+const descendantSubgraphIds = (subgraphs: IRSubgraph[], id: string): Set<string> => {
+  const out = new Set<string>([id]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const sg of subgraphs) {
+      if (sg.parent && out.has(sg.parent) && !out.has(sg.id)) {
+        out.add(sg.id);
+        changed = true;
+      }
+    }
+  }
+  return out;
+};
+
 /**
  * Create a fresh editor store. Call this once per editor instance — each Obsidian
  * Modal / view / inline-block must own its own store so several blocks in the
@@ -136,7 +175,12 @@ export const createEditorStore = (): EditorStoreApi =>
 
     const commit = (
       nextIR: MermaidIR,
-      options: { layout?: boolean; recordHistory?: boolean; positions?: Positions } = {},
+      options: {
+        layout?: boolean;
+        recordHistory?: boolean;
+        positions?: Positions;
+        subgraphFrames?: SubgraphFrames;
+      } = {},
     ) => {
       const { recordHistory = true, layout = false } = options;
       const state = get();
@@ -145,6 +189,10 @@ export const createEditorStore = (): EditorStoreApi =>
       merged.positions = layout
         ? computeLayout(merged.nodes, merged.edges, merged.subgraphs, merged.direction)
         : fillMissingPositions(merged, prevPositions);
+      merged.subgraphFrames = filterSubgraphFrames(
+        merged,
+        options.subgraphFrames ?? state.ir.subgraphFrames,
+      );
       const text = project(merged);
       set({
         ir: merged,
@@ -265,10 +313,57 @@ export const createEditorStore = (): EditorStoreApi =>
         if (opts?.recordHistory) {
           const nextIR = cloneIR(cur);
           nextIR.positions = positions;
+          for (const update of opts.subgraphs ?? []) {
+            const node = nextIR.nodes.find((n) => n.id === update.id);
+            if (node) node.subgraph = update.subgraph;
+          }
           commit(nextIR, { positions });
           return;
         }
         const nextIR = { ...cur, positions };
+        set({ ir: nextIR, text: project(nextIR) });
+      },
+
+      moveSubgraph: (id, delta, frame, opts) => {
+        const cur = get().ir;
+        if (!cur.subgraphs.some((s) => s.id === id)) return;
+        const subgraphIds = descendantSubgraphIds(cur.subgraphs, id);
+        const positions = { ...cur.positions };
+        for (const node of cur.nodes) {
+          if (node.subgraph && subgraphIds.has(node.subgraph)) {
+            const p = positions[node.id] ?? { x: 0, y: 0 };
+            positions[node.id] = { x: p.x + delta.x, y: p.y + delta.y };
+          }
+        }
+        const subgraphFrames = { ...cur.subgraphFrames, [id]: frame };
+        for (const sg of cur.subgraphs) {
+          if (sg.id === id || !subgraphIds.has(sg.id)) continue;
+          const child = subgraphFrames[sg.id];
+          if (child) {
+            subgraphFrames[sg.id] = {
+              ...child,
+              x: child.x + delta.x,
+              y: child.y + delta.y,
+            };
+          }
+        }
+        const nextIR = { ...cur, positions, subgraphFrames };
+        if (opts?.recordHistory) {
+          commit(cloneIR(nextIR), { positions, subgraphFrames });
+          return;
+        }
+        set({ ir: nextIR, text: project(nextIR) });
+      },
+
+      resizeSubgraph: (id, frame, opts) => {
+        const cur = get().ir;
+        if (!cur.subgraphs.some((s) => s.id === id)) return;
+        const subgraphFrames = { ...cur.subgraphFrames, [id]: frame };
+        const nextIR = { ...cur, subgraphFrames };
+        if (opts?.recordHistory) {
+          commit(cloneIR(nextIR), { subgraphFrames });
+          return;
+        }
         set({ ir: nextIR, text: project(nextIR) });
       },
 
@@ -322,10 +417,17 @@ export const createEditorStore = (): EditorStoreApi =>
         cur.subgraphs = cur.subgraphs.filter((s) => s.id !== id);
         for (const n of cur.nodes) if (n.subgraph === id) n.subgraph = null;
         for (const s of cur.subgraphs) if (s.parent === id) s.parent = null;
+        delete cur.subgraphFrames[id];
         commit(cur);
       },
 
       setSelection: (sel) => set({ selection: sel }),
+
+      setSavePositions: (save) => {
+        const cur = get().ir;
+        const nextIR = { ...cur, savePositions: save };
+        set({ ir: nextIR, text: project(nextIR) });
+      },
 
       autoLayout: () => {
         if (!ensureTextCommitted()) return;

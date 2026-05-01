@@ -75,7 +75,7 @@ export const generateMermaid = (ir: MermaidIR, opts: RenderOptions = {}): string
   }
 
   const isBare = (n: IRNode) =>
-    n.shape === "rect" && n.label === n.id && edgeNodeIds.has(n.id);
+    n.subgraph == null && n.shape === "rect" && n.label === n.id && edgeNodeIds.has(n.id);
 
   // Group nodes by subgraph.
   const nodesBySg = new Map<string | null, IRNode[]>();
