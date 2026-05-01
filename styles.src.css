@@ -365,78 +365,70 @@ body.mge-text-pane-resizing * {
   font-size: 12px;
 }
 .mge-edit-btn {
-  background: var(--mge-brand, #2b245c);
+  background: var(--mge-brand);
   color: #fff;
   border: none;
-  padding: 3px 10px;
-  font-size: 11px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
   border-radius: 4px;
   cursor: pointer;
-  opacity: 0.55;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  transition: opacity 0.12s;
-  z-index: 2;
+  transition: background 0.1s, opacity 0.1s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
-.mge-edit-btn--preview {
-  background: linear-gradient(180deg, #322b6a 0%, #241f52 100%);
-  box-shadow: 0 2px 7px rgba(18, 15, 44, 0.28);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 4px 11px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  min-width: 72px;
+.mge-edit-btn:hover {
+  background: color-mix(in srgb, var(--mge-brand) 85%, white);
+  opacity: 1;
 }
+.mge-edit-btn:active {
+  background: color-mix(in srgb, var(--mge-brand) 85%, black);
+}
+
+/* 1. Preview Mode (Reading View) */
 .mge-block .mge-edit-btn {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 8px;
+  right: 8px;
+  opacity: 0; /* Show on hover */
 }
-.mge-cm-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 8;
-}
-.mge-cm-edit-slot {
-  position: absolute;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: flex-end;
-  padding: 0 var(--mge-cm-edit-gap, 6px) 0 6px;
-  pointer-events: none;
-  box-sizing: border-box;
-}
-.mge-cm-edit-slot .mge-edit-btn {
-  position: static;
-  pointer-events: auto;
-}
-.mge-block:hover .mge-edit-btn,
-.mge-edit-btn:hover,
-.mge-edit-btn:focus {
+.mge-block:hover .mge-edit-btn {
   opacity: 1;
 }
 
-.mge-cm-edit-widget {
+/* 2. Live Preview (Header-like overlay) */
+.mge-cm-live-preview-btn {
+  position: absolute;
+  top: 8px;
+  right: 80px; /* Further left to avoid overlapping with Obsidian's source switch button */
+  z-index: 10;
+  background: var(--mge-brand) !important; /* Force Fortience Blue */
+  color: #fff !important;
+}
+
+/* 3. Source Mode (Inline Widget) */
+.mge-cm-source-widget {
   display: inline-flex;
-  margin-left: 8px;
+  margin-left: 12px;
   vertical-align: middle;
 }
-.mge-cm-edit-btn {
-  border: 1px solid var(--background-modifier-border, #d6d6df);
-  border-radius: 4px;
-  background: var(--background-secondary, #ffffff);
-  color: var(--text-muted, #6b6b7b);
-  font: inherit;
+.mge-cm-source-btn {
+  background: var(--mge-brand);
+  color: #fff;
+  border: none;
   font-size: 11px;
-  line-height: 1.2;
-  padding: 2px 7px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-weight: 600;
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  transition: opacity 0.1s;
 }
-.mge-cm-edit-btn:hover,
-.mge-cm-edit-btn:focus {
-  border-color: var(--interactive-accent, #2b245c);
-  color: var(--text-normal, #1f1f2e);
+.mge-cm-source-btn:hover {
+  opacity: 0.85;
 }
 
 /* ---------- Modal ----------

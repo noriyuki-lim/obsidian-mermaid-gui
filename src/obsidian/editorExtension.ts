@@ -104,10 +104,10 @@ class MermaidSourceWidget extends WidgetType {
 
   toDOM(view: EditorView): HTMLElement {
     const wrap = document.createElement("span");
-    wrap.className = "mge-cm-edit-widget";
+    wrap.className = "mge-cm-source-widget";
 
     const button = document.createElement("button");
-    button.className = "mge-cm-edit-btn";
+    button.className = "mge-cm-source-btn";
     button.type = "button";
     button.textContent = "Edit Mermaid GUI";
     button.setAttribute("aria-label", "Edit Mermaid block in GUI");
@@ -164,28 +164,23 @@ class MermaidEditorButtonPlugin {
     const livePreview = this.isLivePreview();
     this.view.requestMeasure({
       read: () => {
+        if (!livePreview) return [];
         const rootRect = this.view.dom.getBoundingClientRect();
         const positions: PositionedBlock[] = [];
 
         for (const block of collectMermaidBlocks(this.view.state.doc)) {
-          let left = Infinity;
-          let right = -Infinity;
           let top = Infinity;
-          for (let lineNo = block.lineStart + 1; lineNo <= block.lineEnd + 1; lineNo++) {
-            const line = this.view.state.doc.line(lineNo);
-            const start = this.view.coordsAtPos(line.from);
-            const end = this.view.coordsAtPos(line.to);
-            if (!start || !end) continue;
-            left = Math.min(left, start.left);
-            right = Math.max(right, end.right);
-            top = Math.min(top, start.top);
-          }
-          if (!Number.isFinite(left) || !Number.isFinite(right) || !Number.isFinite(top)) continue;
+          // Find the top position of the first line of the block
+          const line = this.view.state.doc.line(block.lineStart + 1);
+          const coords = this.view.coordsAtPos(line.from);
+          if (coords) top = coords.top;
+          
+          if (!Number.isFinite(top)) continue;
           positions.push({
             block,
-            left: left - rootRect.left,
-            width: Math.max(0, right - left),
-            top: top - rootRect.top + 6,
+            left: 0, // Not used for fixed right alignment
+            width: 0,
+            top: top - rootRect.top,
           });
         }
 
@@ -193,19 +188,13 @@ class MermaidEditorButtonPlugin {
       },
       write: (positions: PositionedBlock[]) => {
         this.overlay.replaceChildren();
-        for (const { block, left, width, top } of positions) {
-          const slot = document.createElement("div");
-          slot.className = "mge-cm-edit-slot";
-          slot.style.left = `${Math.max(0, left)}px`;
-          slot.style.width = `${Math.max(0, width)}px`;
-          slot.style.top = `${Math.max(0, top)}px`;
-          slot.style.setProperty("--mge-cm-edit-gap", livePreview ? "44px" : "6px");
-
+        for (const { block, top } of positions) {
           const button = document.createElement("button");
-          button.className = "mge-edit-btn mge-edit-btn--preview";
+          button.className = "mge-edit-btn mge-cm-live-preview-btn";
           button.type = "button";
-          button.textContent = livePreview ? "Edit" : "Edit Mermaid GUI";
+          button.textContent = "Edit";
           button.setAttribute("aria-label", "Edit Mermaid block in GUI");
+          button.style.top = `${Math.max(0, top + 6)}px`;
           button.addEventListener("mousedown", (ev) => ev.preventDefault());
           button.addEventListener("click", (ev) => {
             ev.preventDefault();
@@ -213,8 +202,7 @@ class MermaidEditorButtonPlugin {
             openEditorFromView(this.plugin, this.view, block);
           });
 
-          slot.appendChild(button);
-          this.overlay.appendChild(slot);
+          this.overlay.appendChild(button);
         }
       },
     });
