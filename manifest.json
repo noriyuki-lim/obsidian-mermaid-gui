@@ -1,0 +1,9 @@
+{
+  "id": "mermaid-gui-obsidian",
+  "name": "Mermaid GUI",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Edit Mermaid flowcharts in your notes with a GUI editor — saves back as plain Mermaid text and remembers node positions.",
+  "author": "Mermaid GUI Editor",
+  "isDesktopOnly": true
+}
