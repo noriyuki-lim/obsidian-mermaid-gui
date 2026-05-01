@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import {
   ReactFlow,
   Background,
@@ -8,6 +8,7 @@ import {
   ConnectionMode,
   type Connection,
   type EdgeChange,
+  type HandleType,
   type NodeChange,
   type OnReconnect,
   type ReactFlowInstance,
@@ -19,7 +20,13 @@ import { SubgraphNode } from "./SubgraphNode";
 import type { NodeShape } from "../../core/ir-types";
 import { irToFlow, isSubgraphFlowId, type FlowEdge, type FlowNode } from "../adapter";
 import type { EdgeHandleId } from "../../core/ir-types";
-import { findEdgeForHandleUpdate } from "./edgeActions";
+import {
+  findEdgeForHandleUpdate,
+  normalizeNewConnection,
+  normalizeReconnect,
+  type ConnectStart,
+  type ReconnectMovingSide,
+} from "./edgeActions";
 
 const nodeTypes = { shape: ShapeNode, subgraph: SubgraphNode };
 
@@ -39,6 +46,8 @@ export const FlowCanvas = () => {
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const flowInstance = useRef<ReactFlowInstance<FlowNode, FlowEdge> | null>(null);
+  const connectStart = useRef<ConnectStart | null>(null);
+  const reconnectMovingSide = useRef<ReconnectMovingSide | null>(null);
 
   const projection = useMemo(() => irToFlow(ir, ir.positions), [ir]);
 
@@ -114,23 +123,24 @@ export const FlowCanvas = () => {
 
   const onConnect = useCallback(
     (c: Connection) => {
-      if (!c.source || !c.target) return;
-      const handles = {
-        sourceHandle: edgeHandleOrUndefined(c.sourceHandle),
-        targetHandle: edgeHandleOrUndefined(c.targetHandle),
-      };
+      const normalized = normalizeNewConnection(c, connectStart.current);
+      connectStart.current = null;
+      if (!normalized) return;
       const state = storeApi.getState();
       const edgeToUpdate = findEdgeForHandleUpdate(
         state.ir.edges,
         state.selection,
-        c.source,
-        c.target,
+        normalized.source,
+        normalized.target,
       );
       if (edgeToUpdate) {
-        updateEdge(edgeToUpdate.id, handles);
+        updateEdge(edgeToUpdate.id, normalized);
         return;
       }
-      addEdge(c.source, c.target, handles);
+      addEdge(normalized.source, normalized.target, {
+        sourceHandle: edgeHandleOrUndefined(normalized.sourceHandle),
+        targetHandle: edgeHandleOrUndefined(normalized.targetHandle),
+      });
     },
     [addEdge, storeApi, updateEdge],
   );
@@ -141,15 +151,22 @@ export const FlowCanvas = () => {
 
   const onReconnect = useCallback<OnReconnect<FlowEdge>>(
     (oldEdge, c) => {
-      if (!c.source || !c.target) return;
-      updateEdge(oldEdge.id, {
-        source: c.source,
-        target: c.target,
-        sourceHandle: edgeHandleOrUndefined(c.sourceHandle),
-        targetHandle: edgeHandleOrUndefined(c.targetHandle),
-      });
+      const irEdge = storeApi.getState().ir.edges.find((edge) => edge.id === oldEdge.id);
+      if (!irEdge) return;
+      const normalized = normalizeReconnect(irEdge, c, reconnectMovingSide.current);
+      reconnectMovingSide.current = null;
+      if (!normalized) return;
+      updateEdge(oldEdge.id, normalized);
     },
-    [updateEdge],
+    [storeApi, updateEdge],
+  );
+
+  const onReconnectStart = useCallback(
+    (_: ReactMouseEvent<Element>, edge: FlowEdge, fixedSide: HandleType) => {
+      setSelection({ nodeIds: [], edgeIds: [edge.id] });
+      reconnectMovingSide.current = fixedSide === "target" ? "source" : "target";
+    },
+    [setSelection],
   );
 
   const onDragOver = useCallback((e: React.DragEvent) => {
@@ -180,8 +197,24 @@ export const FlowCanvas = () => {
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onConnectStart={(_, params) => {
+          connectStart.current = params.nodeId
+            ? {
+                nodeId: params.nodeId,
+                handleId: params.handleId,
+                handleType: params.handleType,
+              }
+            : null;
+        }}
+        onConnectEnd={() => {
+          connectStart.current = null;
+        }}
         onConnect={onConnect}
         onReconnect={onReconnect}
+        onReconnectStart={onReconnectStart}
+        onReconnectEnd={() => {
+          reconnectMovingSide.current = null;
+        }}
         onNodeDoubleClick={(_, node) => {
           if (!isSubgraphFlowId(node.id)) {
             setSelection({ nodeIds: [node.id], edgeIds: [] });
