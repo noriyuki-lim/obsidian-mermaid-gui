@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PALETTE_SHAPES, SHAPE_BY_KEY } from "../../core/shapes";
 import type { EdgeHead, EdgeStyle, NodeShape } from "../../core/ir-types";
 import { useEditorStore } from "../EditorContext";
@@ -8,6 +8,7 @@ export const PropertyPanel = () => {
   const selection = useEditorStore((s) => s.selection);
   const updateNode = useEditorStore((s) => s.updateNode);
   const updateEdge = useEditorStore((s) => s.updateEdge);
+  const removeSelection = useEditorStore((s) => s.removeSelection);
   const recordHistorySnapshot = useEditorStore((s) => s.recordHistorySnapshot);
 
   const node =
@@ -19,6 +20,18 @@ export const PropertyPanel = () => {
      entry. We commit to history once on blur. */
   const [nodeLabel, setNodeLabel] = useState<string>(node?.label ?? "");
   const [edgeLabel, setEdgeLabel] = useState<string>(edge?.label ?? "");
+  const labelInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const onFocusLabel = () => {
+      window.setTimeout(() => {
+        labelInputRef.current?.focus();
+        labelInputRef.current?.select();
+      }, 0);
+    };
+    window.addEventListener("mge:focus-label-editor", onFocusLabel);
+    return () => window.removeEventListener("mge:focus-label-editor", onFocusLabel);
+  }, []);
 
   useEffect(() => {
     setNodeLabel(node?.label ?? "");
@@ -44,6 +57,7 @@ export const PropertyPanel = () => {
         <div className="mge-prop-field">
           <label>Label</label>
           <input
+            ref={labelInputRef}
             value={nodeLabel}
             onChange={(e) => {
               const v = e.target.value;
@@ -82,6 +96,13 @@ export const PropertyPanel = () => {
             ))}
           </select>
         </div>
+        <button
+          className="mge-danger-btn"
+          type="button"
+          onClick={() => removeSelection({ nodeIds: [node.id], edgeIds: [] })}
+        >
+          Delete node
+        </button>
       </aside>
     );
   }
@@ -93,6 +114,7 @@ export const PropertyPanel = () => {
         <div className="mge-prop-field">
           <label>Label</label>
           <input
+            ref={labelInputRef}
             value={edgeLabel}
             onChange={(e) => {
               const v = e.target.value;
@@ -123,6 +145,13 @@ export const PropertyPanel = () => {
             <option value="none">None</option>
           </select>
         </div>
+        <button
+          className="mge-danger-btn"
+          type="button"
+          onClick={() => removeSelection({ nodeIds: [], edgeIds: [edge.id] })}
+        >
+          Delete edge
+        </button>
       </aside>
     );
   }

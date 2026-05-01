@@ -19,6 +19,7 @@ import { SubgraphNode } from "./SubgraphNode";
 import type { NodeShape } from "../../core/ir-types";
 import { irToFlow, isSubgraphFlowId, type FlowEdge, type FlowNode } from "../adapter";
 import type { EdgeHandleId } from "../../core/ir-types";
+import { findEdgeForHandleUpdate } from "./edgeActions";
 
 const nodeTypes = { shape: ShapeNode, subgraph: SubgraphNode };
 
@@ -113,15 +114,30 @@ export const FlowCanvas = () => {
 
   const onConnect = useCallback(
     (c: Connection) => {
-      if (c.source && c.target) {
-        addEdge(c.source, c.target, {
-          sourceHandle: edgeHandleOrUndefined(c.sourceHandle),
-          targetHandle: edgeHandleOrUndefined(c.targetHandle),
-        });
+      if (!c.source || !c.target) return;
+      const handles = {
+        sourceHandle: edgeHandleOrUndefined(c.sourceHandle),
+        targetHandle: edgeHandleOrUndefined(c.targetHandle),
+      };
+      const state = storeApi.getState();
+      const edgeToUpdate = findEdgeForHandleUpdate(
+        state.ir.edges,
+        state.selection,
+        c.source,
+        c.target,
+      );
+      if (edgeToUpdate) {
+        updateEdge(edgeToUpdate.id, handles);
+        return;
       }
+      addEdge(c.source, c.target, handles);
     },
-    [addEdge],
+    [addEdge, storeApi, updateEdge],
   );
+
+  const focusLabelEditor = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("mge:focus-label-editor"));
+  }, []);
 
   const onReconnect = useCallback<OnReconnect<FlowEdge>>(
     (oldEdge, c) => {
@@ -166,6 +182,16 @@ export const FlowCanvas = () => {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onReconnect={onReconnect}
+        onNodeDoubleClick={(_, node) => {
+          if (!isSubgraphFlowId(node.id)) {
+            setSelection({ nodeIds: [node.id], edgeIds: [] });
+            focusLabelEditor();
+          }
+        }}
+        onEdgeDoubleClick={(_, edge) => {
+          setSelection({ nodeIds: [], edgeIds: [edge.id] });
+          focusLabelEditor();
+        }}
         edgesReconnectable
         connectionMode={ConnectionMode.Loose}
         onInit={(inst) => {

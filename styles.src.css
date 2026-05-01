@@ -184,6 +184,18 @@ body.mge-dragging .mge-toolbar { cursor: grabbing !important; }
   outline-offset: -1px;
   border-color: var(--mge-brand);
 }
+.mge-danger-btn {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--mge-error);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--mge-error) 8%, var(--mge-surface));
+  color: var(--mge-error);
+  cursor: pointer;
+}
+.mge-danger-btn:hover {
+  background: color-mix(in srgb, var(--mge-error) 14%, var(--mge-surface));
+}
 
 /* ---------- Text pane ---------- */
 .mge-text-pane {
