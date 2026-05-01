@@ -11,6 +11,7 @@ export const GUI_VERSION = 2;
 const POS_PREFIX = "%% gui:positions";
 const EDGES_PREFIX = "%% gui:edges";
 const META_PREFIX = "%% gui:meta";
+const FLOW_HEADER_RE = /^\s*(graph|flowchart)\s+(TD|TB|LR|RL|BT)\b/;
 
 type EdgeHandleEntry = {
   sourceHandle?: EdgeHandleId;
@@ -29,6 +30,27 @@ const tryParseJson = <T,>(raw: string): T | null => {
   } catch {
     return null;
   }
+};
+
+const isGuiMetadataLine = (line: string): boolean => {
+  const trimmed = line.trim();
+  return (
+    trimmed.startsWith(POS_PREFIX) ||
+    trimmed.startsWith(EDGES_PREFIX) ||
+    trimmed.startsWith(META_PREFIX)
+  );
+};
+
+const stripGuiMetadataLines = (source: string): string =>
+  source
+    .split(/\r?\n/)
+    .filter((line) => !isGuiMetadataLine(line))
+    .join("\n");
+
+const trimBeforeFlowHeader = (source: string): string => {
+  const lines = source.split(/\r?\n/);
+  const headerIdx = lines.findIndex((line) => FLOW_HEADER_RE.test(line));
+  return headerIdx >= 0 ? lines.slice(headerIdx).join("\n") : source;
 };
 
 const isEdgeHandleId = (value: unknown): value is EdgeHandleId =>
@@ -150,7 +172,7 @@ const formatEdgeHandles = (ir: MermaidIR): string | null => {
 export const encodeBlock = (ir: MermaidIR): string => {
   const text = generateMermaid(ir);
   const lines = text.split("\n");
-  const headerIdx = lines.findIndex((l) => /^\s*(graph|flowchart)\s+(TD|TB|LR|RL|BT)\b/.test(l));
+  const headerIdx = lines.findIndex((l) => FLOW_HEADER_RE.test(l));
   const edgeHandles = formatEdgeHandles(ir);
   const insertion = [
     `${POS_PREFIX} ${formatPositions(ir)}`,
@@ -170,6 +192,6 @@ export const encodeBlock = (ir: MermaidIR): string => {
 
 export const stripGuiMetadata = (source: string): string => {
   const decoded = decodeBlock(source);
-  if (!decoded.parse.ok) return source;
+  if (!decoded.parse.ok) return trimBeforeFlowHeader(stripGuiMetadataLines(source));
   return generateMermaid(decoded.parse.ir);
 };

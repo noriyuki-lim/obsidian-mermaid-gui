@@ -108,4 +108,19 @@ describe("positions-codec", () => {
       targetHandle: "t-left",
     });
   });
+
+  it("returns renderable text from the flowchart header when parse fallback is needed", () => {
+    const source = `Original:
+%% gui:positions {"A":[0,0]}
+%% gui:edges [{"sourceHandle":"s-right","targetHandle":"t-left"}]
+flowchart TD
+  A[Start] --> B[End]
+  unsupported @@@
+`;
+    const stripped = stripGuiMetadata(source);
+    expect(stripped.startsWith("flowchart TD")).toBe(true);
+    expect(stripped).not.toContain("gui:positions");
+    expect(stripped).not.toContain("gui:edges");
+    expect(stripped).not.toContain("Original:");
+  });
 });
