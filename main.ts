@@ -1,5 +1,6 @@
 import { Editor, MarkdownFileInfo, MarkdownView, Notice, Plugin } from "obsidian";
 import { mountMermaidBlock } from "./src/obsidian/postProcessor";
+import { createMermaidEditorExtension } from "./src/obsidian/editorExtension";
 import {
   findMermaidBlockAtCursor,
   openModalForBlock,
@@ -12,6 +13,7 @@ export default class MermaidGuiPlugin extends Plugin {
     this.registerMarkdownCodeBlockProcessor("mermaid", (source, el, ctx) => {
       mountMermaidBlock(this, source, el, ctx);
     });
+    this.registerEditorExtension(createMermaidEditorExtension(this));
 
     this.addCommand({
       id: "edit-current-mermaid",
