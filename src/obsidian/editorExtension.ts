@@ -107,9 +107,9 @@ class MermaidSourceWidget extends WidgetType {
     wrap.className = "mge-cm-source-widget";
 
     const button = document.createElement("button");
-    button.className = "mge-cm-source-btn";
+    button.className = "mge-edit-btn"; // Use the common class
     button.type = "button";
-    button.textContent = "Edit Mermaid GUI";
+    button.textContent = "Edit"; // Consistent text
     button.setAttribute("aria-label", "Edit Mermaid block in GUI");
     button.addEventListener("mousedown", (ev) => ev.preventDefault());
     button.addEventListener("click", (ev) => {
