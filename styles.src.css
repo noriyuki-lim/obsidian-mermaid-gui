@@ -181,12 +181,6 @@ body.mge-dragging .mge-toolbar { cursor: grabbing !important; }
   fill: var(--mge-edge-label-text);
   font-weight: 600;
 }
-.mge-canvas .react-flow__edgeupdater {
-  cursor: grab;
-}
-.mge-canvas .react-flow__edgeupdater:active {
-  cursor: grabbing;
-}
 
 /* ---------- Property panel ---------- */
 .mge-prop-panel {

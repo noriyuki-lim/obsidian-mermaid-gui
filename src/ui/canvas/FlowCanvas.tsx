@@ -35,7 +35,6 @@ import {
 } from "./edgeActions";
 
 const nodeTypes = { shape: ShapeNode, subgraph: SubgraphNode };
-const EDGE_RECONNECT_RADIUS = 4;
 
 const edgeHandleOrUndefined = (handle: string | null | undefined): EdgeHandleId | undefined =>
   handle ? (handle as EdgeHandleId) : undefined;
@@ -334,7 +333,6 @@ export const FlowCanvas = () => {
           setSelection({ nodeIds: [], edgeIds: [edge.id], subgraphIds: [] });
         }}
         edgesReconnectable
-        reconnectRadius={EDGE_RECONNECT_RADIUS}
         connectionMode={ConnectionMode.Loose}
         onInit={(inst) => {
           flowInstance.current = inst;
