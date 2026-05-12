@@ -41,6 +41,7 @@ const edgeHandleOrUndefined = (handle: string | null | undefined): EdgeHandleId 
 
 export const FlowCanvas = () => {
   const ir = useEditorStore((s) => s.ir);
+  const selection = useEditorStore((s) => s.selection);
   const setNodePositions = useEditorStore((s) => s.setNodePositions);
   const removeSelection = useEditorStore((s) => s.removeSelection);
   const addNode = useEditorStore((s) => s.addNode);
@@ -63,16 +64,35 @@ export const FlowCanvas = () => {
     [projection.nodes],
   );
 
+  const selectedNodes = useMemo<FlowNode[]>(() => {
+    const nodeIds = new Set(selection.nodeIds);
+    const subgraphIds = new Set(selection.subgraphIds);
+    return projection.nodes.map((node) => {
+      const subgraphId = subgraphIdFromFlowId(node.id);
+      const selected = subgraphId ? subgraphIds.has(subgraphId) : nodeIds.has(node.id);
+      return node.selected === selected ? node : { ...node, selected };
+    });
+  }, [projection.nodes, selection.nodeIds, selection.subgraphIds]);
+
   const decoratedEdges = useMemo<FlowEdge[]>(
-    () =>
-      projection.edges.map((e) => ({
-        ...e,
-        markerEnd:
-          e.data?.head === "arrow"
-            ? { type: MarkerType.ArrowClosed, color: "var(--mge-edge)" }
-            : undefined,
-      })),
-    [projection.edges],
+    () => {
+      const edgeIds = new Set(selection.edgeIds);
+      return projection.edges.map((e) => {
+        const selected = edgeIds.has(e.id);
+        return {
+          ...e,
+          selected,
+          markerEnd:
+            e.data?.head === "arrow"
+              ? {
+                  type: MarkerType.ArrowClosed,
+                  color: selected ? "var(--mge-selection)" : "var(--mge-edge)",
+                }
+              : undefined,
+        };
+      });
+    },
+    [projection.edges, selection.edgeIds],
   );
 
   const onNodesChange = useCallback(
@@ -279,7 +299,7 @@ export const FlowCanvas = () => {
   return (
     <div className="mge-canvas" ref={wrapperRef} onDragOver={onDragOver} onDrop={onDrop}>
       <ReactFlow<FlowNode, FlowEdge>
-        nodes={projection.nodes}
+        nodes={selectedNodes}
         edges={decoratedEdges}
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
@@ -342,7 +362,7 @@ export const FlowCanvas = () => {
         proOptions={{ hideAttribution: true }}
         snapToGrid
         snapGrid={[10, 10]}
-        deleteKeyCode={["Backspace", "Delete"]}
+        deleteKeyCode={null}
       >
         <Background gap={16} />
         <MiniMap pannable zoomable />

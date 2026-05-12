@@ -135,13 +135,18 @@ const newSubgraphId = (existing: Iterable<string>): string => {
 };
 
 const fillMissingPositions = (ir: MermaidIR, prev: Positions): Positions => {
-  const have = new Set(Object.keys(prev).filter((k) => ir.nodes.some((n) => n.id === k)));
+  const valid = new Set(ir.nodes.map((n) => n.id));
+  const current: Positions = {};
+  for (const [id, pos] of Object.entries(prev)) {
+    if (valid.has(id)) current[id] = pos;
+  }
+  const have = new Set(Object.keys(current));
   const need = ir.nodes.filter((n) => !have.has(n.id));
-  if (need.length === 0) return { ...prev };
+  if (need.length === 0) return current;
   const layouted = computeLayout(ir.nodes, ir.edges, ir.subgraphs, ir.direction);
   const out: Positions = {};
   for (const n of ir.nodes) {
-    out[n.id] = prev[n.id] ?? layouted[n.id] ?? { x: 0, y: 0 };
+    out[n.id] = current[n.id] ?? layouted[n.id] ?? { x: 0, y: 0 };
   }
   return out;
 };
@@ -302,6 +307,11 @@ export const createEditorStore = (): EditorStoreApi =>
         const removeNodes = new Set(nodeIds);
         const removeEdges = new Set(edgeIds);
         const removeSubgraphs = new Set(subgraphIds);
+        for (const edge of cur.edges) {
+          if (removeNodes.has(edge.source) || removeNodes.has(edge.target)) {
+            removeEdges.add(edge.id);
+          }
+        }
         cur.nodes = cur.nodes.filter((n) => !removeNodes.has(n.id));
         cur.edges = cur.edges.filter(
           (e) => !removeEdges.has(e.id) && !removeNodes.has(e.source) && !removeNodes.has(e.target),

@@ -171,6 +171,8 @@ body.mge-dragging .mge-toolbar { cursor: grabbing !important; }
 .mge-canvas .react-flow__edge.selectable:focus .react-flow__edge-path,
 .mge-canvas .react-flow__edge.selectable:focus-visible .react-flow__edge-path {
   stroke: var(--mge-selection);
+  stroke-width: 2.25px;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--mge-selection) 28%, transparent));
 }
 .mge-canvas .react-flow__edge-textbg {
   fill: var(--mge-edge-label-bg);
@@ -322,6 +324,7 @@ body.mge-text-pane-resizing * {
   cursor: grab;
   pointer-events: auto;
   user-select: none;
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 .mge-subgraph-node:active { cursor: grabbing; }
 .mge-subgraph-node.selected {
@@ -330,6 +333,10 @@ body.mge-text-pane-resizing * {
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--mge-selection) 45%, transparent),
     0 0 0 1px color-mix(in srgb, var(--mge-selection) 30%, transparent);
+}
+.mge-subgraph-node.selected .mge-subgraph-header {
+  border-color: color-mix(in srgb, var(--mge-selection) 50%, transparent);
+  background: color-mix(in srgb, var(--mge-subgraph-header-bg) 80%, var(--mge-selection) 20%);
 }
 .mge-subgraph-node .mge-subgraph-header {
   position: absolute;
@@ -373,16 +380,27 @@ body.mge-text-pane-resizing * {
   width: 100%;
   height: 100%;
   z-index: 0;
+  transition: filter 120ms ease;
 }
-.mge-shape-node svg.mge-bg .mge-fill { fill: var(--mge-node-bg); }
+.mge-shape-node svg.mge-bg .mge-fill {
+  fill: var(--mge-node-bg);
+  transition: fill 120ms ease;
+}
 .mge-shape-node svg.mge-bg .mge-stroke {
   fill: none;
   stroke: var(--mge-node-border);
   stroke-width: 1.5;
+  transition: stroke 120ms ease, stroke-width 120ms ease;
+}
+.mge-shape-node.selected svg.mge-bg {
+  filter: drop-shadow(0 1px 4px color-mix(in srgb, var(--mge-selection) 24%, transparent));
+}
+.mge-shape-node.selected svg.mge-bg .mge-fill {
+  fill: color-mix(in srgb, var(--mge-node-bg) 90%, var(--mge-selection) 10%);
 }
 .mge-shape-node.selected svg.mge-bg .mge-stroke {
   stroke: var(--mge-selection);
-  stroke-width: 2.5;
+  stroke-width: 2.25;
 }
 .mge-canvas .react-flow__handle {
   width: 8px;

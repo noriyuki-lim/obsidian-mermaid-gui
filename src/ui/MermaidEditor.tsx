@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { createEditorStore } from "../core/store-factory";
 import { decodeBlock, encodeBlock } from "../core/positions-codec";
@@ -8,6 +15,7 @@ import { PropertyPanel } from "./panels/PropertyPanel";
 import { TextPane } from "./panels/TextPane";
 import { FlowCanvas } from "./canvas/FlowCanvas";
 import { EditorStoreProvider } from "./EditorContext";
+import { isEditableShortcutTarget, shouldRemoveSelectionFromKey } from "./keyboard";
 
 interface Props {
   /** Raw text from inside ```mermaid fences (without the fences themselves). */
@@ -59,10 +67,14 @@ export const MermaidEditor = ({
     const root = shellRef.current;
     if (!root) return;
     const onKey = (e: KeyboardEvent) => {
+      if (shouldRemoveSelectionFromKey(e)) {
+        e.preventDefault();
+        storeApi.getState().removeSelection();
+        return;
+      }
       const mod = e.ctrlKey || e.metaKey;
       if (!mod) return;
-      const tag = (e.target as HTMLElement | null)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (isEditableShortcutTarget(e.target)) return;
       if (e.key === "z" && !e.shiftKey) {
         e.preventDefault();
         storeApi.getState().undo();
@@ -74,6 +86,11 @@ export const MermaidEditor = ({
     root.addEventListener("keydown", onKey);
     return () => root.removeEventListener("keydown", onKey);
   }, [storeApi]);
+
+  const focusShell = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
+    if (isEditableShortcutTarget(e.target)) return;
+    shellRef.current?.focus({ preventScroll: true });
+  }, []);
 
   const handleSave = useCallback(async () => {
     if (saving) return;
@@ -105,7 +122,12 @@ export const MermaidEditor = ({
   return (
     <EditorStoreProvider store={storeApi}>
       <ReactFlowProvider>
-        <div className="mge-app-shell" ref={shellRef} tabIndex={-1}>
+        <div
+          className="mge-app-shell"
+          ref={shellRef}
+          tabIndex={-1}
+          onMouseDownCapture={focusShell}
+        >
           <Toolbar
             onSave={handleSave}
             onCancel={onCancel}

@@ -41,4 +41,45 @@ describe("subgraph editing store commands", () => {
     expect(state.ir.nodes.find((n) => n.id === "A")?.subgraph).toBeNull();
     expect(state.ir.subgraphFrames.S1).toBeUndefined();
   });
+
+  it("removes selected nodes with incident edges and saved positions", () => {
+    const store = createEditorStore();
+    store.getState().applyIR(groupedIR(), { recordHistory: false });
+    store.getState().setSelection({ nodeIds: ["A"], edgeIds: [], subgraphIds: [] });
+
+    store.getState().removeSelection();
+
+    const state = store.getState();
+    expect(state.ir.nodes.map((n) => n.id)).toEqual(["B"]);
+    expect(state.ir.edges).toEqual([]);
+    expect(state.ir.positions.A).toBeUndefined();
+    expect(state.selection).toEqual({ nodeIds: [], edgeIds: [], subgraphIds: [] });
+  });
+
+  it("removes selected edges without removing their nodes", () => {
+    const store = createEditorStore();
+    store.getState().applyIR(groupedIR(), { recordHistory: false });
+    store.getState().setSelection({ nodeIds: [], edgeIds: ["e1"], subgraphIds: [] });
+
+    store.getState().removeSelection();
+
+    const state = store.getState();
+    expect(state.ir.nodes.map((n) => n.id)).toEqual(["A", "B"]);
+    expect(state.ir.edges).toEqual([]);
+    expect(state.selection).toEqual({ nodeIds: [], edgeIds: [], subgraphIds: [] });
+  });
+
+  it("clears selected edges removed as a side effect of node deletion", () => {
+    const store = createEditorStore();
+    store.getState().applyIR(groupedIR(), { recordHistory: false });
+    store.getState().setSelection({ nodeIds: [], edgeIds: ["e1"], subgraphIds: [] });
+
+    store
+      .getState()
+      .removeSelection({ nodeIds: ["A"], edgeIds: [], subgraphIds: [] });
+
+    const state = store.getState();
+    expect(state.ir.edges).toEqual([]);
+    expect(state.selection.edgeIds).toEqual([]);
+  });
 });
