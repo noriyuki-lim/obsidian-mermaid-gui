@@ -35,6 +35,7 @@ import {
 } from "./edgeActions";
 
 const nodeTypes = { shape: ShapeNode, subgraph: SubgraphNode };
+const EDGE_RECONNECT_RADIUS = 4;
 
 const edgeHandleOrUndefined = (handle: string | null | undefined): EdgeHandleId | undefined =>
   handle ? (handle as EdgeHandleId) : undefined;
@@ -48,6 +49,8 @@ export const FlowCanvas = () => {
   const addEdge = useEditorStore((s) => s.addEdge);
   const updateEdge = useEditorStore((s) => s.updateEdge);
   const setSelection = useEditorStore((s) => s.setSelection);
+  const moveSubgraph = useEditorStore((s) => s.moveSubgraph);
+  const recordHistorySnapshot = useEditorStore((s) => s.recordHistorySnapshot);
   const storeApi = useEditorStoreApi();
 
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -67,7 +70,7 @@ export const FlowCanvas = () => {
         ...e,
         markerEnd:
           e.data?.head === "arrow"
-            ? { type: MarkerType.ArrowClosed, color: "#444" }
+            ? { type: MarkerType.ArrowClosed, color: "var(--mge-edge)" }
             : undefined,
       })),
     [projection.edges],
@@ -77,7 +80,9 @@ export const FlowCanvas = () => {
     (changes: NodeChange<FlowNode>[]) => {
       const positionChanges: Array<{ id: string; pos: { x: number; y: number } }> = [];
       const removalIds: string[] = [];
+      const subgraphRemovalIds: string[] = [];
       const selectionUpdates: Array<{ id: string; selected: boolean }> = [];
+      const subgraphSelectionUpdates: Array<{ id: string; selected: boolean }> = [];
       const membershipUpdates: Array<{ id: string; subgraph: string | null }> = [];
       const subgraphAt = (pos: { x: number; y: number }): string | null => {
         const center = { x: pos.x + 80, y: pos.y + 30 };
@@ -102,7 +107,28 @@ export const FlowCanvas = () => {
         const changeId = "id" in c ? c.id : null;
         const subgraphId = changeId ? subgraphIdFromFlowId(changeId) : null;
         if (subgraphId) {
-          if (c.type === "select") setSelection({ nodeIds: [], edgeIds: [] });
+          if (c.type === "position" && c.position) {
+            const current = subgraphFlowById.get(c.id);
+            if (!current) continue;
+            const width = typeof current.style?.width === "number" ? current.style.width : 200;
+            const height = typeof current.style?.height === "number" ? current.style.height : 100;
+            const delta = {
+              x: c.position.x - current.position.x,
+              y: c.position.y - current.position.y,
+            };
+            if (delta.x !== 0 || delta.y !== 0) {
+              moveSubgraph(
+                subgraphId,
+                delta,
+                { x: c.position.x, y: c.position.y, width, height },
+                { recordHistory: false },
+              );
+            }
+          } else if (c.type === "remove") {
+            subgraphRemovalIds.push(subgraphId);
+          } else if (c.type === "select") {
+            subgraphSelectionUpdates.push({ id: subgraphId, selected: c.selected });
+          }
           continue;
         }
         if (c.type === "position" && c.position && c.dragging === false) {
@@ -128,21 +154,30 @@ export const FlowCanvas = () => {
         });
       }
       if (removalIds.length > 0) {
-        removeSelection({ nodeIds: removalIds, edgeIds: [] });
+        removeSelection({ nodeIds: removalIds, edgeIds: [], subgraphIds: [] });
       }
-      if (selectionUpdates.length > 0) {
+      if (subgraphRemovalIds.length > 0) {
+        removeSelection({ nodeIds: [], edgeIds: [], subgraphIds: subgraphRemovalIds });
+      }
+      if (selectionUpdates.length > 0 || subgraphSelectionUpdates.length > 0) {
         const cur = storeApi.getState().selection;
         const next = new Set(cur.nodeIds);
+        const nextSubgraphs = new Set(cur.subgraphIds);
         for (const u of selectionUpdates) {
           if (u.selected) next.add(u.id);
           else next.delete(u.id);
         }
-        setSelection({ nodeIds: [...next], edgeIds: cur.edgeIds });
+        for (const u of subgraphSelectionUpdates) {
+          if (u.selected) nextSubgraphs.add(u.id);
+          else nextSubgraphs.delete(u.id);
+        }
+        setSelection({ nodeIds: [...next], edgeIds: cur.edgeIds, subgraphIds: [...nextSubgraphs] });
       }
     },
     [
       setNodePositions,
       setNodePosition,
+      moveSubgraph,
       removeSelection,
       setSelection,
       storeApi,
@@ -159,7 +194,7 @@ export const FlowCanvas = () => {
         if (c.type === "select") selectionUpdates.push({ id: c.id, selected: c.selected });
       }
       if (removed.length > 0) {
-        removeSelection({ nodeIds: [], edgeIds: removed });
+        removeSelection({ nodeIds: [], edgeIds: removed, subgraphIds: [] });
       }
       if (selectionUpdates.length > 0) {
         const cur = storeApi.getState().selection;
@@ -168,7 +203,7 @@ export const FlowCanvas = () => {
           if (u.selected) next.add(u.id);
           else next.delete(u.id);
         }
-        setSelection({ nodeIds: cur.nodeIds, edgeIds: [...next] });
+        setSelection({ nodeIds: cur.nodeIds, edgeIds: [...next], subgraphIds: cur.subgraphIds });
       }
     },
     [removeSelection, setSelection, storeApi],
@@ -216,7 +251,7 @@ export const FlowCanvas = () => {
 
   const onReconnectStart = useCallback(
     (_: ReactMouseEvent<Element>, edge: FlowEdge, fixedSide: HandleType) => {
-      setSelection({ nodeIds: [], edgeIds: [edge.id] });
+      setSelection({ nodeIds: [], edgeIds: [edge.id], subgraphIds: [] });
       reconnectMovingSide.current = fixedSide === "target" ? "source" : "target";
     },
     [setSelection],
@@ -270,23 +305,36 @@ export const FlowCanvas = () => {
         }}
         onNodeDoubleClick={(_, node) => {
           if (!isSubgraphFlowId(node.id)) {
-            setSelection({ nodeIds: [node.id], edgeIds: [] });
+            setSelection({ nodeIds: [node.id], edgeIds: [], subgraphIds: [] });
+            focusLabelEditor();
+          } else {
+            const subgraphId = subgraphIdFromFlowId(node.id);
+            if (!subgraphId) return;
+            setSelection({ nodeIds: [], edgeIds: [], subgraphIds: [subgraphId] });
             focusLabelEditor();
           }
         }}
         onNodeClick={(_, node) => {
           if (!isSubgraphFlowId(node.id)) {
-            setSelection({ nodeIds: [node.id], edgeIds: [] });
+            setSelection({ nodeIds: [node.id], edgeIds: [], subgraphIds: [] });
+          } else {
+            const subgraphId = subgraphIdFromFlowId(node.id);
+            if (!subgraphId) return;
+            setSelection({ nodeIds: [], edgeIds: [], subgraphIds: [subgraphId] });
           }
         }}
+        onNodeDragStart={(_, node) => {
+          if (isSubgraphFlowId(node.id)) recordHistorySnapshot();
+        }}
         onEdgeDoubleClick={(_, edge) => {
-          setSelection({ nodeIds: [], edgeIds: [edge.id] });
+          setSelection({ nodeIds: [], edgeIds: [edge.id], subgraphIds: [] });
           focusLabelEditor();
         }}
         onEdgeClick={(_, edge) => {
-          setSelection({ nodeIds: [], edgeIds: [edge.id] });
+          setSelection({ nodeIds: [], edgeIds: [edge.id], subgraphIds: [] });
         }}
         edgesReconnectable
+        reconnectRadius={EDGE_RECONNECT_RADIUS}
         connectionMode={ConnectionMode.Loose}
         onInit={(inst) => {
           flowInstance.current = inst;

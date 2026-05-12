@@ -22,6 +22,7 @@ export type SyncStatus =
 export interface Selection {
   nodeIds: string[];
   edgeIds: string[];
+  subgraphIds: string[];
 }
 
 /* IR projections — kept as plain shapes here; UI wraps them into ReactFlow nodes. */
@@ -53,7 +54,12 @@ export interface EditorState {
   setDirection: (d: Direction) => void;
   addNode: (shape: NodeShape, label?: string) => string;
   updateNode: (id: string, patch: Partial<IRNode>, opts?: { recordHistory?: boolean }) => void;
-  removeSelection: (targets?: { nodeIds: string[]; edgeIds: string[] }) => void;
+  updateSubgraph: (
+    id: string,
+    patch: Partial<IRSubgraph>,
+    opts?: { recordHistory?: boolean },
+  ) => void;
+  removeSelection: (targets?: { nodeIds: string[]; edgeIds: string[]; subgraphIds?: string[] }) => void;
   setNodePosition: (id: string, pos: { x: number; y: number }) => void;
   setNodePositions: (
     changes: Array<{ id: string; pos: { x: number; y: number } }>,
@@ -227,7 +233,7 @@ export const createEditorStore = (): EditorStoreApi =>
       status: { kind: "ok" },
       warnings: [],
       isTextDirty: false,
-      selection: { nodeIds: [], edgeIds: [] },
+      selection: { nodeIds: [], edgeIds: [], subgraphIds: [] },
       past: [],
       future: [],
 
@@ -275,26 +281,43 @@ export const createEditorStore = (): EditorStoreApi =>
         commit(cur, { recordHistory });
       },
 
+      updateSubgraph: (id, patch, opts) => {
+        if (!ensureTextCommitted()) return;
+        const recordHistory = opts?.recordHistory ?? true;
+        const cur = cloneIR(get().ir);
+        const subgraph = cur.subgraphs.find((s) => s.id === id);
+        if (!subgraph) return;
+        Object.assign(subgraph, patch);
+        commit(cur, { recordHistory });
+      },
+
       removeSelection: (targets) => {
         if (!ensureTextCommitted()) return;
         const { selection, ir } = get();
         const nodeIds = targets ? targets.nodeIds : selection.nodeIds;
         const edgeIds = targets ? targets.edgeIds : selection.edgeIds;
-        if (nodeIds.length === 0 && edgeIds.length === 0) return;
+        const subgraphIds = targets ? targets.subgraphIds ?? [] : selection.subgraphIds;
+        if (nodeIds.length === 0 && edgeIds.length === 0 && subgraphIds.length === 0) return;
         const cur = cloneIR(ir);
         const removeNodes = new Set(nodeIds);
         const removeEdges = new Set(edgeIds);
+        const removeSubgraphs = new Set(subgraphIds);
         cur.nodes = cur.nodes.filter((n) => !removeNodes.has(n.id));
         cur.edges = cur.edges.filter(
           (e) => !removeEdges.has(e.id) && !removeNodes.has(e.source) && !removeNodes.has(e.target),
         );
+        cur.subgraphs = cur.subgraphs.filter((s) => !removeSubgraphs.has(s.id));
+        for (const n of cur.nodes) if (n.subgraph && removeSubgraphs.has(n.subgraph)) n.subgraph = null;
+        for (const s of cur.subgraphs) if (s.parent && removeSubgraphs.has(s.parent)) s.parent = null;
         for (const id of removeNodes) delete cur.positions[id];
+        for (const id of removeSubgraphs) delete cur.subgraphFrames[id];
         commit(cur);
         const sel = get().selection;
         set({
           selection: {
             nodeIds: sel.nodeIds.filter((id) => !removeNodes.has(id)),
             edgeIds: sel.edgeIds.filter((id) => !removeEdges.has(id)),
+            subgraphIds: sel.subgraphIds.filter((id) => !removeSubgraphs.has(id)),
           },
         });
       },

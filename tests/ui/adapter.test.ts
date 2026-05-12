@@ -44,9 +44,24 @@ describe("irToFlow edge handles", () => {
     const sg = nodes.find((n) => n.id === ":sg:S1");
     expect(sg).toMatchObject({
       position: { x: 15, y: 25 },
-      draggable: false,
-      selectable: false,
+      draggable: true,
+      selectable: true,
+      deletable: true,
     });
     expect(sg?.style).toMatchObject({ width: 260, height: 150 });
+  });
+
+  it("keeps regular nodes above draggable subgraphs", () => {
+    const ir = baseIR("TD");
+    ir.nodes[0].subgraph = "S1";
+    ir.subgraphs = [{ id: "S1", label: "Group", parent: null }];
+
+    const { nodes } = irToFlow(ir, ir.positions);
+    const sg = nodes.find((n) => n.id === ":sg:S1");
+    const node = nodes.find((n) => n.id === "A");
+
+    expect(sg).toMatchObject({ draggable: true, zIndex: 0 });
+    expect(sg).not.toHaveProperty("dragHandle");
+    expect(node).toMatchObject({ zIndex: 1 });
   });
 });

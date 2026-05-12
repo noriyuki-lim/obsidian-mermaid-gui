@@ -17,21 +17,33 @@ const edge = (id: string, source = "A", target = "B"): IREdge => ({
 
 describe("findEdgeForHandleUpdate", () => {
   it("updates the only matching edge instead of creating a duplicate", () => {
-    expect(findEdgeForHandleUpdate([edge("e1")], { nodeIds: [], edgeIds: [] }, "A", "B")?.id).toBe(
-      "e1",
-    );
+    expect(
+      findEdgeForHandleUpdate(
+        [edge("e1")],
+        { nodeIds: [], edgeIds: [], subgraphIds: [] },
+        "A",
+        "B",
+      )?.id,
+    ).toBe("e1");
   });
 
   it("prefers the selected edge when parallel edges exist", () => {
     const edges = [edge("e1"), edge("e2")];
     expect(
-      findEdgeForHandleUpdate(edges, { nodeIds: [], edgeIds: ["e2"] }, "A", "B")?.id,
+      findEdgeForHandleUpdate(
+        edges,
+        { nodeIds: [], edgeIds: ["e2"], subgraphIds: [] },
+        "A",
+        "B",
+      )?.id,
     ).toBe("e2");
   });
 
   it("returns null for ambiguous unselected parallel edges", () => {
     const edges = [edge("e1"), edge("e2")];
-    expect(findEdgeForHandleUpdate(edges, { nodeIds: [], edgeIds: [] }, "A", "B")).toBeNull();
+    expect(
+      findEdgeForHandleUpdate(edges, { nodeIds: [], edgeIds: [], subgraphIds: [] }, "A", "B"),
+    ).toBeNull();
   });
 });
 

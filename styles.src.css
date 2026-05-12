@@ -22,6 +22,18 @@
   --mge-border-strong: var(--background-modifier-border-hover, #b5b5b5);
   --mge-text: var(--text-normal, #1f1f2e);
   --mge-text-muted: var(--text-muted, #6b6b7b);
+  --mge-selection: var(--interactive-accent, var(--mge-accent));
+  --mge-node-bg: color-mix(in srgb, var(--mge-surface) 96%, var(--mge-text) 4%);
+  --mge-node-text: var(--mge-text);
+  --mge-node-border: color-mix(in srgb, var(--mge-border-strong) 72%, var(--mge-text) 28%);
+  --mge-edge: color-mix(in srgb, var(--mge-text-muted) 78%, var(--mge-text) 22%);
+  --mge-edge-label-bg: color-mix(in srgb, var(--mge-surface) 94%, var(--mge-bg) 6%);
+  --mge-edge-label-border: color-mix(in srgb, var(--mge-border) 70%, transparent);
+  --mge-edge-label-text: var(--mge-text);
+  --mge-subgraph-bg: color-mix(in srgb, var(--mge-surface) 12%, transparent);
+  --mge-subgraph-border: color-mix(in srgb, var(--mge-text-muted) 70%, var(--mge-selection) 30%);
+  --mge-subgraph-header-bg: color-mix(in srgb, var(--mge-bg) 88%, var(--mge-selection) 12%);
+  --mge-subgraph-header-text: color-mix(in srgb, var(--mge-text) 80%, var(--mge-selection) 20%);
   --mge-error: #c0392b;
   --mge-warning: #c08400;
   --mge-radius: 6px;
@@ -152,6 +164,29 @@ body.mge-dragging .mge-toolbar { cursor: grabbing !important; }
   overflow: hidden;
 }
 .mge-canvas .react-flow__panel { background: transparent; }
+.mge-canvas .react-flow__edge-path {
+  stroke: var(--mge-edge);
+}
+.mge-canvas .react-flow__edge.selected .react-flow__edge-path,
+.mge-canvas .react-flow__edge.selectable:focus .react-flow__edge-path,
+.mge-canvas .react-flow__edge.selectable:focus-visible .react-flow__edge-path {
+  stroke: var(--mge-selection);
+}
+.mge-canvas .react-flow__edge-textbg {
+  fill: var(--mge-edge-label-bg);
+  stroke: var(--mge-edge-label-border);
+  stroke-width: 1px;
+}
+.mge-canvas .react-flow__edge-text {
+  fill: var(--mge-edge-label-text);
+  font-weight: 600;
+}
+.mge-canvas .react-flow__edgeupdater {
+  cursor: grab;
+}
+.mge-canvas .react-flow__edgeupdater:active {
+  cursor: grabbing;
+}
 
 /* ---------- Property panel ---------- */
 .mge-prop-panel {
@@ -286,23 +321,36 @@ body.mge-text-pane-resizing * {
   position: relative;
   width: 100%;
   height: 100%;
-  border: 1.5px dashed rgba(43, 36, 92, 0.45);
+  border: 1.5px dashed var(--mge-subgraph-border);
   border-radius: 10px;
-  background: rgba(43, 36, 92, 0.04);
-  pointer-events: none;
+  background: var(--mge-subgraph-bg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mge-subgraph-border) 24%, transparent);
+  cursor: grab;
+  pointer-events: auto;
+  user-select: none;
+}
+.mge-subgraph-node:active { cursor: grabbing; }
+.mge-subgraph-node.selected {
+  border-color: var(--mge-selection);
+  background: color-mix(in srgb, var(--mge-subgraph-bg) 70%, var(--mge-selection) 8%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--mge-selection) 45%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--mge-selection) 30%, transparent);
 }
 .mge-subgraph-node .mge-subgraph-header {
   position: absolute;
-  top: 6px;
-  left: 14px;
+  top: -10px;
+  left: 12px;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--mge-brand);
+  color: var(--mge-subgraph-header-text);
   font-weight: 600;
-  background: var(--mge-surface-alt);
-  padding: 0 6px;
-  border-radius: 3px;
+  background: var(--mge-subgraph-header-bg);
+  border: 1px solid color-mix(in srgb, var(--mge-subgraph-border) 55%, transparent);
+  padding: 1px 7px;
+  border-radius: 4px;
+  line-height: 1.4;
 }
 
 /* ---------- Shape nodes ---------- */
@@ -319,8 +367,9 @@ body.mge-text-pane-resizing * {
   z-index: 1;
   text-align: center;
   padding: 8px 14px;
-  font-weight: 500;
-  color: var(--mge-text);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--mge-node-text);
   pointer-events: none;
   word-break: break-word;
 }
@@ -331,21 +380,21 @@ body.mge-text-pane-resizing * {
   height: 100%;
   z-index: 0;
 }
-.mge-shape-node svg.mge-bg .mge-fill { fill: #ffffff; }
+.mge-shape-node svg.mge-bg .mge-fill { fill: var(--mge-node-bg); }
 .mge-shape-node svg.mge-bg .mge-stroke {
   fill: none;
-  stroke: var(--mge-border-strong);
+  stroke: var(--mge-node-border);
   stroke-width: 1.5;
 }
 .mge-shape-node.selected svg.mge-bg .mge-stroke {
-  stroke: var(--mge-brand);
+  stroke: var(--mge-selection);
   stroke-width: 2.5;
 }
 .mge-canvas .react-flow__handle {
   width: 8px;
   height: 8px;
-  background: var(--mge-brand);
-  border: 1.5px solid #fff;
+  background: var(--mge-selection);
+  border: 1.5px solid var(--mge-node-bg);
 }
 
 /* ============================================================

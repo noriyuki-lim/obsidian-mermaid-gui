@@ -8,6 +8,7 @@ export const PropertyPanel = () => {
   const selection = useEditorStore((s) => s.selection);
   const updateNode = useEditorStore((s) => s.updateNode);
   const updateEdge = useEditorStore((s) => s.updateEdge);
+  const updateSubgraph = useEditorStore((s) => s.updateSubgraph);
   const removeSelection = useEditorStore((s) => s.removeSelection);
   const recordHistorySnapshot = useEditorStore((s) => s.recordHistorySnapshot);
 
@@ -15,11 +16,16 @@ export const PropertyPanel = () => {
     selection.nodeIds.length === 1 ? ir.nodes.find((n) => n.id === selection.nodeIds[0]) : null;
   const edge =
     selection.edgeIds.length === 1 ? ir.edges.find((e) => e.id === selection.edgeIds[0]) : null;
+  const subgraph =
+    selection.subgraphIds.length === 1
+      ? ir.subgraphs.find((s) => s.id === selection.subgraphIds[0])
+      : null;
 
   /* Local mirror of label inputs so each keystroke does not produce a history
      entry. We commit to history once on blur. */
   const [nodeLabel, setNodeLabel] = useState<string>(node?.label ?? "");
   const [edgeLabel, setEdgeLabel] = useState<string>(edge?.label ?? "");
+  const [subgraphLabel, setSubgraphLabel] = useState<string>(subgraph?.label ?? subgraph?.id ?? "");
   const labelInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -41,7 +47,11 @@ export const PropertyPanel = () => {
     setEdgeLabel(edge?.label ?? "");
   }, [edge?.id, edge?.label]);
 
-  if (!node && !edge) {
+  useEffect(() => {
+    setSubgraphLabel(subgraph?.label ?? subgraph?.id ?? "");
+  }, [subgraph?.id, subgraph?.label]);
+
+  if (!node && !edge && !subgraph) {
     return (
       <aside className="mge-prop-panel">
         <h3>Properties</h3>
@@ -99,7 +109,7 @@ export const PropertyPanel = () => {
         <button
           className="mge-danger-btn"
           type="button"
-          onClick={() => removeSelection({ nodeIds: [node.id], edgeIds: [] })}
+          onClick={() => removeSelection({ nodeIds: [node.id], edgeIds: [], subgraphIds: [] })}
         >
           Delete node
         </button>
@@ -148,9 +158,37 @@ export const PropertyPanel = () => {
         <button
           className="mge-danger-btn"
           type="button"
-          onClick={() => removeSelection({ nodeIds: [], edgeIds: [edge.id] })}
+          onClick={() => removeSelection({ nodeIds: [], edgeIds: [edge.id], subgraphIds: [] })}
         >
           Delete edge
+        </button>
+      </aside>
+    );
+  }
+
+  if (subgraph) {
+    return (
+      <aside className="mge-prop-panel">
+        <h3>Subgraph — {subgraph.id}</h3>
+        <div className="mge-prop-field">
+          <label>Label</label>
+          <input
+            ref={labelInputRef}
+            value={subgraphLabel}
+            onChange={(e) => {
+              const v = e.target.value;
+              setSubgraphLabel(v);
+              updateSubgraph(subgraph.id, { label: v || undefined }, { recordHistory: false });
+            }}
+            onBlur={() => recordHistorySnapshot()}
+          />
+        </div>
+        <button
+          className="mge-danger-btn"
+          type="button"
+          onClick={() => removeSelection({ nodeIds: [], edgeIds: [], subgraphIds: [subgraph.id] })}
+        >
+          Remove subgraph
         </button>
       </aside>
     );

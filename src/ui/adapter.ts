@@ -165,10 +165,10 @@ export const irToFlow = (
       position: { x: bb.x, y: bb.y },
       data: { label: sg.label ?? sg.id, sgId: sg.id },
       style: { width: bb.w, height: bb.h, zIndex: -1 },
-      draggable: false,
-      selectable: false,
-      deletable: false,
-      focusable: false,
+      draggable: true,
+      selectable: true,
+      deletable: true,
+      focusable: true,
       zIndex: 0,
     };
   });
