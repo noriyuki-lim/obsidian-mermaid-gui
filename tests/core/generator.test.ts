@@ -16,7 +16,6 @@ describe("generateMermaid", () => {
       rawLines: [],
       positions: {},
       subgraphFrames: {},
-      savePositions: false,
     };
 
     const generated = generateMermaid(ir);

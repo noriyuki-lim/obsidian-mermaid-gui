@@ -13,7 +13,6 @@ const baseIR = (direction: MermaidIR["direction"]): MermaidIR => ({
   rawLines: [],
   positions: { A: { x: 0, y: 0 }, B: { x: 220, y: 0 } },
   subgraphFrames: {},
-  savePositions: false,
 });
 
 describe("irToFlow edge handles", () => {

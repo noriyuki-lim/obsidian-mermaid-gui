@@ -77,8 +77,6 @@ export interface MermaidIR {
   positions: Positions;
   /** GUI-only subgraph bounds; Mermaid itself derives subgraph boxes from contents. */
   subgraphFrames: SubgraphFrames;
-  /** Whether encodeBlock should persist GUI position metadata on save. */
-  savePositions: boolean;
 }
 
 export const emptyIR = (direction: Direction = "TD"): MermaidIR => ({
@@ -89,5 +87,4 @@ export const emptyIR = (direction: Direction = "TD"): MermaidIR => ({
   rawLines: [],
   positions: {},
   subgraphFrames: {},
-  savePositions: false,
 });

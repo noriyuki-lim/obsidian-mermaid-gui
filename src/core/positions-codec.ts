@@ -23,7 +23,7 @@ interface DecodedBlock {
   parse: ParseOutcome;
   positions: Positions;
   subgraphFrames: SubgraphFrames;
-  meta: { version: number; layout?: string; savePositions?: boolean } | null;
+  meta: { version: number; layout?: string } | null;
 }
 
 const tryParseJson = <T,>(raw: string): T | null => {
@@ -149,9 +149,9 @@ export const decodeBlock = (source: string): DecodedBlock => {
     }
     if (trimmed.startsWith(META_PREFIX)) {
       const tail = trimmed.slice(META_PREFIX.length).trim();
-      const obj = tryParseJson<{ version?: number; layout?: string; savePositions?: boolean }>(tail);
+      const obj = tryParseJson<{ version?: number; layout?: string }>(tail);
       if (obj && typeof obj.version === "number") {
-        meta = { version: obj.version, layout: obj.layout, savePositions: obj.savePositions };
+        meta = { version: obj.version, layout: obj.layout };
       }
       continue;
     }
@@ -162,10 +162,6 @@ export const decodeBlock = (source: string): DecodedBlock => {
   if (parse.ok) {
     parse.ir.positions = { ...parse.ir.positions, ...positions };
     parse.ir.subgraphFrames = { ...parse.ir.subgraphFrames, ...subgraphFrames };
-    parse.ir.savePositions =
-      typeof meta?.savePositions === "boolean"
-        ? meta.savePositions
-        : Object.keys(positions).length > 0;
     parse.ir.edges.forEach((edge, index) => {
       const handles = edgeHandles[index];
       if (!handles) return;
@@ -187,66 +183,12 @@ const formatPositions = (ir: MermaidIR): string => {
   return JSON.stringify(ordered);
 };
 
-const formatMeta = (): string => JSON.stringify({ version: GUI_VERSION, layout: "dagre" });
-
-const formatSubgraphFrames = (ir: MermaidIR): string | null => {
-  const ids = new Set(ir.subgraphs.map((s) => s.id));
-  const ordered: Record<string, [number, number, number, number]> = {};
-  for (const id of ids) {
-    const f = ir.subgraphFrames[id];
-    if (!f) continue;
-    ordered[id] = [
-      Math.round(f.x),
-      Math.round(f.y),
-      Math.round(f.width),
-      Math.round(f.height),
-    ];
-  }
-  return Object.keys(ordered).length > 0 ? JSON.stringify(ordered) : null;
-};
-
-const formatMetaForIR = (ir: MermaidIR): string =>
-  JSON.stringify({ version: GUI_VERSION, layout: "dagre", savePositions: ir.savePositions });
-
-const formatEdgeHandles = (ir: MermaidIR): string | null => {
-  const entries = ir.edges.map((edge) => {
-    if (!edge.sourceHandle && !edge.targetHandle) return null;
-    return {
-      ...(edge.sourceHandle ? { sourceHandle: edge.sourceHandle } : {}),
-      ...(edge.targetHandle ? { targetHandle: edge.targetHandle } : {}),
-    };
-  });
-  return entries.some(Boolean) ? JSON.stringify(entries) : null;
-};
-
 /**
  * Encode an IR back into the text that lives inside the ```mermaid fence.
- * Inserts the `%% gui:positions` / `%% gui:meta` comment lines just below the
- * `flowchart` header so the GUI metadata stays close to where readers expect
- * configuration in a Mermaid block.
+ * The saved block is plain Mermaid only; GUI metadata is kept only for
+ * decoding older content.
  */
-export const encodeBlock = (ir: MermaidIR): string => {
-  const text = generateMermaid(ir);
-  const lines = text.split("\n");
-  const headerIdx = lines.findIndex((l) => FLOW_HEADER_RE.test(l));
-  const edgeHandles = formatEdgeHandles(ir);
-  const subgraphFrames = ir.savePositions ? formatSubgraphFrames(ir) : null;
-  const insertion = [
-    ...(ir.savePositions ? [`${POS_PREFIX} ${formatPositions(ir)}`] : []),
-    ...(subgraphFrames ? [`${SUBGRAPH_PREFIX} ${subgraphFrames}`] : []),
-    ...(edgeHandles ? [`${EDGES_PREFIX} ${edgeHandles}`] : []),
-    `${META_PREFIX} ${formatMetaForIR(ir)}`,
-  ];
-  if (headerIdx === -1) {
-    return [...insertion, ...lines].join("\n");
-  }
-  const out = [
-    ...lines.slice(0, headerIdx + 1),
-    ...insertion,
-    ...lines.slice(headerIdx + 1),
-  ];
-  return out.join("\n");
-};
+export const encodeBlock = (ir: MermaidIR): string => generateMermaid(ir);
 
 export const stripGuiMetadata = (source: string): string => {
   const decoded = decodeBlock(source);

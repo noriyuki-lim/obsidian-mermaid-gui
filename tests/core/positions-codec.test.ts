@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  decodeBlock,
-  encodeBlock,
-  GUI_VERSION,
-  stripGuiMetadata,
-} from "../../src/core/positions-codec";
+import { decodeBlock, encodeBlock, stripGuiMetadata } from "../../src/core/positions-codec";
 import type { MermaidIR } from "../../src/core/ir-types";
 
 const SOURCE = `%% gui:positions {"A":[120,40],"B":[260,140]}
@@ -23,12 +18,8 @@ describe("positions-codec", () => {
       B: { x: 260, y: 140 },
     });
     expect(decoded.meta).toEqual({ version: 1, layout: "dagre" });
-    expect(
-      decoded.parse.ir.rawLines.some((l) => l.includes("gui:positions")),
-    ).toBe(false);
-    expect(
-      decoded.parse.ir.rawLines.some((l) => l.includes("gui:meta")),
-    ).toBe(false);
+    expect(decoded.parse.ir.rawLines.some((l) => l.includes("gui:positions"))).toBe(false);
+    expect(decoded.parse.ir.rawLines.some((l) => l.includes("gui:meta"))).toBe(false);
   });
 
   it("falls through cleanly when no gui comments are present", () => {
@@ -39,44 +30,27 @@ describe("positions-codec", () => {
     expect(decoded.meta).toBeNull();
   });
 
-  it("encodes positions just below the flowchart header", () => {
+  it("does not encode GUI position metadata", () => {
     const ir: MermaidIR = {
       direction: "LR",
       nodes: [
         { id: "A", shape: "rect", label: "Start", subgraph: null },
         { id: "B", shape: "rect", label: "End", subgraph: null },
       ],
-      edges: [
-        { id: "e1", source: "A", target: "B", style: "solid", head: "arrow", length: 2 },
-      ],
+      edges: [{ id: "e1", source: "A", target: "B", style: "solid", head: "arrow", length: 2 }],
       subgraphs: [],
       rawLines: [],
       positions: { A: { x: 120, y: 40 }, B: { x: 260, y: 140 } },
       subgraphFrames: {},
-      savePositions: true,
     };
     const encoded = encodeBlock(ir);
-    const lines = encoded.split("\n");
-    const headerIdx = lines.findIndex((l) => /^flowchart\s+LR/.test(l));
-    expect(headerIdx).toBeGreaterThanOrEqual(0);
-    expect(lines[headerIdx + 1]).toContain("gui:positions");
-    expect(lines[headerIdx + 1]).toContain('"A":[120,40]');
-    expect(lines[headerIdx + 2]).toContain("gui:meta");
-    expect(lines[headerIdx + 2]).toContain(`"version":${GUI_VERSION}`);
+    expect(encoded).not.toContain("gui:positions");
+    expect(encoded).not.toContain("gui:subgraphs");
+    expect(encoded).not.toContain("gui:edges");
+    expect(encoded).not.toContain("gui:meta");
   });
 
-  it("round-trips: decode → encode keeps positions stable", () => {
-    const decoded = decodeBlock(SOURCE);
-    if (!decoded.parse.ok) throw new Error("parse failed");
-    const ir = decoded.parse.ir;
-    ir.positions = decoded.positions;
-    const out = encodeBlock(ir);
-    const again = decodeBlock(out);
-    if (!again.parse.ok) throw new Error("re-parse failed");
-    expect(again.positions).toEqual(decoded.positions);
-  });
-
-  it("round-trips GUI edge handles without leaking them into Mermaid", () => {
+  it("does not encode GUI edge handles", () => {
     const ir: MermaidIR = {
       direction: "TD",
       nodes: [
@@ -99,21 +73,23 @@ describe("positions-codec", () => {
       rawLines: [],
       positions: {},
       subgraphFrames: {},
-      savePositions: false,
     };
     const encoded = encodeBlock(ir);
-    expect(encoded).toContain("gui:edges");
-    expect(stripGuiMetadata(encoded)).not.toContain("gui:edges");
+    expect(encoded).not.toContain("gui:edges");
 
     const decoded = decodeBlock(encoded);
     if (!decoded.parse.ok) throw new Error("parse failed");
     expect(decoded.parse.ir.edges[0]).toMatchObject({
-      sourceHandle: "s-right",
-      targetHandle: "t-left",
+      source: "A",
+      target: "B",
+      style: "solid",
+      head: "arrow",
     });
+    expect(decoded.parse.ir.edges[0]).not.toHaveProperty("sourceHandle");
+    expect(decoded.parse.ir.edges[0]).not.toHaveProperty("targetHandle");
   });
 
-  it("omits position metadata when persistence is disabled", () => {
+  it("does not encode subgraph frame metadata", () => {
     const ir: MermaidIR = {
       direction: "TD",
       nodes: [{ id: "A", shape: "rect", label: "A", subgraph: "S1" }],
@@ -122,31 +98,16 @@ describe("positions-codec", () => {
       rawLines: [],
       positions: { A: { x: 10, y: 20 } },
       subgraphFrames: { S1: { x: 0, y: 0, width: 240, height: 140 } },
-      savePositions: false,
     };
     const encoded = encodeBlock(ir);
     expect(encoded).not.toContain("gui:positions");
     expect(encoded).not.toContain("gui:subgraphs");
-    expect(encoded).toContain('"savePositions":false');
-  });
-
-  it("round-trips subgraph frames", () => {
-    const ir: MermaidIR = {
-      direction: "TD",
-      nodes: [{ id: "A", shape: "rect", label: "A", subgraph: "S1" }],
-      edges: [],
-      subgraphs: [{ id: "S1", label: "Group", parent: null }],
-      rawLines: [],
-      positions: { A: { x: 10, y: 20 } },
-      subgraphFrames: { S1: { x: 0, y: 0, width: 240, height: 140 } },
-      savePositions: true,
-    };
-    const encoded = encodeBlock(ir);
-    expect(encoded).toContain("gui:subgraphs");
+    expect(encoded).not.toContain("gui:meta");
+    expect(encoded).not.toContain("gui:edges");
     const decoded = decodeBlock(encoded);
     if (!decoded.parse.ok) throw new Error("parse failed");
-    expect(decoded.subgraphFrames).toEqual({ S1: { x: 0, y: 0, width: 240, height: 140 } });
-    expect(decoded.parse.ir.subgraphFrames).toEqual(decoded.subgraphFrames);
+    expect(decoded.subgraphFrames).toEqual({});
+    expect(decoded.parse.ir.subgraphFrames).toEqual({});
   });
 
   it("returns renderable text from the flowchart header when parse fallback is needed", () => {

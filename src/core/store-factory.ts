@@ -85,7 +85,6 @@ export interface EditorState {
   addSubgraph: (label?: string) => string;
   removeSubgraph: (id: string) => void;
   setSelection: (sel: Selection) => void;
-  setSavePositions: (save: boolean) => void;
   autoLayout: () => void;
   recordHistorySnapshot: () => void;
   undo: () => void;
@@ -104,7 +103,6 @@ const cloneIR = (ir: MermaidIR): MermaidIR => ({
   rawLines: [...ir.rawLines],
   positions: { ...ir.positions },
   subgraphFrames: { ...ir.subgraphFrames },
-  savePositions: ir.savePositions,
 });
 
 const newNodeId = (existing: Iterable<string>): string => {
@@ -456,16 +454,10 @@ export const createEditorStore = (): EditorStoreApi =>
 
       setSelection: (sel) => set({ selection: sel }),
 
-      setSavePositions: (save) => {
-        const cur = get().ir;
-        const nextIR = { ...cur, savePositions: save };
-        set({ ir: nextIR, text: project(nextIR) });
-      },
-
       autoLayout: () => {
         if (!ensureTextCommitted()) return;
         const cur = cloneIR(get().ir);
-        commit(cur, { layout: true });
+        commit(cur, { layout: true, subgraphFrames: {} });
       },
 
       recordHistorySnapshot: () => {

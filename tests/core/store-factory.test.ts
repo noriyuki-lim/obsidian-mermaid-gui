@@ -13,7 +13,6 @@ const groupedIR = (): MermaidIR => ({
   rawLines: [],
   positions: { A: { x: 10, y: 20 }, B: { x: 200, y: 20 } },
   subgraphFrames: { S1: { x: 0, y: 0, width: 180, height: 120 } },
-  savePositions: true,
 });
 
 describe("subgraph editing store commands", () => {
@@ -81,5 +80,24 @@ describe("subgraph editing store commands", () => {
     const state = store.getState();
     expect(state.ir.edges).toEqual([]);
     expect(state.selection.edgeIds).toEqual([]);
+  });
+
+  it("clears manually saved subgraph frames when auto-layout runs", () => {
+    const store = createEditorStore();
+    store.getState().applyIR(groupedIR(), { recordHistory: false });
+
+    store.getState().moveSubgraph(
+      "S1",
+      { x: 100, y: 80 },
+      { x: 100, y: 80, width: 180, height: 120 },
+      { recordHistory: false },
+    );
+    expect(store.getState().ir.subgraphFrames.S1).toBeDefined();
+
+    store.getState().autoLayout();
+
+    const state = store.getState();
+    expect(state.ir.subgraphFrames).toEqual({});
+    expect(state.ir.nodes.find((n) => n.id === "A")?.subgraph).toBe("S1");
   });
 });
