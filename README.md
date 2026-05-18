@@ -3,7 +3,7 @@
 Obsidian ノート内の `` ```mermaid `` フェンスをそのまま GUI で編集できるプラグイン。
 保存はあくまで **プレーンテキストの Mermaid 記法**で、ノードの座標だけを `%% gui:positions` のコメント行としてフェンス内に書き戻す。
 
-要件・設計: [`obsidian-plugin-spec.md`](./obsidian-plugin-spec.md)
+要件・設計: [`docs/obsidian-plugin-spec.md`](./docs/obsidian-plugin-spec.md)
 
 ## できること（v0.1 MVP）
 

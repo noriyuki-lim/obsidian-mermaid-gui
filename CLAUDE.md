@@ -1,6 +1,6 @@
 # CLAUDE.md — Mermaid GUI for Obsidian
 
-このリポジトリは **Obsidian プラグイン単体構成**。ベースの設計と意思決定は `obsidian-plugin-spec.md` に集約してある。コード触る前にそれと本ファイルを読む。
+このリポジトリは **Obsidian プラグイン単体構成**。ベースの設計と意思決定は `docs/obsidian-plugin-spec.md` に集約してある。コード触る前にそれと本ファイルを読む。
 
 ## 一行要約
 
