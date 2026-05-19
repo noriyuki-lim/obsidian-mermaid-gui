@@ -127,6 +127,7 @@ class MermaidEditorButtonPlugin {
   private readonly overlay: HTMLDivElement;
   private lastLivePreview: boolean;
   decorations: DecorationSet;
+  private readonly handleScroll: () => void;
 
   constructor(
     readonly view: EditorView,
@@ -137,6 +138,12 @@ class MermaidEditorButtonPlugin {
     this.view.dom.appendChild(this.overlay);
     this.lastLivePreview = this.isLivePreview();
     this.decorations = this.buildSourceDecorations();
+    // CM6 の viewportChanged は全行レンダリング済みのドキュメントではスクロールで発火しない。
+    // scrollDOM を直接購読してスクロール時に必ず再計測する。
+    this.handleScroll = () => {
+      if (this.isLivePreview()) this.scheduleMeasure();
+    };
+    view.scrollDOM.addEventListener("scroll", this.handleScroll);
     if (this.lastLivePreview) this.scheduleMeasure();
   }
 
@@ -157,31 +164,26 @@ class MermaidEditorButtonPlugin {
   }
 
   destroy(): void {
+    this.view.scrollDOM.removeEventListener("scroll", this.handleScroll);
     this.overlay.remove();
   }
 
   private scheduleMeasure(): void {
     const livePreview = this.isLivePreview();
     this.view.requestMeasure({
+      key: this,
       read: () => {
         if (!livePreview) return [];
         const rootRect = this.view.dom.getBoundingClientRect();
         const positions: PositionedBlock[] = [];
 
         for (const block of collectMermaidBlocks(this.view.state.doc)) {
-          let top = Infinity;
-          // Find the top position of the first line of the block
           const line = this.view.state.doc.line(block.lineStart + 1);
           const coords = this.view.coordsAtPos(line.from);
-          if (coords) top = coords.top;
-          
-          if (!Number.isFinite(top)) continue;
-          positions.push({
-            block,
-            left: 0, // Not used for fixed right alignment
-            width: 0,
-            top: top - rootRect.top,
-          });
+          if (!coords) continue;
+          const top = coords.top - rootRect.top;
+          if (top < 0) continue;
+          positions.push({ block, left: 0, width: 0, top });
         }
 
         return positions;
@@ -194,7 +196,7 @@ class MermaidEditorButtonPlugin {
           button.type = "button";
           button.textContent = "Edit";
           button.setAttribute("aria-label", "Edit Mermaid block in GUI");
-          button.style.top = `${Math.max(0, top + 6)}px`;
+          button.style.top = `${top + 6}px`;
           button.addEventListener("mousedown", (ev) => ev.preventDefault());
           button.addEventListener("click", (ev) => {
             ev.preventDefault();

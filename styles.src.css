@@ -458,11 +458,18 @@ body.mge-text-pane-resizing * {
 }
 
 /* 2. Live Preview (Header-like overlay) */
+.mge-cm-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
 .mge-cm-live-preview-btn {
   position: absolute;
   top: 8px;
   right: 80px; /* Further left to avoid overlapping with Obsidian's source switch button */
   z-index: 10;
+  pointer-events: auto;
 }
 
 /* 3. Source Mode (Inline Widget) */
