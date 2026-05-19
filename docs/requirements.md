@@ -21,11 +21,12 @@
 ## 4. スコープ
 
 ### 4.1 対応する図種（優先順）
-| 優先度 | 図種 | 理由 |
+| ステータス | 図種 | 備考 |
 | --- | --- | --- |
-| P1 | flowchart (graph TD/LR) | 最頻出。GUIモデルとの相性も良い |
-| P2 | sequence diagram | 用途が明確で構造が単純 |
-| P3 | state diagram / class diagram | 構造が grid で表しやすい |
+| ✅ 実装済み | flowchart (graph TD/LR) | 最頻出。GUIモデルとの相性も良い |
+| ✅ 実装済み | sequenceDiagram | Phase 4 完了 |
+| ✅ 実装済み | classDiagram | Phase 5 完了 |
+| ✅ 実装済み | stateDiagram / stateDiagram-v2 | Phase 5 完了 |
 | 後回し | ER, gantt, mindmap, journey, pie | ユースケースが限定的 |
 
 ### 4.2 対応する操作
@@ -89,10 +90,16 @@
 - 「自動レイアウト中心」か「手動配置中心」か（両立する場合のデフォルト挙動）
 - 既存ツール（draw.io の Mermaid エクスポート、Mermaid Live Editor）との差別化軸をどこに置くか
 
-## 10. マイルストーン案
-1. **PoC**: flowchart のみ、GUI→Text 一方向、自動レイアウト固定
-2. **MVP**: flowchart で双方向同期、保存／読込、SVGエクスポート
-3. **拡張**: sequence / state 対応、手動配置の永続化、`.md`埋め込み対応
+## 10. マイルストーン
+
+| フェーズ | 内容 | ステータス |
+| --- | --- | --- |
+| PoC | flowchart のみ、GUI→Text 一方向、自動レイアウト固定 | ✅ 完了 |
+| MVP | flowchart 双方向同期、保存／読込、SVG エクスポート | ✅ 完了 |
+| Phase 1–3 | 図種検知、source-only フォールバック、アダプタ基盤 | ✅ 完了 |
+| Phase 4 | sequenceDiagram GUI | ✅ 完了 |
+| Phase 5 | classDiagram / stateDiagram GUI | ✅ 完了 |
+| Phase 6+ | 専用ビュー・wikilink・Live Preview インライン GUI | 未着手 |
 
 ## 11. 既存OSS／類似サービス調査
 

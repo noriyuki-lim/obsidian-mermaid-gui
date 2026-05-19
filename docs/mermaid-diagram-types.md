@@ -27,7 +27,7 @@ flowchart TD
 
 ### 2. Sequence Diagram — シーケンス図
 
-> **GUI対応予定:** 🔵 Sequence 専用 GUI（Phase 4 — 最初の GUI 追加対象）
+> **GUI対応:** ✅ 実装済み（Phase 4 完了）
 
 参加者間のメッセージのやり取りと時系列順を表現するインタラクション図。
 
@@ -44,7 +44,7 @@ sequenceDiagram
 
 ### 3. Class Diagram — クラス図
 
-> **GUI対応予定:** 🔵 実装対象（Phase 5）
+> **GUI対応:** ✅ 実装済み（Phase 5 完了）
 
 OOP のクラス構造・属性・メソッド・継承・関連を表現する UML 静的構造図。
 
@@ -81,7 +81,7 @@ classDiagram
 
 ### 4. State Diagram — 状態遷移図
 
-> **GUI対応予定:** 🔵 実装対象（Phase 5）
+> **GUI対応:** ✅ 実装済み（Phase 5 完了）
 
 システムの状態と、イベントによる状態間遷移を表現する。`stateDiagram-v2` が現行版。
 
@@ -735,9 +735,9 @@ C4Deployment
 | #  | 図種別                  | キーワード                 | ステータス | GUI対応                  |
 | -- | -------------------- | --------------------- | ----- | ----------------------- |
 | 1  | Flowchart            | `flowchart` / `graph` | 安定    | ✅ 実装済み                 |
-| 2  | Sequence Diagram     | `sequenceDiagram`     | 安定    | 🔵 実装対象（Phase 4）       |
-| 3  | Class Diagram        | `classDiagram`        | 安定    | 🔵 実装対象（Phase 5）       |
-| 4  | State Diagram        | `stateDiagram-v2`     | 安定    | 🔵 実装対象（Phase 5）       |
+| 2  | Sequence Diagram     | `sequenceDiagram`     | 安定    | ✅ 実装済み（Phase 4）        |
+| 3  | Class Diagram        | `classDiagram`        | 安定    | ✅ 実装済み（Phase 5）        |
+| 4  | State Diagram        | `stateDiagram-v2`     | 安定    | ✅ 実装済み（Phase 5）        |
 | 5  | ER Diagram           | `erDiagram`           | 安定    | 🔵 実装対象（Phase 8）       |
 | 6  | User Journey         | `journey`             | 安定    | 🔵 実装対象（Phase 9）       |
 | 7  | Gantt                | `gantt`               | 安定    | 🔵 実装対象（Phase 7）       |

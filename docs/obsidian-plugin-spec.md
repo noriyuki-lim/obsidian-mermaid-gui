@@ -25,7 +25,7 @@
 - 既存 Web 版の IR・パーサ・ジェネレータ・Dagre レイアウトを共通ソースで再利用する。
 
 ### 非ゴール（初版）
-- Mermaid 全図種対応（flowchart のみ。それ以外は触らず素通し）。
+- Mermaid 全図種 GUI 対応（現在 flowchart / sequenceDiagram / classDiagram / stateDiagram が GUI 実装済み。それ以外は `SourceOnlyEditor` でソース表示のみ）。
 - モバイル（Obsidian Mobile）対応。
 - Vault 横断検索や Dataview 連携。
 - 共同編集・コンフリクト解決（個人利用前提）。
@@ -132,28 +132,59 @@ mermaid-gui-obsidian/
 ├── styles.css
 ├── src/
 │   ├── core/                  # 純粋ロジック（IO 非依存）
-│   │   ├── parser.ts          # 既存 src/mermaid/parser.ts を移設
-│   │   ├── generator.ts
+│   │   ├── parser.ts          # flowchart パーサ
+│   │   ├── generator.ts       # flowchart ジェネレータ
 │   │   ├── shapes.ts
-│   │   ├── ir-types.ts        # 既存 types.ts を改名
-│   │   ├── dagre.ts           # 既存 src/layout/dagre.ts を移設
-│   │   ├── store-factory.ts   # ★ 旧 editorStore.ts を「createStore()」関数化
-│   │   └── positions-codec.ts # ★ %% gui:positions の読み書き（新規）
+│   │   ├── ir-types.ts        # flowchart IR 型
+│   │   ├── dagre.ts           # 自動レイアウト
+│   │   ├── store-factory.ts   # createEditorStore() ファクトリ
+│   │   ├── positions-codec.ts # %% gui:positions の読み書き
+│   │   ├── diagram-kind.ts    # detectDiagramKind()
+│   │   ├── diagram-ir.ts      # DiagramIR 判別 union
+│   │   ├── index.ts
+│   │   ├── adapters/          # アダプタレジストリ
+│   │   │   ├── types.ts       # DiagramAdapter インターフェイス
+│   │   │   ├── index.ts       # getAdapter() レジストリ
+│   │   │   ├── flowchart.ts
+│   │   │   ├── sequence.ts
+│   │   │   ├── class.ts
+│   │   │   └── state.ts
+│   │   ├── sequence/          # sequenceDiagram 固有ロジック
+│   │   │   ├── ir-types.ts
+│   │   │   ├── parser.ts
+│   │   │   └── generator.ts
+│   │   ├── class/             # classDiagram 固有ロジック
+│   │   │   ├── ir-types.ts
+│   │   │   ├── parser.ts
+│   │   │   └── generator.ts
+│   │   └── state/             # stateDiagram 固有ロジック
+│   │       ├── ir-types.ts
+│   │       ├── parser.ts
+│   │       └── generator.ts
 │   ├── ui/                    # React コンポーネント
-│   │   ├── MermaidEditor.tsx  # 旧 App.tsx をコンポーネント化（Modal / 専用ビューから共通呼出）
+│   │   ├── MermaidEditor.tsx  # 図種に応じてエディタを切り替えるルートコンポーネント
+│   │   ├── FlowchartEditor.tsx
+│   │   ├── SourceOnlyEditor.tsx  # GUI 未対応図種のフォールバック
+│   │   ├── EditorContext.tsx
+│   │   ├── adapter.ts         # IR ↔ ReactFlow ブリッジ（flowchart 用）
+│   │   ├── keyboard.ts
 │   │   ├── canvas/
 │   │   ├── panels/
 │   │   ├── toolbar/
-│   │   └── adapter.ts         # 旧 src/store/adapter.ts
+│   │   ├── sequence/          # SequenceEditor.tsx
+│   │   ├── class/             # ClassEditor.tsx
+│   │   └── state/             # StateEditor.tsx
 │   └── obsidian/              # Obsidian 固有レイヤ
 │       ├── EditorModal.ts
-│       ├── MermaidView.ts     # 専用ビュー（C 案）
 │       ├── ReactHost.tsx      # createRoot / unmount ライフサイクル管理
 │       ├── postProcessor.ts   # Reading view のブロック装飾
-│       ├── widget.ts          # CM6 WidgetType（P2）
+│       ├── commands.ts        # コマンドパレット登録
+│       ├── editorExtension.ts # Live Preview CM6 拡張
+│       ├── svgExport.ts       # SVG エクスポート
 │       └── io.ts              # vault/editor 経由の IO adapter
+│   ※ MermaidView.ts（専用ビュー P1.5）・widget.ts（CM6 P2）は未実装
 └── tests/
-    └── core/                  # 既存 vitest スイートを移設
+    └── core/                  # vitest スイート
 ```
 
 **設計上の制約**:
@@ -206,7 +237,6 @@ mermaid-gui-obsidian/
 
 ### 7.3 P2 以降
 - Live Preview インライン GUI（CM6 WidgetType）。
-- sequence diagram のサポート（既存 `requirements.md` の P2 と整合）。
 - 図のテンプレートライブラリ／スニペット。
 
 ---
@@ -252,10 +282,10 @@ mermaid-gui-obsidian/
 
 | バージョン | 含む内容 | 目安 |
 | --- | --- | --- |
-| v0.1 (MVP) | §7.1 全項目 | 2 週間 |
-| v0.2 | §7.2（専用ビュー・wikilink・選択→図化） | +1 週間 |
-| v0.3 | テーマ／i18n／パフォーマンス調整 | +1 週間 |
-| v0.4 | sequence diagram | 別企画 |
+| v0.1 (MVP) | §7.1 全項目（flowchart GUI 実装済み） | 完了 |
+| v0.1.x | sequenceDiagram / classDiagram / stateDiagram GUI（Phase 4–5） | 完了 |
+| v0.2 | §7.2（専用ビュー・wikilink・選択→図化） | 未着手 |
+| v0.3 | テーマ／i18n／パフォーマンス調整 | 未着手 |
 | v1.0 | Live Preview インライン GUI | 別企画 |
 
 ### 11.1 配布方法（チーム内共有）
