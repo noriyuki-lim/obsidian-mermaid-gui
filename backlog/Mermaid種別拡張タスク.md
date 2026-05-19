@@ -95,13 +95,13 @@ Task 1,2 (detectDiagramKind)
 
 | 状態 | 順序 | タスク | 変更候補 | 完了条件 |
 | --- | ---: | --- | --- | --- |
-| ⏳ 未着手 | 15 | sequence IRを設計する | `src/core/sequence/ir-types.ts` | participant / actor / message / note / activation / raw item を順序付きで表現できる |
-| ⏳ 未着手 | 16 | 対応構文を絞る | `src/core/sequence/parser.ts` | `participant A`, `actor A`, `participant A as Label`, `A->>B: text`, `A-->>B: text`, `Note over A,B: text`, `Note right of A: text`, `activate A`, `deactivate A` を対象にする |
-| ⏳ 未着手 | 17 | sequence parserを追加する | `src/core/sequence/parser.ts`, `tests/core/sequence-parser.test.ts` | 対応構文を構造化し、未対応行は順序付きraw itemとして保持する |
-| ⏳ 未着手 | 18 | sequence generatorを追加する | `src/core/sequence/generator.ts`, `tests/core/sequence-generator.test.ts` | parse -> generate -> parse の主要構造が一致する |
-| ⏳ 未着手 | 19 | sequence adapterを登録する | `src/core/adapters/sequence.ts` | `sequenceDiagram` がregistryから取得できる |
-| ⏳ 未着手 | 20 | sequence編集UIを作る | `src/ui/sequence/SequenceEditor.tsx` | participant一覧、message一覧、note/activationの最低限編集ができる |
-| ⏳ 未着手 | 21 | sequence保存経路を接続する | `src/ui/MermaidEditor.tsx` | sequence GUI編集後に Mermaid block body として保存できる |
+| ✅ 完了 | 15 | sequence IRを設計する | `src/core/sequence/ir-types.ts` | participant / actor / message / note / activation / raw item を順序付きで表現できる |
+| ✅ 完了 | 16 | 対応構文を絞る | `src/core/sequence/parser.ts` | `participant A`, `actor A`, `participant A as Label`, `A->>B: text`, `A-->>B: text`, `Note over A,B: text`, `Note right of A: text`, `activate A`, `deactivate A` を対象にする |
+| ✅ 完了 | 17 | sequence parserを追加する | `src/core/sequence/parser.ts`, `tests/core/sequence-parser.test.ts` | 対応構文を構造化し、未対応行は順序付きraw itemとして保持する |
+| ✅ 完了 | 18 | sequence generatorを追加する | `src/core/sequence/generator.ts`, `tests/core/sequence-generator.test.ts` | parse -> generate -> parse の主要構造が一致する |
+| ✅ 完了 | 19 | sequence adapterを登録する | `src/core/adapters/sequence.ts` | `sequenceDiagram` がregistryから取得できる |
+| ✅ 完了 | 20 | sequence編集UIを作る | `src/ui/sequence/SequenceEditor.tsx` | participant一覧、message一覧、note/activationの最低限編集ができる |
+| ✅ 完了 | 21 | sequence保存経路を接続する | `src/ui/MermaidEditor.tsx` | sequence GUI編集後に Mermaid block body として保存できる |
 
 ## Phase 5: classDiagram / stateDiagram
 

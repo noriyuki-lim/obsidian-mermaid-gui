@@ -509,3 +509,180 @@ body.mge-text-pane-resizing * {
   display: block;
 }
 .mge-modal .mge-react-root > .mge-app-shell { height: 100%; }
+
+/* ---------- Source-only / Sequence editors — shared button base ---------- */
+.mge-source-only,
+.mge-seq-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--background-primary, #f7f7fa);
+  color: var(--text-normal, #1f1f2e);
+  font-size: 13px;
+}
+
+.mge-source-only .mge-source-only-toolbar,
+.mge-seq-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--mge-brand, #2b245c);
+  border-bottom: 1px solid #1a1640;
+  flex-shrink: 0;
+}
+
+/* Generic button — used outside the toolbar's white-text context */
+.mge-source-only-toolbar button,
+.mge-seq-btn {
+  padding: 5px 12px;
+  border: 1px solid #ffffff40;
+  border-radius: 4px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  transition: background 0.1s;
+}
+.mge-source-only-toolbar button:hover,
+.mge-seq-btn:hover { background: #ffffff20; }
+.mge-source-only-toolbar button:disabled,
+.mge-seq-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.mge-seq-btn-primary {
+  background: #fff !important;
+  color: var(--mge-brand, #2b245c) !important;
+  border-color: #fff !important;
+  font-weight: 600;
+}
+.mge-seq-btn-sm {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.mge-seq-btn-danger {
+  border-color: rgba(192, 57, 43, 0.5) !important;
+  color: #c0392b !important;
+}
+.mge-seq-btn-danger:hover { background: rgba(192, 57, 43, 0.12) !important; }
+
+/* ---------- Sequence editor body ---------- */
+.mge-seq-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mge-seq-section {
+  background: var(--background-secondary, #fff);
+  border: 1px solid var(--background-modifier-border, #d6d6df);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.mge-seq-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.mge-seq-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, #6b6b7b);
+}
+
+.mge-seq-add-btns {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.mge-seq-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--background-modifier-border, #d6d6df);
+}
+.mge-seq-row:last-child { border-bottom: none; }
+
+.mge-seq-row-raw {
+  opacity: 0.7;
+  background: var(--background-secondary-alt, #f1f1f6);
+  border-radius: 3px;
+  padding: 4px 6px;
+}
+
+.mge-seq-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(43, 36, 92, 0.12);
+  color: var(--mge-brand, #2b245c);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.mge-seq-badge-raw {
+  background: var(--background-modifier-border, #d6d6df);
+  color: var(--text-muted, #6b6b7b);
+}
+
+.mge-seq-input,
+.mge-seq-select {
+  padding: 4px 7px;
+  border: 1px solid var(--background-modifier-border, #d6d6df);
+  border-radius: 4px;
+  background: var(--background-primary, #f7f7fa);
+  color: var(--text-normal, #1f1f2e);
+  font: inherit;
+  font-size: 13px;
+  min-width: 60px;
+}
+.mge-seq-input:focus,
+.mge-seq-select:focus {
+  outline: 2px solid var(--mge-brand, #2b245c);
+  outline-offset: -1px;
+  border-color: var(--mge-brand, #2b245c);
+}
+
+.mge-seq-input-wide { flex: 1; min-width: 120px; }
+.mge-seq-arrow-select { min-width: 54px; }
+.mge-seq-row-label { color: var(--text-muted, #6b6b7b); flex-shrink: 0; }
+
+.mge-seq-raw-line {
+  font-family: var(--font-monospace, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  color: var(--text-muted, #6b6b7b);
+  white-space: pre;
+}
+
+.mge-seq-empty {
+  color: var(--text-muted, #6b6b7b);
+  font-style: italic;
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+/* ---------- Source-only textarea ---------- */
+.mge-source-only-textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 10px 12px;
+  font-family: var(--font-monospace, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12.5px;
+  line-height: 1.5;
+  resize: none;
+  background: var(--background-primary, #f7f7fa);
+  color: var(--text-normal, #1f1f2e);
+}

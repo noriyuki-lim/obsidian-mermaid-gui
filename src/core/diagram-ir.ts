@@ -1,4 +1,5 @@
 import type { MermaidIR } from "./ir-types";
+import type { SequenceIR } from "./sequence/ir-types";
 
 /**
  * Discriminated union of all per-kind intermediate representations.
@@ -10,4 +11,5 @@ import type { MermaidIR } from "./ir-types";
  */
 export type DiagramIR =
   | { kind: "flowchart"; ir: MermaidIR }
+  | { kind: "sequenceDiagram"; ir: SequenceIR }
   | { kind: "unknown"; source: string };

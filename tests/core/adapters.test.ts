@@ -14,8 +14,14 @@ describe("adapter registry", () => {
     expect(getAdapter("unknown")).toBeNull();
   });
 
+  it("returns sequenceDiagram adapter", () => {
+    const adapter = getAdapter("sequenceDiagram");
+    expect(adapter).not.toBeNull();
+    expect(adapter?.kind).toBe("sequenceDiagram");
+    expect(adapter?.supportsGui).toBe(true);
+  });
+
   it("returns null for not-yet-implemented kinds", () => {
-    expect(getAdapter("sequenceDiagram")).toBeNull();
     expect(getAdapter("classDiagram")).toBeNull();
   });
 });
