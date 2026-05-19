@@ -13,7 +13,7 @@
 | 6 | `pie`, `xychart-beta`, `sankey-beta`, `quadrantChart`, `radar-beta` | form / chart editor | [pie](https://mermaid.js.org/syntax/pie.html) / [xychart](https://mermaid.js.org/syntax/xyChart.html) / [sankey](https://mermaid.js.org/syntax/sankey.html) / [quadrant](https://mermaid.js.org/syntax/quadrantChart.html) / [radar](https://mermaid.js.org/syntax/radar.html) |
 | 7 | `gantt`, `timeline` | table editor | [gantt](https://mermaid.js.org/syntax/gantt.html) / [timeline](https://mermaid.js.org/syntax/timeline.html) |
 | 8 | `erDiagram`, `mindmap`, `treemap-beta`, `venn-beta` | graph / tree editor | [er](https://mermaid.js.org/syntax/entityRelationshipDiagram.html) / [mindmap](https://mermaid.js.org/syntax/mindmap.html) / [treemap](https://mermaid.js.org/syntax/treemap.html) / [venn](https://mermaid.js.org/syntax/venn.html) |
-| 9 | `journey`, `zenuml` | step / sequence editor | [journey](https://mermaid.js.org/syntax/userJourney.html) / [zenuml](https://mermaid.js.org/syntax/zenuml.html) |
+| 9 | `journey` | step / sequence editor | [journey](https://mermaid.js.org/syntax/userJourney.html) |
 | 10 | `architecture-beta`, `block-beta` | 専用GUI | [architecture](https://mermaid.js.org/syntax/architecture.html) / [block](https://mermaid.js.org/syntax/block.html) |
 | fallback | `unknown` | Source-only fallback | — |
 
@@ -33,8 +33,8 @@
 | ⏳ 未着手 | 1 | Mermaid種別判定を独立させる | `src/core/diagram-kind.ts`, `tests/core/diagram-kind.test.ts` | `detectDiagramKind(source)` が空行・`%%` コメント・GUIメタコメントを無視し、先頭の有効行から種別を判定できる |
 | ⏳ 未着手 | 2 | 判定対象を定義する | `src/core/diagram-kind.ts` | 「追加対象のMermaid種別」の種別を既知種別として扱い、それ以外は `unknown` にする |
 | ⏳ 未着手 | 3 | Source-only fallbackを追加する | `src/ui/SourceOnlyEditor.tsx` | 非対応種別でもモーダル内でソースを編集・保存・キャンセルできる |
-| ⏳ 未着手 | 4 | `MermaidEditor` を分岐させる | `src/ui/MermaidEditor.tsx` | flowchartは既存GUI、それ以外はSource-onlyで開き、parse error Noticeだけで止まらない |
-| ⏳ 未着手 | 5 | preview/exportの正規化を維持する | `src/core/positions-codec.ts` | `stripGuiMetadata(source)` が非flowchartでもヘッダ前のGUIメタ情報を除外し、Mermaid本文を壊さない |
+| ⏳ 未着手 | 4 | `MermaidEditor` を分岐させる | `src/ui/MermaidEditor.tsx` | flowchartは既存GUI、それ以外はSource-onlyで開く。`onParseError` を呼ばずに SourceOnlyEditor が起動することで確認する |
+| ⏳ 未着手 | 5 | preview/exportの正規化を維持する | `src/core/positions-codec.ts` | `stripGuiMetadata(source)` が非flowchartでもGUIメタ情報を除外する。**Task 3より先に完了**（SourceOnlyEditorへのguiコメント混入を防ぐため） |
 | ⏳ 未着手 | 6 | 回帰テストを追加する | `tests/core/positions-codec.test.ts`, `tests/ui` | `sequenceDiagram` ブロックを開く経路で保存可能なfallbackに入ることを確認する |
 
 ## Phase 2: flowchart adapter化
@@ -44,7 +44,7 @@
 | ⏳ 未着手 | 7 | adapter型を定義する | `src/core/adapters/types.ts` | `kind`, `parse`, `generate`, `supportsGui` を持つadapter interfaceがある |
 | ⏳ 未着手 | 8 | flowchart adapterを追加する | `src/core/adapters/flowchart.ts` | 既存 `parser.ts` / `generator.ts` の処理をadapter経由で呼べる |
 | ⏳ 未着手 | 9 | adapter registryを追加する | `src/core/adapters/index.ts` | `getAdapter(kind)` で対応adapterを取得し、未対応は `null` を返す |
-| ⏳ 未着手 | 10 | 既存storeの責務をflowchartに閉じる | `src/core/store-factory.ts`, `src/ui/FlowchartEditor.tsx` | `createEditorStore` はflowchart editor配下でのみ使われる |
+| ⏳ 未着手 | 10 | 既存storeの責務をflowchartに閉じる | `src/core/store-factory.ts`, `src/ui/FlowchartEditor.tsx` | `createEditorStore` はflowchart editor配下でのみ使われる。**実施前に `npm test` ベースラインを記録し、リファクタ後に全テスト通過を確認してから Task 11 へ進む** |
 | ⏳ 未着手 | 11 | 互換wrapperを残す | `src/core/parser.ts`, `src/core/generator.ts`, `src/core/index.ts` | 既存テストと既存importが壊れない |
 
 ## Phase 3: 共通IR境界
@@ -109,11 +109,11 @@
 | ⏳ 未着手 | 42 | graph / tree editor GUIを実装する | `src/ui/<kind>/` | ノード・エッジ・階層の最低限編集ができる |
 | ⏳ 未着手 | 43 | 保存経路を接続し回帰テストを追加する | `src/ui/MermaidEditor.tsx`, `tests/` | 編集後にMermaidブロックとして保存できる |
 
-## Phase 9: インタラクション系（journey / zenuml）
+## Phase 9: インタラクション系（journey）
 
 | 状態 | 順序 | タスク | 変更候補 | 完了条件 |
 | --- | ---: | --- | --- | --- |
-| ⏳ 未着手 | 44 | 各種別のMVPスコープを確定する | 公式docs参照 | ステップ/メッセージのGUI化範囲が決まる |
+| ⏳ 未着手 | 44 | `journey` MVPスコープを確定する | [公式docs](https://mermaid.js.org/syntax/userJourney.html) | ステップ/アクターのGUI化範囲とrawLines扱い構文が決まる |
 | ⏳ 未着手 | 45 | IR・parser・generator・adapterを実装する | `src/core/<kind>/`, `src/core/adapters/` | parse → generate round-tripが成立する |
 | ⏳ 未着手 | 46 | step / sequence editor GUIを実装する | `src/ui/<kind>/` | ステップ/メッセージの追加・編集ができる |
 | ⏳ 未着手 | 47 | 保存経路を接続し回帰テストを追加する | `src/ui/MermaidEditor.tsx`, `tests/` | 編集後にMermaidブロックとして保存できる |
@@ -133,6 +133,7 @@
 | --- | --- |
 | 種別判定 | 空行、`%%` コメント、`%% gui:*`、大文字小文字、fence付き入力 |
 | fallback | 非実装種別を開いて編集・保存できること |
+| Phase 1 smoke | `sequenceDiagram` ブロックを開いた際に Notice が出ず SourceOnlyEditor が起動すること |
 | flowchart | 既存テストが維持されること |
 | metadata | GUIメタ情報がMermaid preview/exportに混入しないこと |
 | sequence | 未対応行を削除しないこと、対応構文のround-tripが成立すること |

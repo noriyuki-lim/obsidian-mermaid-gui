@@ -81,7 +81,7 @@ classDiagram
 
 ### 4. State Diagram — 状態遷移図
 
-> **GUI対応予定:** 🟡 次期 GUI 検討対象（Phase 5 — `stateDiagram-v2` / `stateDiagram` 対象、MVP 範囲未定）
+> **GUI対応予定:** 🔵 実装対象（Phase 5）
 
 システムの状態と、イベントによる状態間遷移を表現する。`stateDiagram-v2` が現行版。
 
@@ -297,8 +297,6 @@ timeline
 ***
 
 ### 14. ZenUML — ZenUML シーケンス図
-
-> **GUI対応予定:** 🔵 実装対象
 
 シーケンス図の代替構文。同期（`->`）・非同期（`->>`）メッセージを簡潔な記法で記述できる。
 
@@ -725,29 +723,29 @@ C4Deployment
 | 1  | Flowchart            | `flowchart` / `graph` | 安定    | ✅ 実装済み                 |
 | 2  | Sequence Diagram     | `sequenceDiagram`     | 安定    | 🔵 実装対象（Phase 4）       |
 | 3  | Class Diagram        | `classDiagram`        | 安定    | 🔵 実装対象（Phase 5）       |
-| 4  | State Diagram        | `stateDiagram-v2`     | 安定    | 🟡 GUI検討中（Phase 5）     |
-| 5  | ER Diagram           | `erDiagram`           | 安定    | 🔵 実装対象                 |
-| 6  | User Journey         | `journey`             | 安定    | 🔵 実装対象                 |
-| 7  | Gantt                | `gantt`               | 安定    | 🔵 実装対象                 |
-| 8  | Pie Chart            | `pie`                 | 安定    | 🔵 実装対象                 |
-| 9  | Quadrant Chart       | `quadrantChart`       | 安定    | 🔵 実装対象                 |
+| 4  | State Diagram        | `stateDiagram-v2`     | 安定    | 🔵 実装対象（Phase 5）       |
+| 5  | ER Diagram           | `erDiagram`           | 安定    | 🔵 実装対象（Phase 8）       |
+| 6  | User Journey         | `journey`             | 安定    | 🔵 実装対象（Phase 9）       |
+| 7  | Gantt                | `gantt`               | 安定    | 🔵 実装対象（Phase 7）       |
+| 8  | Pie Chart            | `pie`                 | 安定    | 🔵 実装対象（Phase 6）       |
+| 9  | Quadrant Chart       | `quadrantChart`       | 安定    | 🔵 実装対象（Phase 6）       |
 | 10 | Requirement Diagram  | `requirementDiagram`  | 安定    | —                       |
 | 11 | GitGraph             | `gitgraph`            | 安定    | —                       |
-| 12 | Mindmap              | `mindmap`             | 安定    | 🔵 実装対象                 |
-| 13 | Timeline             | `timeline`            | 安定    | 🔵 実装対象                 |
-| 14 | ZenUML               | `zenuml`              | 安定    | 🔵 実装対象                 |
+| 12 | Mindmap              | `mindmap`             | 安定    | 🔵 実装対象（Phase 8）       |
+| 13 | Timeline             | `timeline`            | 安定    | 🔵 実装対象（Phase 7）       |
+| 14 | ZenUML               | `zenuml`              | 安定    | —                       |
 | 15 | Kanban               | `kanban`              | 安定    | —                       |
 | 16 | Ishikawa Diagram     | `ishikawa`            | 安定    | —                       |
 | 17 | Event Modeling       | `eventmodeling`       | 安定    | —                       |
-| 18 | Sankey Diagram       | `sankey-beta`         | Beta  | 🔵 実装対象                 |
-| 19 | XY Chart             | `xychart-beta`        | Beta  | 🔵 実装対象                 |
-| 20 | Block Diagram        | `block-beta`          | Beta  | 🔵 実装対象                 |
-| 21 | Architecture Diagram | `architecture-beta`   | Beta  | 🔵 実装対象                 |
+| 18 | Sankey Diagram       | `sankey-beta`         | Beta  | 🔵 実装対象（Phase 6）       |
+| 19 | XY Chart             | `xychart-beta`        | Beta  | 🔵 実装対象（Phase 6）       |
+| 20 | Block Diagram        | `block-beta`          | Beta  | 🔵 実装対象（Phase 10）      |
+| 21 | Architecture Diagram | `architecture-beta`   | Beta  | 🔵 実装対象（Phase 10）      |
 | 22 | Packet Diagram       | `packet-beta`         | Beta  | —                       |
-| 23 | Radar Chart          | `radar-beta`          | Beta  | 🔵 実装対象                 |
-| 24 | Venn Diagram         | `venn-beta`           | Beta  | 🔵 実装対象                 |
+| 23 | Radar Chart          | `radar-beta`          | Beta  | 🔵 実装対象（Phase 6）       |
+| 24 | Venn Diagram         | `venn-beta`           | Beta  | 🔵 実装対象（Phase 8）       |
 | 25 | Wardley Map          | `wardley-beta`        | Beta  | —                       |
-| 26 | Treemap              | `treemap-beta`        | Beta  | 🔵 実装対象                 |
+| 26 | Treemap              | `treemap-beta`        | Beta  | 🔵 実装対象（Phase 8）       |
 | 27 | TreeView             | `treeView-beta`       | Beta  | —                       |
 | 28 | C4 Context           | `C4Context`           | 実験的   | —                       |
 | 29 | C4 Container         | `C4Container`         | 実験的   | —                       |
