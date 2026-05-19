@@ -1,4 +1,4 @@
-import { stripGuiMetadata } from "../core/positions-codec";
+import { stripGuiComments } from "../core";
 import { detectDiagramKind, isFlowchart } from "../core/diagram-kind";
 import { FlowchartEditor } from "./FlowchartEditor";
 import { SourceOnlyEditor } from "./SourceOnlyEditor";
@@ -35,7 +35,7 @@ export const MermaidEditor = (props: Props) => {
     return <FlowchartEditor {...props} />;
   }
 
-  const stripped = stripGuiMetadata(props.initialSource);
+  const stripped = stripGuiComments(props.initialSource);
 
   if (kind === "sequenceDiagram") {
     return <SequenceEditor initialSource={stripped} onSave={props.onSave} onCancel={props.onCancel} />;

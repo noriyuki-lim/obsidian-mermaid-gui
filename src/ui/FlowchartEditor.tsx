@@ -8,7 +8,7 @@ import {
 } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { createEditorStore } from "../core/store-factory";
-import { decodeBlock, encodeBlock } from "../core/positions-codec";
+import { parseMermaid, generateMermaid, stripGuiComments } from "../core";
 import { Toolbar } from "./toolbar/Toolbar";
 import { Palette } from "./panels/Palette";
 import { PropertyPanel } from "./panels/PropertyPanel";
@@ -49,16 +49,12 @@ export const FlowchartEditor = ({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const decoded = decodeBlock(initialSource);
-    if (!decoded.parse.ok) {
-      onParseError?.(decoded.parse.message);
+    const parse = parseMermaid(stripGuiComments(initialSource));
+    if (!parse.ok) {
+      onParseError?.(parse.message);
       return;
     }
-    const ir = decoded.parse.ir;
-    const hasPositions = Object.keys(decoded.positions).length > 0;
-    storeApi
-      .getState()
-      .applyIR(ir, { layout: !hasPositions, recordHistory: false });
+    storeApi.getState().applyIR(parse.ir, { layout: true, recordHistory: false });
   }, [initialSource, storeApi, onParseError]);
 
   useEffect(() => {
@@ -99,7 +95,7 @@ export const FlowchartEditor = ({
       onParseError?.(after.status.message);
       return;
     }
-    const out = encodeBlock(after.ir);
+    const out = generateMermaid(after.ir);
     setSaving(true);
     try {
       await onSave(out);

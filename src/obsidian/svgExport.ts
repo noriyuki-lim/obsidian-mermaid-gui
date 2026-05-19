@@ -1,5 +1,5 @@
 import { App, Notice, TFile, loadMermaid, normalizePath } from "obsidian";
-import { stripGuiMetadata } from "../core/positions-codec";
+import { stripGuiComments } from "../core";
 
 const sanitize = (s: string): string => s.replace(/[\\/:*?"<>|]/g, "_");
 
@@ -20,7 +20,7 @@ export const exportSvgToVault = async (
   try {
     const mermaid = await loadMermaid();
     const id = `mge-export-${Date.now().toString(36)}`;
-    const result = await mermaid.render(id, stripGuiMetadata(mermaidSource));
+    const result = await mermaid.render(id, stripGuiComments(mermaidSource));
     svg = result.svg;
   } catch (err) {
     new Notice(`SVG export failed: ${(err as Error).message}`);

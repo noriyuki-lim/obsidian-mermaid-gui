@@ -8,7 +8,7 @@ import {
 import { EditorModal } from "./EditorModal";
 import { writeBlockBack } from "./io";
 import { exportSvgToVault } from "./svgExport";
-import { stripGuiMetadata } from "../core/positions-codec";
+import { stripGuiComments } from "../core";
 
 /**
  * Decorate a single ```mermaid code block: render the diagram via Obsidian's
@@ -45,7 +45,7 @@ const renderPreview = async (source: string, target: HTMLElement): Promise<void>
   try {
     const mermaid = await loadMermaid();
     const id = `mge-${Math.random().toString(36).slice(2, 9)}`;
-    const result = await mermaid.render(id, stripGuiMetadata(source));
+    const result = await mermaid.render(id, stripGuiComments(source));
     target.innerHTML = result.svg;
   } catch (err) {
     target.empty();

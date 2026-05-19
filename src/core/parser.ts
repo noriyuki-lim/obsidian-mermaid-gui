@@ -364,3 +364,10 @@ export const parseMermaid = (source: string): ParseOutcome => {
 
   return { ok: true, ir, warnings };
 };
+
+/** Strip legacy `%% gui:*` comment lines from Mermaid source (backward compat). */
+export const stripGuiComments = (source: string): string =>
+  source
+    .split(/\r?\n/)
+    .filter((l) => !l.trim().startsWith("%% gui:"))
+    .join("\n");

@@ -6,7 +6,7 @@
 
 ## 一行要約
 
-`registerMarkdownCodeBlockProcessor("mermaid", ...)` で Reading view の mermaid ブロックに Edit ボタンを差し込み、Modal で React + ReactFlow + Zustand の GUI を立ち上げる。flowchart / sequenceDiagram / classDiagram / stateDiagram(-v2) は専用エディタを持つ。それ以外の図種は `SourceOnlyEditor` でソースのみ表示。保存時に**当該フェンスの中身だけ**を `vault.modify` で書き戻す。座標は `%% gui:positions {...}` のコメント行としてフェンス内に永続化する。
+`registerMarkdownCodeBlockProcessor("mermaid", ...)` で Reading view の mermaid ブロックに Edit ボタンを差し込み、Modal で React + ReactFlow + Zustand の GUI を立ち上げる。flowchart / sequenceDiagram / classDiagram / stateDiagram(-v2) は専用エディタを持つ。それ以外の図種は `SourceOnlyEditor` でソースのみ表示。保存時に**当該フェンスの中身だけ**を `vault.modify` で書き戻す。ノード座標はセッション内のみ保持し、ファイルには書き出さない（標準 Mermaid 準拠）。
 
 ---
 
@@ -37,7 +37,6 @@ mermaid-gui-obsidian/
 │   │   ├── shapes.ts
 │   │   ├── dagre.ts               ← 自動レイアウト
 │   │   ├── store-factory.ts       ← createEditorStore() ファクトリ
-│   │   ├── positions-codec.ts     ← %% gui:* の読み書き
 │   │   ├── diagram-kind.ts        ← detectDiagramKind()
 │   │   ├── diagram-ir.ts          ← DiagramIR 判別 union
 │   │   ├── index.ts
@@ -98,7 +97,6 @@ mermaid-gui-obsidian/
 │   │   ├── generator.test.ts
 │   │   ├── store-factory.test.ts
 │   │   ├── diagram-kind.test.ts
-│   │   ├── positions-codec.test.ts
 │   │   ├── sequence-parser.test.ts
 │   │   ├── sequence-generator.test.ts
 │   │   ├── class-parser.test.ts
@@ -193,14 +191,6 @@ parser が理解できない行は `MermaidIR.rawLines` に温存され、genera
 
 - `classDef` / `style` / `linkStyle` / `click` は **IR 化しない**（仕様 §5.1）。
 - 新しい構文に対応したくなったら、まず raw として生き残ることを確認 → 必要なら IR 化。逆順でやらない。
-
----
-
-## positions-codec のルール
-
-- `%% gui:positions {...}` と `%% gui:meta {...}` は **フェンスの中、図種ヘッダー行の直後**に書き出す（仕様 §5）。
-- `decodeBlock` は source 文字列レベルで先にコメントをストリップしてから parser に渡す。ここを変えると round-trip が破綻する。
-- スキーマを変更するなら `GUI_VERSION` を上げて、バージョン分岐の migration を入れる。
 
 ---
 
