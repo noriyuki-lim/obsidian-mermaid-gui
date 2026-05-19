@@ -66,30 +66,30 @@ Task 1,2 (detectDiagramKind)
 
 | 状態 | 順序 | タスク | 変更候補 | 完了条件 |
 | --- | ---: | --- | --- | --- |
-| ⏳ 未着手 | 1 | Mermaid種別判定を独立させる | `src/core/diagram-kind.ts`, `tests/core/diagram-kind.test.ts` | `detectDiagramKind(source)` が空行・`%%` コメント・GUIメタコメントを無視し、先頭の有効行から種別を判定できる |
-| ⏳ 未着手 | 2 | 判定対象を定義する | `src/core/diagram-kind.ts` | 「追加対象のMermaid種別」の種別を既知種別として扱い、それ以外は `unknown` にする |
-| ⏳ 未着手 | 3 | Source-only fallbackを追加する | `src/ui/SourceOnlyEditor.tsx` | 非対応種別でもモーダル内でソースを編集・保存・キャンセルできる |
-| ⏳ 未着手 | 4 | `MermaidEditor` を分岐させる | `src/ui/MermaidEditor.tsx` | flowchartは既存GUI、それ以外はSource-onlyで開く。`onParseError` を呼ばずに SourceOnlyEditor が起動することで確認する |
-| ⏳ 未着手 | 5 | preview/exportの正規化を維持する | `src/core/positions-codec.ts` | `stripGuiMetadata(source)` が非flowchartでもGUIメタ情報を除外する。**Task 3より先に完了**（SourceOnlyEditorへのguiコメント混入を防ぐため） |
-| ⏳ 未着手 | 6 | 回帰テストを追加する | `tests/core/positions-codec.test.ts`, `tests/ui` | `sequenceDiagram` ブロックを開く経路で保存可能なfallbackに入ることを確認する |
+| ✅ 完了 | 1 | Mermaid種別判定を独立させる | `src/core/diagram-kind.ts`, `tests/core/diagram-kind.test.ts` | `detectDiagramKind(source)` が空行・`%%` コメント・GUIメタコメントを無視し、先頭の有効行から種別を判定できる |
+| ✅ 完了 | 2 | 判定対象を定義する | `src/core/diagram-kind.ts` | 「追加対象のMermaid種別」の種別を既知種別として扱い、それ以外は `unknown` にする |
+| ✅ 完了 | 3 | Source-only fallbackを追加する | `src/ui/SourceOnlyEditor.tsx` | 非対応種別でもモーダル内でソースを編集・保存・キャンセルできる |
+| ✅ 完了 | 4 | `MermaidEditor` を分岐させる | `src/ui/MermaidEditor.tsx` | flowchartは既存GUI、それ以外はSource-onlyで開く。`onParseError` を呼ばずに SourceOnlyEditor が起動することで確認する |
+| ✅ 完了 | 5 | preview/exportの正規化を維持する | `src/core/positions-codec.ts` | `stripGuiMetadata(source)` が非flowchartでもGUIメタ情報を除外する。**Task 3より先に完了**（SourceOnlyEditorへのguiコメント混入を防ぐため） |
+| ✅ 完了 | 6 | 回帰テストを追加する | `tests/core/positions-codec.test.ts`, `tests/ui` | `sequenceDiagram` ブロックを開く経路で保存可能なfallbackに入ることを確認する |
 
 ## Phase 2: flowchart adapter化
 
 | 状態 | 順序 | タスク | 変更候補 | 完了条件 |
 | --- | ---: | --- | --- | --- |
-| ⏳ 未着手 | 7 | adapter型を定義する | `src/core/adapters/types.ts` | `kind`, `parse`, `generate`, `supportsGui` を持つadapter interfaceがある |
-| ⏳ 未着手 | 8 | flowchart adapterを追加する | `src/core/adapters/flowchart.ts` | 既存 `parser.ts` / `generator.ts` の処理をadapter経由で呼べる |
-| ⏳ 未着手 | 9 | adapter registryを追加する | `src/core/adapters/index.ts` | `getAdapter(kind)` で対応adapterを取得し、未対応は `null` を返す |
-| ⏳ 未着手 | 10 | 既存storeの責務をflowchartに閉じる | `src/core/store-factory.ts`, `src/ui/FlowchartEditor.tsx` | `createEditorStore` はflowchart editor配下でのみ使われる。**実施前に `npm test` ベースラインを記録し、リファクタ後に全テスト通過を確認してから Task 11 へ進む** |
-| ⏳ 未着手 | 11 | 互換wrapperを残す | `src/core/parser.ts`, `src/core/generator.ts`, `src/core/index.ts` | 既存テストと既存importが壊れない |
+| ✅ 完了 | 7 | adapter型を定義する | `src/core/adapters/types.ts` | `kind`, `parse`, `generate`, `supportsGui` を持つadapter interfaceがある |
+| ✅ 完了 | 8 | flowchart adapterを追加する | `src/core/adapters/flowchart.ts` | 既存 `parser.ts` / `generator.ts` の処理をadapter経由で呼べる |
+| ✅ 完了 | 9 | adapter registryを追加する | `src/core/adapters/index.ts` | `getAdapter(kind)` で対応adapterを取得し、未対応は `null` を返す |
+| ✅ 完了 | 10 | 既存storeの責務をflowchartに閉じる | `src/core/store-factory.ts`, `src/ui/FlowchartEditor.tsx` | `createEditorStore` はflowchart editor配下でのみ使われる。**実施前に `npm test` ベースラインを記録し、リファクタ後に全テスト通過を確認してから Task 11 へ進む** |
+| ✅ 完了 | 11 | 互換wrapperを残す | `src/core/parser.ts`, `src/core/generator.ts`, `src/core/index.ts` | 既存テストと既存importが壊れない |
 
 ## Phase 3: 共通IR境界
 
 | 状態 | 順序 | タスク | 変更候補 | 完了条件 |
 | --- | ---: | --- | --- | --- |
-| ⏳ 未着手 | 12 | 親型 `DiagramIR` を導入する | `src/core/diagram-ir.ts` | `kind` ごとに別IRを保持できる discriminated union がある |
-| ⏳ 未着手 | 13 | parse結果の型を整理する | `src/core/adapters/types.ts` | `ParseOutcome<T>` がadapterごとのIR型を返せる |
-| ⏳ 未着手 | 14 | raw保持方針を明文化する | adapter実装、テスト | 未対応行を捨てず、生成時に元の相対順序へ戻せる |
+| ✅ 完了 | 12 | 親型 `DiagramIR` を導入する | `src/core/diagram-ir.ts` | `kind` ごとに別IRを保持できる discriminated union がある |
+| ✅ 完了 | 13 | parse結果の型を整理する | `src/core/adapters/types.ts` | `ParseOutcome<T>` がadapterごとのIR型を返せる |
+| ✅ 完了 | 14 | raw保持方針を明文化する | adapter実装、テスト | 未対応行を捨てず、生成時に元の相対順序へ戻せる |
 
 ## Phase 4: sequenceDiagram MVP
 
@@ -179,8 +179,8 @@ Task 1,2 (detectDiagramKind)
 
 | 状態 | タスク |
 | --- | --- |
-| ⏳ 未着手 | `detectDiagramKind` 追加 |
-| ⏳ 未着手 | Source-only fallback追加 |
-| ⏳ 未着手 | `MermaidEditor` のflowchart/fallback分岐 |
-| ⏳ 未着手 | 非flowchartブロックでGUI起動時の parse error を解消 |
-| ⏳ 未着手 | `npm run typecheck` / `npm test` 成功 |
+| ✅ 完了 | `detectDiagramKind` 追加 |
+| ✅ 完了 | Source-only fallback追加 |
+| ✅ 完了 | `MermaidEditor` のflowchart/fallback分岐 |
+| ✅ 完了 | 非flowchartブロックでGUI起動時の parse error を解消 |
+| ✅ 完了 | `npm test` 成功（65テスト通過） |
