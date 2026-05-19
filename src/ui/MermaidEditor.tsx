@@ -3,6 +3,8 @@ import { detectDiagramKind, isFlowchart } from "../core/diagram-kind";
 import { FlowchartEditor } from "./FlowchartEditor";
 import { SourceOnlyEditor } from "./SourceOnlyEditor";
 import { SequenceEditor } from "./sequence/SequenceEditor";
+import { ClassEditor } from "./class/ClassEditor";
+import { StateEditor } from "./state/StateEditor";
 
 export interface Props {
   /** Raw text from inside ```mermaid fences (without the fences themselves). */
@@ -19,9 +21,12 @@ export interface Props {
 
 /**
  * Top-level editor entry point. Routes to the appropriate GUI by diagram kind.
- * flowchart → FlowchartEditor (full canvas GUI)
- * sequenceDiagram → SequenceEditor (structured list editor)
- * others → SourceOnlyEditor (plain textarea fallback)
+ * flowchart        → FlowchartEditor (full canvas GUI)
+ * sequenceDiagram  → SequenceEditor (structured list editor)
+ * classDiagram     → ClassEditor (class + relation editor)
+ * stateDiagram-v2  → StateEditor (transition list editor)
+ * stateDiagram     → StateEditor (same editor, outputs stateDiagram-v2)
+ * others           → SourceOnlyEditor (plain textarea fallback)
  */
 export const MermaidEditor = (props: Props) => {
   const kind = detectDiagramKind(props.initialSource);
@@ -33,20 +38,16 @@ export const MermaidEditor = (props: Props) => {
   const stripped = stripGuiMetadata(props.initialSource);
 
   if (kind === "sequenceDiagram") {
-    return (
-      <SequenceEditor
-        initialSource={stripped}
-        onSave={props.onSave}
-        onCancel={props.onCancel}
-      />
-    );
+    return <SequenceEditor initialSource={stripped} onSave={props.onSave} onCancel={props.onCancel} />;
   }
 
-  return (
-    <SourceOnlyEditor
-      initialSource={stripped}
-      onSave={props.onSave}
-      onCancel={props.onCancel}
-    />
-  );
+  if (kind === "classDiagram") {
+    return <ClassEditor initialSource={stripped} onSave={props.onSave} onCancel={props.onCancel} />;
+  }
+
+  if (kind === "stateDiagram-v2" || kind === "stateDiagram") {
+    return <StateEditor initialSource={stripped} onSave={props.onSave} onCancel={props.onCancel} />;
+  }
+
+  return <SourceOnlyEditor initialSource={stripped} onSave={props.onSave} onCancel={props.onCancel} />;
 };

@@ -21,8 +21,21 @@ describe("adapter registry", () => {
     expect(adapter?.supportsGui).toBe(true);
   });
 
-  it("returns null for not-yet-implemented kinds", () => {
-    expect(getAdapter("classDiagram")).toBeNull();
+  it("returns classDiagram adapter", () => {
+    const adapter = getAdapter("classDiagram");
+    expect(adapter).not.toBeNull();
+    expect(adapter?.kind).toBe("classDiagram");
+    expect(adapter?.supportsGui).toBe(true);
+  });
+
+  it("returns stateDiagram-v2 adapter", () => {
+    const adapter = getAdapter("stateDiagram-v2");
+    expect(adapter).not.toBeNull();
+    expect(adapter?.supportsGui).toBe(true);
+  });
+
+  it("returns null for unknown kind", () => {
+    expect(getAdapter("unknown")).toBeNull();
   });
 });
 

@@ -107,16 +107,16 @@ Task 1,2 (detectDiagramKind)
 
 | 状態 | 順序 | タスク | 変更候補 | 完了条件 |
 | --- | ---: | --- | --- | --- |
-| ⏳ 未着手 | 22 | classDiagram MVPスコープを確定する | [公式docs](https://mermaid.js.org/syntax/classDiagram.html) | class / member / method / relation のうちGUI化する範囲とrawLines扱いとする構文が決まる |
-| ⏳ 未着手 | 23 | classDiagram IRを設計する | `src/core/class/ir-types.ts` | クラス・メンバー・メソッド・関係を表現できるdiscriminated unionがある |
-| ⏳ 未着手 | 24 | classDiagram parser/generatorを追加する | `src/core/class/parser.ts`, `generator.ts`, `tests/core/class-*.test.ts` | parse → generate → parse の主要構造が一致する |
-| ⏳ 未着手 | 25 | classDiagram adapterを登録する | `src/core/adapters/class.ts` | `classDiagram` がregistryから取得できる |
-| ⏳ 未着手 | 26 | classDiagram GUIを実装する | `src/ui/class/ClassEditor.tsx` | クラス追加・削除・関係線の最低限編集ができる |
-| ⏳ 未着手 | 27 | stateDiagram MVPスコープを確定する | [公式docs](https://mermaid.js.org/syntax/stateDiagram.html) | state / transition / composite state のうちGUI化する範囲が決まる |
-| ⏳ 未着手 | 28 | stateDiagram IRを設計する | `src/core/state/ir-types.ts` | 状態・遷移・開始終了状態を表現できるdiscriminated unionがある |
-| ⏳ 未着手 | 29 | stateDiagram parser/generatorを追加する | `src/core/state/parser.ts`, `generator.ts`, `tests/core/state-*.test.ts` | parse → generate → parse の主要構造が一致する |
-| ⏳ 未着手 | 30 | stateDiagram adapterを登録する | `src/core/adapters/state.ts` | `stateDiagram-v2` / `stateDiagram` がregistryから取得できる |
-| ⏳ 未着手 | 31 | stateDiagram GUIを実装する | `src/ui/state/StateEditor.tsx` | 状態追加・遷移・開始終了ノードの最低限編集ができる |
+| ✅ 完了 | 22 | classDiagram MVPスコープを確定する | [公式docs](https://mermaid.js.org/syntax/classDiagram.html) | class / member / method / relation のうちGUI化する範囲とrawLines扱いとする構文が決まる |
+| ✅ 完了 | 23 | classDiagram IRを設計する | `src/core/class/ir-types.ts` | クラス・メンバー・メソッド・関係を表現できるdiscriminated unionがある |
+| ✅ 完了 | 24 | classDiagram parser/generatorを追加する | `src/core/class/parser.ts`, `generator.ts`, `tests/core/class-*.test.ts` | parse → generate → parse の主要構造が一致する |
+| ✅ 完了 | 25 | classDiagram adapterを登録する | `src/core/adapters/class.ts` | `classDiagram` がregistryから取得できる |
+| ✅ 完了 | 26 | classDiagram GUIを実装する | `src/ui/class/ClassEditor.tsx` | クラス追加・削除・関係線の最低限編集ができる |
+| ✅ 完了 | 27 | stateDiagram MVPスコープを確定する | [公式docs](https://mermaid.js.org/syntax/stateDiagram.html) | state / transition / composite state のうちGUI化する範囲が決まる |
+| ✅ 完了 | 28 | stateDiagram IRを設計する | `src/core/state/ir-types.ts` | 状態・遷移・開始終了状態を表現できるdiscriminated unionがある |
+| ✅ 完了 | 29 | stateDiagram parser/generatorを追加する | `src/core/state/parser.ts`, `generator.ts`, `tests/core/state-*.test.ts` | parse → generate → parse の主要構造が一致する |
+| ✅ 完了 | 30 | stateDiagram adapterを登録する | `src/core/adapters/state.ts` | `stateDiagram-v2` / `stateDiagram` がregistryから取得できる |
+| ✅ 完了 | 31 | stateDiagram GUIを実装する | `src/ui/state/StateEditor.tsx` | 状態追加・遷移・開始終了ノードの最低限編集ができる |
 
 ## Phase 6: データ可視化系（pie / quadrantChart / xychart-beta / sankey-beta / radar-beta）
 
