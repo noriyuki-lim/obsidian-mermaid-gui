@@ -400,7 +400,7 @@ body.mge-text-pane-resizing * {
 }
 .mge-shape-node.selected svg.mge-bg .mge-stroke {
   stroke: var(--mge-selection);
-  stroke-width: 2.25;
+  stroke-width: 1.5;
 }
 .mge-canvas .react-flow__handle {
   width: 8px;
