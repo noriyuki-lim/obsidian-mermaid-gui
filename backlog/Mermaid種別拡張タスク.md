@@ -2,6 +2,40 @@
 
 目的: flowchart専用GUIから、Mermaid種別ごとに拡張できる編集基盤へ移行する。
 
+## 実装進め方
+
+### タスク依存の構造
+
+Phase 1–3 はほぼ直列。後のタスクが前の型・ファイルに依存するため並列化余地は限られる。
+
+```
+Task 1,2 (detectDiagramKind)
+    └─ Task 3 (SourceOnlyEditor)
+    └─ Task 5 (positions-codec stripGuiMetadata)
+         └─ Task 4 (MermaidEditor 分岐)
+              └─ Task 6 (テスト)
+                   └─ Task 7 (adapter型)
+                        └─ Task 8,9 (flowchart adapter + registry)
+                              └─ Task 10 (store責務をflowchartへ)
+                                    └─ Task 11 (互換wrapper)
+```
+
+### 1セッションの現実的な上限
+
+| セッション | 対象 | 根拠 |
+| --- | --- | --- |
+| 第1セッション | Task 1–14（Phase 1–3） | Phase 4 は UI 含む新規作成が多く、品質確保のため分離 |
+| 第2セッション | Task 15–21（Phase 4: sequenceDiagram） | IR・parser・generator・editor をまとめて集中 |
+| 第3セッション以降 | Phase 5+ | 各種別ごとに同様のパターンを繰り返す |
+
+> Task 10 は「`npm test` ベースライン記録 → リファクタ → 全テスト通過確認」が必須ストップポイント。
+
+### 第1セッションの実施順
+
+1. `detectDiagramKind` + Source-only fallback（flowchart 以外でのGUI起動エラー解消）
+2. adapter 基盤整備（flowchart を adapter 化）
+3. `DiagramIR` 親型導入（Phase 4 以降の受け皿）
+
 ## 追加対象のMermaid種別
 
 | Phase | 種別 | 編集UI方針 | 公式ドキュメント |
