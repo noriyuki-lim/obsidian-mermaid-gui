@@ -10,12 +10,14 @@
 | 4 | `sequenceDiagram` | Sequence専用GUI | [sequenceDiagram](https://mermaid.js.org/syntax/sequenceDiagram.html) |
 | 5 | `classDiagram` | クラス図専用GUI | [classDiagram](https://mermaid.js.org/syntax/classDiagram.html) |
 | 5 | `stateDiagram-v2`, `stateDiagram` | 状態遷移GUI | [stateDiagram](https://mermaid.js.org/syntax/stateDiagram.html) |
-| 6 | `pie`, `xychart-beta`, `sankey-beta`, `quadrantChart`, `radar-beta` | form / chart editor | [pie](https://mermaid.js.org/syntax/pie.html) / [xychart](https://mermaid.js.org/syntax/xyChart.html) / [sankey](https://mermaid.js.org/syntax/sankey.html) / [quadrant](https://mermaid.js.org/syntax/quadrantChart.html) / [radar](https://mermaid.js.org/syntax/radar.html) |
+| 6 | `pie`, `xychart-beta`, `sankey-beta`, `quadrantChart`, `radar-beta`❌ | form / chart editor | [pie](https://mermaid.js.org/syntax/pie.html) / [xychart](https://mermaid.js.org/syntax/xyChart.html) / [sankey](https://mermaid.js.org/syntax/sankey.html) / [quadrant](https://mermaid.js.org/syntax/quadrantChart.html) / [radar](https://mermaid.js.org/syntax/radar.html) |
 | 7 | `gantt`, `timeline` | table editor | [gantt](https://mermaid.js.org/syntax/gantt.html) / [timeline](https://mermaid.js.org/syntax/timeline.html) |
-| 8 | `erDiagram`, `mindmap`, `treemap-beta`, `venn-beta` | graph / tree editor | [er](https://mermaid.js.org/syntax/entityRelationshipDiagram.html) / [mindmap](https://mermaid.js.org/syntax/mindmap.html) / [treemap](https://mermaid.js.org/syntax/treemap.html) / [venn](https://mermaid.js.org/syntax/venn.html) |
+| 8 | `erDiagram`, `mindmap`, `treemap-beta`, `venn-beta`❌ | graph / tree editor | [er](https://mermaid.js.org/syntax/entityRelationshipDiagram.html) / [mindmap](https://mermaid.js.org/syntax/mindmap.html) / [treemap](https://mermaid.js.org/syntax/treemap.html) / [venn](https://mermaid.js.org/syntax/venn.html) |
 | 9 | `journey` | step / sequence editor | [journey](https://mermaid.js.org/syntax/userJourney.html) |
 | 10 | `architecture-beta`, `block-beta` | 専用GUI | [architecture](https://mermaid.js.org/syntax/architecture.html) / [block](https://mermaid.js.org/syntax/block.html) |
 | fallback | `unknown` | Source-only fallback | — |
+
+> ❌ = Obsidian 内蔵 Mermaid が非対応のため、プレビューを確認できない。GUI 実装時はプレビューなし・Source-only での提供を検討すること。
 
 ## 実装方針
 

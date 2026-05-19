@@ -298,6 +298,8 @@ timeline
 
 ### 14. ZenUML — ZenUML シーケンス図
 
+> **Obsidian:** ❌ 非対応
+
 シーケンス図の代替構文。同期（`->`）・非同期（`->>`）メッセージを簡潔な記法で記述できる。
 
 ```text
@@ -357,6 +359,8 @@ kanban
 
 ### 16. Ishikawa Diagram — 石川図（フィッシュボーン図）
 
+> **Obsidian:** ❌ 非対応
+
 問題に対する原因・副原因を階層的に整理する特性要因図。根本原因分析（RCA）に使用。
 
 ```mermaid
@@ -385,6 +389,8 @@ ishikawa-beta
 ***
 
 ### 17. Event Modeling — イベントモデリング図
+
+> **Obsidian:** ❌ 非対応
 
 イベントドリブンシステムの UI・コマンド・イベント・リードモデルを時系列レーンで表現する（v11.15.0+）。
 
@@ -508,6 +514,8 @@ packet-beta
 
 > **GUI対応予定:** 🔵 実装対象
 
+> **Obsidian:** ❌ 非対応
+
 複数の軸（次元）に沿って複数エンティティを比較するスパイダーチャート。
 
 ```mermaid
@@ -531,6 +539,8 @@ radar-beta
 
 > **GUI対応予定:** 🔵 実装対象
 
+> **Obsidian:** ❌ 非対応
+
 集合間の包含・交差・和集合などの関係を重なり合う円で表現する。
 
 ```mermaid
@@ -552,6 +562,8 @@ venn-beta
 ***
 
 ### 25. Wardley Map — ウォードリーマップ `wardley-beta`
+
+> **Obsidian:** ❌ 非対応
 
 価値連鎖内のコンポーネントを「可視性（Visibility）」と「進化段階（Evolution）」の 2 軸でプロットする戦略マップ。
 
@@ -606,6 +618,8 @@ treemap-beta
 ***
 
 ### 27. TreeView — ツリービュー `treeView-beta`
+
+> **Obsidian:** ❌ 非対応
 
 ファイルシステムやディレクトリ構造などの階層ツリーをインデントで表現する（v11.14.0+）。
 
@@ -733,20 +747,20 @@ C4Deployment
 | 11 | GitGraph             | `gitgraph`            | 安定    | —                       |
 | 12 | Mindmap              | `mindmap`             | 安定    | 🔵 実装対象（Phase 8）       |
 | 13 | Timeline             | `timeline`            | 安定    | 🔵 実装対象（Phase 7）       |
-| 14 | ZenUML               | `zenuml`              | 安定    | —                       |
+| 14 | ZenUML               | `zenuml`              | 安定    | ❌ Obs非対応              |
 | 15 | Kanban               | `kanban`              | 安定    | —                       |
-| 16 | Ishikawa Diagram     | `ishikawa`            | 安定    | —                       |
-| 17 | Event Modeling       | `eventmodeling`       | 安定    | —                       |
+| 16 | Ishikawa Diagram     | `ishikawa`            | 安定    | ❌ Obs非対応              |
+| 17 | Event Modeling       | `eventmodeling`       | 安定    | ❌ Obs非対応              |
 | 18 | Sankey Diagram       | `sankey-beta`         | Beta  | 🔵 実装対象（Phase 6）       |
 | 19 | XY Chart             | `xychart-beta`        | Beta  | 🔵 実装対象（Phase 6）       |
 | 20 | Block Diagram        | `block-beta`          | Beta  | 🔵 実装対象（Phase 10）      |
 | 21 | Architecture Diagram | `architecture-beta`   | Beta  | 🔵 実装対象（Phase 10）      |
 | 22 | Packet Diagram       | `packet-beta`         | Beta  | —                       |
-| 23 | Radar Chart          | `radar-beta`          | Beta  | 🔵 実装対象（Phase 6）       |
-| 24 | Venn Diagram         | `venn-beta`           | Beta  | 🔵 実装対象（Phase 8）       |
-| 25 | Wardley Map          | `wardley-beta`        | Beta  | —                       |
+| 23 | Radar Chart          | `radar-beta`          | Beta  | 🔵 実装対象（Phase 6）❌ Obs非対応 |
+| 24 | Venn Diagram         | `venn-beta`           | Beta  | 🔵 実装対象（Phase 8）❌ Obs非対応 |
+| 25 | Wardley Map          | `wardley-beta`        | Beta  | ❌ Obs非対応              |
 | 26 | Treemap              | `treemap-beta`        | Beta  | 🔵 実装対象（Phase 8）       |
-| 27 | TreeView             | `treeView-beta`       | Beta  | —                       |
+| 27 | TreeView             | `treeView-beta`       | Beta  | ❌ Obs非対応              |
 | 28 | C4 Context           | `C4Context`           | 実験的   | —                       |
 | 29 | C4 Container         | `C4Container`         | 実験的   | —                       |
 | 30 | C4 Component         | `C4Component`         | 実験的   | —                       |
