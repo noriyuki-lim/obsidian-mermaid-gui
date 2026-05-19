@@ -110,6 +110,24 @@ describe("positions-codec", () => {
     expect(decoded.parse.ir.subgraphFrames).toEqual({});
   });
 
+  it("stripGuiMetadata strips gui comments from non-flowchart source", () => {
+    const src = `%% gui:positions {"A":[0,0]}
+%% gui:meta {"version":2}
+sequenceDiagram
+  A->>B: hello`;
+    const stripped = stripGuiMetadata(src);
+    expect(stripped).not.toContain("gui:positions");
+    expect(stripped).not.toContain("gui:meta");
+    expect(stripped).toContain("sequenceDiagram");
+    expect(stripped).toContain("A->>B: hello");
+  });
+
+  it("stripGuiMetadata returns unchanged source when no gui comments present in non-flowchart", () => {
+    const src = "sequenceDiagram\n  A->>B: hello\n";
+    const stripped = stripGuiMetadata(src);
+    expect(stripped).toContain("sequenceDiagram");
+  });
+
   it("returns renderable text from the flowchart header when parse fallback is needed", () => {
     const source = `Original:
 %% gui:positions {"A":[0,0]}

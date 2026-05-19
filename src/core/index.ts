@@ -10,4 +10,6 @@ export {
   type Selection,
   type SyncStatus,
 } from "./store-factory";
-export { decodeBlock, encodeBlock, GUI_VERSION } from "./positions-codec";
+export { decodeBlock, encodeBlock, stripGuiMetadata, GUI_VERSION } from "./positions-codec";
+export { detectDiagramKind, isFlowchart, type DiagramKind } from "./diagram-kind";
+export { type DiagramIR } from "./diagram-ir";
