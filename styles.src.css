@@ -825,10 +825,11 @@ body.mge-dragging .mge-seq-toolbar { cursor: grabbing; }
 
 .mge-seq-section-title {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-muted, #6b6b7b);
+  color: var(--text-normal, #1f1f2e);
+  opacity: 0.82;
 }
 
 .mge-seq-add-btns {
@@ -860,14 +861,23 @@ body.mge-dragging .mge-seq-toolbar { cursor: grabbing; }
   letter-spacing: 0.05em;
   padding: 2px 6px;
   border-radius: 3px;
-  background: rgba(43, 36, 92, 0.12);
-  color: var(--mge-brand, #2b245c);
+  background: color-mix(in srgb, var(--text-accent, var(--mge-brand, #2b245c)) 18%, transparent);
+  color: var(--text-accent, var(--mge-brand, #2b245c));
   white-space: nowrap;
   flex-shrink: 0;
+}
+body.theme-dark .mge-seq-badge {
+  background: color-mix(in srgb, var(--text-accent, #8ab4ff) 28%, transparent);
+  color: var(--text-accent, #cfd6f5);
 }
 .mge-seq-badge-raw {
   background: var(--background-modifier-border, #d6d6df);
   color: var(--text-muted, #6b6b7b);
+}
+body.theme-dark .mge-seq-badge-raw {
+  background: var(--background-modifier-border, #3a3a44);
+  color: var(--text-normal, #e1e1e8);
+  opacity: 0.85;
 }
 
 .mge-seq-input,
@@ -890,7 +900,11 @@ body.mge-dragging .mge-seq-toolbar { cursor: grabbing; }
 
 .mge-seq-input-wide { flex: 1; min-width: 120px; }
 .mge-seq-arrow-select { min-width: 54px; }
-.mge-seq-row-label { color: var(--text-muted, #6b6b7b); flex-shrink: 0; }
+.mge-seq-row-label {
+  color: var(--text-normal, #1f1f2e);
+  opacity: 0.7;
+  flex-shrink: 0;
+}
 
 .mge-seq-raw-line {
   font-family: var(--font-monospace, ui-monospace, SFMono-Regular, Menlo, monospace);
