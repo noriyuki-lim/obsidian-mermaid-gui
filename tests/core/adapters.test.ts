@@ -37,6 +37,19 @@ describe("adapter registry", () => {
   it("returns null for unknown kind", () => {
     expect(getAdapter("unknown")).toBeNull();
   });
+
+  it.each([
+    ["pie"],
+    ["sankey-beta"],
+    ["quadrantChart"],
+    ["xychart-beta"],
+    ["radar-beta"],
+  ] as const)("returns Phase 6 adapter for %s", (kind) => {
+    const adapter = getAdapter(kind);
+    expect(adapter).not.toBeNull();
+    expect(adapter?.kind).toBe(kind);
+    expect(adapter?.supportsGui).toBe(true);
+  });
 });
 
 describe("flowchart adapter — raw line retention (Task 14)", () => {

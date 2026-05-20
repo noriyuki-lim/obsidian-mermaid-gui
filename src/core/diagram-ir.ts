@@ -2,6 +2,11 @@ import type { MermaidIR } from "./ir-types";
 import type { SequenceIR } from "./sequence/ir-types";
 import type { ClassDiagramIR } from "./class/ir-types";
 import type { StateDiagramIR } from "./state/ir-types";
+import type { PieIR } from "./pie/ir-types";
+import type { SankeyIR } from "./sankey/ir-types";
+import type { QuadrantIR } from "./quadrant/ir-types";
+import type { XYChartIR } from "./xychart/ir-types";
+import type { RadarIR } from "./radar/ir-types";
 
 /**
  * Discriminated union of all per-kind intermediate representations.
@@ -16,4 +21,9 @@ export type DiagramIR =
   | { kind: "sequenceDiagram"; ir: SequenceIR }
   | { kind: "classDiagram"; ir: ClassDiagramIR }
   | { kind: "stateDiagram-v2"; ir: StateDiagramIR }
+  | { kind: "pie"; ir: PieIR }
+  | { kind: "sankey-beta"; ir: SankeyIR }
+  | { kind: "quadrantChart"; ir: QuadrantIR }
+  | { kind: "xychart-beta"; ir: XYChartIR }
+  | { kind: "radar-beta"; ir: RadarIR }
   | { kind: "unknown"; source: string };

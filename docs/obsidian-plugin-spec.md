@@ -25,7 +25,7 @@
 - 既存 Web 版の IR・パーサ・ジェネレータ・Dagre レイアウトを共通ソースで再利用する。
 
 ### 非ゴール（初版）
-- Mermaid 全図種 GUI 対応（現在 flowchart / sequenceDiagram / classDiagram / stateDiagram が GUI 実装済み。それ以外は `SourceOnlyEditor` でソース表示のみ）。
+- Mermaid 全図種 GUI 対応（現在 flowchart / sequenceDiagram / classDiagram / stateDiagram / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta が GUI 実装済み。それ以外は `SourceOnlyEditor` でソース表示のみ。radar-beta は Obsidian 内蔵 Mermaid 非対応のためプレビュー描画なし）。
 - モバイル（Obsidian Mobile）対応。
 - Vault 横断検索や Dataview 連携。
 - 共同編集・コンフリクト解決（個人利用前提）。
@@ -148,7 +148,12 @@ mermaid-gui-obsidian/
 │   │   │   ├── flowchart.ts
 │   │   │   ├── sequence.ts
 │   │   │   ├── class.ts
-│   │   │   └── state.ts
+│   │   │   ├── state.ts
+│   │   │   ├── pie.ts
+│   │   │   ├── sankey.ts
+│   │   │   ├── quadrant.ts
+│   │   │   ├── xychart.ts
+│   │   │   └── radar.ts
 │   │   ├── sequence/          # sequenceDiagram 固有ロジック
 │   │   │   ├── ir-types.ts
 │   │   │   ├── parser.ts
@@ -157,10 +162,15 @@ mermaid-gui-obsidian/
 │   │   │   ├── ir-types.ts
 │   │   │   ├── parser.ts
 │   │   │   └── generator.ts
-│   │   └── state/             # stateDiagram 固有ロジック
-│   │       ├── ir-types.ts
-│   │       ├── parser.ts
-│   │       └── generator.ts
+│   │   ├── state/             # stateDiagram 固有ロジック
+│   │   │   ├── ir-types.ts
+│   │   │   ├── parser.ts
+│   │   │   └── generator.ts
+│   │   ├── pie/               # pie 固有ロジック
+│   │   ├── sankey/            # sankey-beta 固有ロジック
+│   │   ├── quadrant/          # quadrantChart 固有ロジック
+│   │   ├── xychart/           # xychart-beta 固有ロジック
+│   │   └── radar/             # radar-beta 固有ロジック
 │   ├── ui/                    # React コンポーネント
 │   │   ├── MermaidEditor.tsx  # 図種に応じてエディタを切り替えるルートコンポーネント
 │   │   ├── FlowchartEditor.tsx
@@ -173,7 +183,12 @@ mermaid-gui-obsidian/
 │   │   ├── toolbar/
 │   │   ├── sequence/          # SequenceEditor.tsx
 │   │   ├── class/             # ClassEditor.tsx
-│   │   └── state/             # StateEditor.tsx
+│   │   ├── state/             # StateEditor.tsx
+│   │   ├── pie/               # PieEditor.tsx
+│   │   ├── sankey/            # SankeyEditor.tsx
+│   │   ├── quadrant/          # QuadrantEditor.tsx
+│   │   ├── xychart/           # XYChartEditor.tsx
+│   │   └── radar/             # RadarEditor.tsx
 │   └── obsidian/              # Obsidian 固有レイヤ
 │       ├── EditorModal.ts
 │       ├── ReactHost.tsx      # createRoot / unmount ライフサイクル管理
@@ -284,6 +299,7 @@ mermaid-gui-obsidian/
 | --- | --- | --- |
 | v0.1 (MVP) | §7.1 全項目（flowchart GUI 実装済み） | 完了 |
 | v0.1.x | sequenceDiagram / classDiagram / stateDiagram GUI（Phase 4–5） | 完了 |
+| v0.1.x | pie / sankey-beta / quadrantChart / xychart-beta / radar-beta GUI（Phase 6） | 完了 |
 | v0.2 | §7.2（専用ビュー・wikilink・選択→図化） | 未着手 |
 | v0.3 | テーマ／i18n／パフォーマンス調整 | 未着手 |
 | v1.0 | Live Preview インライン GUI | 別企画 |

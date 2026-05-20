@@ -5,6 +5,11 @@ import { SourceOnlyEditor } from "./SourceOnlyEditor";
 import { SequenceEditor } from "./sequence/SequenceEditor";
 import { ClassEditor } from "./class/ClassEditor";
 import { StateEditor } from "./state/StateEditor";
+import { PieEditor } from "./pie/PieEditor";
+import { SankeyEditor } from "./sankey/SankeyEditor";
+import { QuadrantEditor } from "./quadrant/QuadrantEditor";
+import { XYChartEditor } from "./xychart/XYChartEditor";
+import { RadarEditor } from "./radar/RadarEditor";
 
 export interface Props {
   /** Raw text from inside ```mermaid fences (without the fences themselves). */
@@ -26,6 +31,11 @@ export interface Props {
  * classDiagram     → ClassEditor (class + relation editor)
  * stateDiagram-v2  → StateEditor (transition list editor)
  * stateDiagram     → StateEditor (same editor, outputs stateDiagram-v2)
+ * pie              → PieEditor (form: title / slices)
+ * sankey-beta      → SankeyEditor (CSV link table)
+ * quadrantChart    → QuadrantEditor (axes / quadrants / points)
+ * xychart-beta     → XYChartEditor (axes / series)
+ * radar-beta       → RadarEditor (axes / curves / options; no preview in Obsidian)
  * others           → SourceOnlyEditor (plain textarea fallback)
  */
 export const MermaidEditor = (props: Props) => {
@@ -36,18 +46,16 @@ export const MermaidEditor = (props: Props) => {
   }
 
   const stripped = stripGuiComments(props.initialSource);
+  const passthrough = { initialSource: stripped, onSave: props.onSave, onCancel: props.onCancel };
 
-  if (kind === "sequenceDiagram") {
-    return <SequenceEditor initialSource={stripped} onSave={props.onSave} onCancel={props.onCancel} />;
-  }
+  if (kind === "sequenceDiagram") return <SequenceEditor {...passthrough} />;
+  if (kind === "classDiagram") return <ClassEditor {...passthrough} />;
+  if (kind === "stateDiagram-v2" || kind === "stateDiagram") return <StateEditor {...passthrough} />;
+  if (kind === "pie") return <PieEditor {...passthrough} />;
+  if (kind === "sankey-beta") return <SankeyEditor {...passthrough} />;
+  if (kind === "quadrantChart") return <QuadrantEditor {...passthrough} />;
+  if (kind === "xychart-beta") return <XYChartEditor {...passthrough} />;
+  if (kind === "radar-beta") return <RadarEditor {...passthrough} />;
 
-  if (kind === "classDiagram") {
-    return <ClassEditor initialSource={stripped} onSave={props.onSave} onCancel={props.onCancel} />;
-  }
-
-  if (kind === "stateDiagram-v2" || kind === "stateDiagram") {
-    return <StateEditor initialSource={stripped} onSave={props.onSave} onCancel={props.onCancel} />;
-  }
-
-  return <SourceOnlyEditor initialSource={stripped} onSave={props.onSave} onCancel={props.onCancel} />;
+  return <SourceOnlyEditor {...passthrough} />;
 };

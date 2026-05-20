@@ -168,22 +168,22 @@ gantt
 
 ### 8. Pie Chart — 円グラフ
 
-> **GUI対応予定:** 🔵 実装対象
+> **GUI対応:** ✅ 実装済み（Phase 6 完了）
 
 全体に対する各カテゴリの割合を扇形で表現する。
 
 ```mermaid
 pie title 売上構成
-    "製品A" : 42
-    "製品B" : 30
-    "製品C" : 28
+  "製品A" : 42
+  "製品B" : 30
+  "製品C" : 28
 ```
 
 ***
 
 ### 9. Quadrant Chart — 象限チャート
 
-> **GUI対応予定:** 🔵 実装対象
+> **GUI対応:** ✅ 実装済み（Phase 6 完了）
 
 2 軸の座標空間にデータポイントを配置し、4 象限に分類して優先度・重要度を分析する。
 
@@ -417,7 +417,7 @@ eventmodeling
 
 ### 18. Sankey Diagram — サンキー図 `sankey-beta`
 
-> **GUI対応予定:** 🔵 実装対象
+> **GUI対応:** ✅ 実装済み（Phase 6 完了）
 
 エネルギー・資金・物流などのフロー量を帯の太さで表現する。データは CSV 形式で記述。
 
@@ -433,7 +433,7 @@ Power,Industry,30.8
 
 ### 19. XY Chart — XY チャート `xychart-beta`
 
-> **GUI対応予定:** 🔵 実装対象
+> **GUI対応:** ✅ 実装済み（Phase 6 完了）
 
 棒グラフ・折れ線グラフを X/Y 軸上にプロットするデータ可視化図。
 
@@ -512,9 +512,9 @@ packet-beta
 
 ### 23. Radar Chart — レーダーチャート `radar-beta`
 
-> **GUI対応予定:** 🔵 実装対象
+> **GUI対応:** ✅ 実装済み（Phase 6 完了）
 
-> **Obsidian:** ❌ 非対応
+> **Obsidian:** ❌ プレビュー非対応（GUI 編集は可能、ただし Obsidian 内では描画されない）
 
 複数の軸（次元）に沿って複数エンティティを比較するスパイダーチャート。
 
@@ -741,8 +741,8 @@ C4Deployment
 | 5  | ER Diagram           | `erDiagram`           | 安定    | 🔵 実装対象（Phase 8）       |
 | 6  | User Journey         | `journey`             | 安定    | 🔵 実装対象（Phase 9）       |
 | 7  | Gantt                | `gantt`               | 安定    | 🔵 実装対象（Phase 7）       |
-| 8  | Pie Chart            | `pie`                 | 安定    | 🔵 実装対象（Phase 6）       |
-| 9  | Quadrant Chart       | `quadrantChart`       | 安定    | 🔵 実装対象（Phase 6）       |
+| 8  | Pie Chart            | `pie`                 | 安定    | ✅ 実装済み（Phase 6）        |
+| 9  | Quadrant Chart       | `quadrantChart`       | 安定    | ✅ 実装済み（Phase 6）        |
 | 10 | Requirement Diagram  | `requirementDiagram`  | 安定    | —                       |
 | 11 | GitGraph             | `gitgraph`            | 安定    | —                       |
 | 12 | Mindmap              | `mindmap`             | 安定    | 🔵 実装対象（Phase 8）       |
@@ -751,12 +751,12 @@ C4Deployment
 | 15 | Kanban               | `kanban`              | 安定    | —                       |
 | 16 | Ishikawa Diagram     | `ishikawa`            | 安定    | ❌ Obs非対応              |
 | 17 | Event Modeling       | `eventmodeling`       | 安定    | ❌ Obs非対応              |
-| 18 | Sankey Diagram       | `sankey-beta`         | Beta  | 🔵 実装対象（Phase 6）       |
-| 19 | XY Chart             | `xychart-beta`        | Beta  | 🔵 実装対象（Phase 6）       |
+| 18 | Sankey Diagram       | `sankey-beta`         | Beta  | ✅ 実装済み（Phase 6）        |
+| 19 | XY Chart             | `xychart-beta`        | Beta  | ✅ 実装済み（Phase 6）        |
 | 20 | Block Diagram        | `block-beta`          | Beta  | 🔵 実装対象（Phase 10）      |
 | 21 | Architecture Diagram | `architecture-beta`   | Beta  | 🔵 実装対象（Phase 10）      |
 | 22 | Packet Diagram       | `packet-beta`         | Beta  | —                       |
-| 23 | Radar Chart          | `radar-beta`          | Beta  | 🔵 実装対象（Phase 6）❌ Obs非対応 |
+| 23 | Radar Chart          | `radar-beta`          | Beta  | ✅ 実装済み（Phase 6）❌ Obs描画不可 |
 | 24 | Venn Diagram         | `venn-beta`           | Beta  | 🔵 実装対象（Phase 8）❌ Obs非対応 |
 | 25 | Wardley Map          | `wardley-beta`        | Beta  | ❌ Obs非対応              |
 | 26 | Treemap              | `treemap-beta`        | Beta  | 🔵 実装対象（Phase 8）       |

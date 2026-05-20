@@ -6,7 +6,7 @@
 
 ## 一行要約
 
-`registerMarkdownCodeBlockProcessor("mermaid", ...)` で Reading view の mermaid ブロックに Edit ボタンを差し込み、Modal で React + ReactFlow + Zustand の GUI を立ち上げる。flowchart / sequenceDiagram / classDiagram / stateDiagram(-v2) は専用エディタを持つ。それ以外の図種は `SourceOnlyEditor` でソースのみ表示。保存時に**当該フェンスの中身だけ**を `vault.modify` で書き戻す。ノード座標はセッション内のみ保持し、ファイルには書き出さない（標準 Mermaid 準拠）。
+`registerMarkdownCodeBlockProcessor("mermaid", ...)` で Reading view の mermaid ブロックに Edit ボタンを差し込み、Modal で React + ReactFlow + Zustand の GUI を立ち上げる。flowchart / sequenceDiagram / classDiagram / stateDiagram(-v2) / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta は専用エディタを持つ（radar-beta は Obsidian 内蔵 Mermaid 非対応のためプレビュー不可）。それ以外の図種は `SourceOnlyEditor` でソースのみ表示。保存時に**当該フェンスの中身だけ**を `vault.modify` で書き戻す。ノード座標はセッション内のみ保持し、ファイルには書き出さない（標準 Mermaid 準拠）。
 
 ---
 
@@ -46,7 +46,12 @@ mermaid-gui-obsidian/
 │   │   │   ├── flowchart.ts
 │   │   │   ├── sequence.ts
 │   │   │   ├── class.ts
-│   │   │   └── state.ts
+│   │   │   ├── state.ts
+│   │   │   ├── pie.ts
+│   │   │   ├── sankey.ts
+│   │   │   ├── quadrant.ts
+│   │   │   ├── xychart.ts
+│   │   │   └── radar.ts
 │   │   ├── sequence/
 │   │   │   ├── ir-types.ts
 │   │   │   ├── parser.ts
@@ -55,7 +60,27 @@ mermaid-gui-obsidian/
 │   │   │   ├── ir-types.ts
 │   │   │   ├── parser.ts
 │   │   │   └── generator.ts
-│   │   └── state/
+│   │   ├── state/
+│   │   │   ├── ir-types.ts
+│   │   │   ├── parser.ts
+│   │   │   └── generator.ts
+│   │   ├── pie/
+│   │   │   ├── ir-types.ts
+│   │   │   ├── parser.ts
+│   │   │   └── generator.ts
+│   │   ├── sankey/
+│   │   │   ├── ir-types.ts
+│   │   │   ├── parser.ts
+│   │   │   └── generator.ts
+│   │   ├── quadrant/
+│   │   │   ├── ir-types.ts
+│   │   │   ├── parser.ts
+│   │   │   └── generator.ts
+│   │   ├── xychart/
+│   │   │   ├── ir-types.ts
+│   │   │   ├── parser.ts
+│   │   │   └── generator.ts
+│   │   └── radar/
 │   │       ├── ir-types.ts
 │   │       ├── parser.ts
 │   │       └── generator.ts
@@ -81,8 +106,18 @@ mermaid-gui-obsidian/
 │   │   │   └── SequenceEditor.tsx
 │   │   ├── class/
 │   │   │   └── ClassEditor.tsx
-│   │   └── state/
-│   │       └── StateEditor.tsx
+│   │   ├── state/
+│   │   │   └── StateEditor.tsx
+│   │   ├── pie/
+│   │   │   └── PieEditor.tsx
+│   │   ├── sankey/
+│   │   │   └── SankeyEditor.tsx
+│   │   ├── quadrant/
+│   │   │   └── QuadrantEditor.tsx
+│   │   ├── xychart/
+│   │   │   └── XYChartEditor.tsx
+│   │   └── radar/
+│   │       └── RadarEditor.tsx
 │   └── obsidian/                  ← Obsidian API 固有レイヤ
 │       ├── EditorModal.ts
 │       ├── ReactHost.tsx          ← createRoot / unmount ライフサイクル管理
@@ -103,6 +138,16 @@ mermaid-gui-obsidian/
 │   │   ├── class-generator.test.ts
 │   │   ├── state-parser.test.ts
 │   │   ├── state-generator.test.ts
+│   │   ├── pie-parser.test.ts
+│   │   ├── pie-generator.test.ts
+│   │   ├── sankey-parser.test.ts
+│   │   ├── sankey-generator.test.ts
+│   │   ├── quadrant-parser.test.ts
+│   │   ├── quadrant-generator.test.ts
+│   │   ├── xychart-parser.test.ts
+│   │   ├── xychart-generator.test.ts
+│   │   ├── radar-parser.test.ts
+│   │   ├── radar-generator.test.ts
 │   │   └── adapters.test.ts
 │   └── ui/
 │       ├── adapter.test.ts
@@ -161,7 +206,7 @@ src/obsidian/  →  src/ui/  →  src/core/
 | `src/core/adapters/index.ts` | `getAdapter(kind)` レジストリ |
 | `src/core/diagram-ir.ts` | `DiagramIR` 判別 union |
 
-**登録済み図種（Phase 1–5 完了）**：flowchart / sequenceDiagram / classDiagram / stateDiagram-v2 / stateDiagram の 5 種。`supportsGui: false` のアダプタ、または未登録の図種は `src/ui/SourceOnlyEditor.tsx` にフォールバックする。
+**登録済み図種（Phase 1–6 完了）**：flowchart / sequenceDiagram / classDiagram / stateDiagram-v2 / stateDiagram / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta の 10 種。`supportsGui: false` のアダプタ、または未登録の図種は `src/ui/SourceOnlyEditor.tsx` にフォールバックする。radar-beta は Obsidian 内蔵 Mermaid が非対応のため、GUI 編集は可能だがプレビューは描画されない。
 
 ### 新図種の追加手順
 

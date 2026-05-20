@@ -122,10 +122,62 @@ Task 1,2 (detectDiagramKind)
 
 | 状態 | 順序 | タスク | 変更候補 | 完了条件 |
 | --- | ---: | --- | --- | --- |
-| ⏳ 未着手 | 32 | 各種別のMVPスコープを確定する | 公式docs参照（5種別） | データ構造と編集対象要素が種別ごとに決まる |
-| ⏳ 未着手 | 33 | IR・parser・generator・adapterを実装する | `src/core/<kind>/`, `src/core/adapters/` | 各種別でparse → generate round-tripが成立する |
-| ⏳ 未着手 | 34 | form / chart editor GUIを実装する | `src/ui/<kind>/` | 各種別で数値・ラベルの追加・編集・削除ができる |
-| ⏳ 未着手 | 35 | 保存経路を接続し回帰テストを追加する | `src/ui/MermaidEditor.tsx`, `tests/` | 各種別の編集後にMermaidブロックとして保存できる |
+| ✅ 完了 | 32 | 各種別のMVPスコープを確定する | 公式docs参照（5種別） | データ構造と編集対象要素が種別ごとに決まる |
+| ✅ 完了 | 33 | IR・parser・generator・adapterを実装する | `src/core/<kind>/`, `src/core/adapters/` | 各種別でparse → generate round-tripが成立する |
+| ✅ 完了 | 34 | form / chart editor GUIを実装する | `src/ui/<kind>/` | 各種別で数値・ラベルの追加・編集・削除ができる |
+| ✅ 完了 | 35 | 保存経路を接続し回帰テストを追加する | `src/ui/MermaidEditor.tsx`, `tests/` | 各種別の編集後にMermaidブロックとして保存できる |
+
+### Phase 6 MVP スコープ（公式 docs ベース）
+
+各種別の対応構文は最小限に絞り、未対応行は順序付きの `rawLines` / `items` として保持する。詳細は公式ドキュメント（`https://mermaid.js.org/syntax/<kind>.html`）を正とする。
+
+#### `pie`
+
+- ヘッダ: `pie` + optional `showData` + optional `title <text>`
+- データ行: `"label" : <number>`（label は二重引用符、value は正の数）
+- IR: `{ kind, showData, title?, slices: [{ label, value }], rawLines: [{ index, line }] }`
+- rawLines: `%%` コメント・不明な行を順序付きで保持
+
+#### `quadrantChart`
+
+- ヘッダ: `quadrantChart`
+- 対応構文:
+  - `title <text>`
+  - `x-axis <left> --> <right>` または `x-axis <left>`
+  - `y-axis <bottom> --> <top>` または `y-axis <bottom>`
+  - `quadrant-1 <text>` 〜 `quadrant-4 <text>`
+  - `<Name>: [<x>, <y>]`（0 ≤ x,y ≤ 1）
+- MVP 範囲外（rawLines 行きで保持）: point スタイリング（`radius:`、`color:` 等）、`<Name>:::className: [...]`、`classDef ...`
+- IR: `{ kind, title?, xAxis?, yAxis?, quadrants{1..4}?, points[], rawLines[] }`
+
+#### `xychart-beta`
+
+- ヘッダ: `xychart-beta` + optional `horizontal`
+- 対応構文:
+  - `title "<text>"`
+  - `x-axis <title> <min> --> <max>` または `x-axis "<title>" [<cat1>, <cat2>, ...]` または `x-axis [<cat1>, ...]`
+  - `y-axis <title>` または `y-axis <title> <min> --> <max>`
+  - `bar [<v1>, <v2>, ...]`
+  - `line [<v1>, <v2>, ...]`
+- IR: `{ kind, orientation: "vertical"|"horizontal", title?, xAxis?, yAxis?, series: [{ kind: "bar"|"line", values[] }], rawLines[] }`
+
+#### `sankey-beta`
+
+- ヘッダ: `sankey-beta`
+- 本文: CSV 3 列（source, target, value）。RFC 4180 準拠の引用（`"..."`、`""` でエスケープ）。
+- 任意のヘッダ行 `source,target,value` は保持し、生成時にも再出力する。
+- IR: `{ kind, hasHeaderRow: boolean, links: [{ source, target, value }], rawLines[] }`
+
+#### `radar-beta`
+
+- ヘッダ: `radar-beta`
+- 対応構文:
+  - `title <text>`
+  - `axis <id>["<label>"]` または `axis <id1>, <id2>, ...`（label 省略可、複数 axis を 1 行で）
+  - `curve <id>["<label>"]{<v1>, <v2>, ...}`（label 省略可、key:value 形式 `curve id{axis1: v, ...}` は MVP では rawLines）
+  - オプション行: `showLegend true|false` / `max <n>` / `min <n>` / `graticule circle|polygon` / `ticks <n>`
+- IR: `{ kind, title?, axes: [{ id, label? }], curves: [{ id, label?, values[] }], options{}, rawLines[] }`
+- 備考: Obsidian 内蔵 Mermaid は radar-beta 未対応。GUI 編集は可能だがプレビューは描画されない。
 
 ## Phase 7: 時系列系（gantt / timeline）
 
