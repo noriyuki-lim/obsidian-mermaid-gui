@@ -192,11 +192,12 @@ mermaid-gui-obsidian/
 │   │   ├── xychart/           # XYChartEditor.tsx
 │   │   └── radar/             # RadarEditor.tsx
 │   └── obsidian/              # Obsidian 固有レイヤ
-│       ├── EditorModal.ts
-│       ├── ReactHost.tsx      # createRoot / unmount ライフサイクル管理
-│       ├── postProcessor.ts   # Reading view のブロック装飾
-│       ├── commands.ts        # コマンドパレット登録
+│       ├── EditorModal.ts        # Modal 生成 + toolbar ドラッグ + 四隅リサイズハンドル
+│       ├── ReactHost.tsx        # createRoot / unmount ライフサイクル管理
+│       ├── postProcessor.ts    # Reading view のブロック装飾
+│       ├── commands.ts         # コマンドパレット登録
 │       ├── editorExtension.ts # Live Preview CM6 拡張
+│       ├── mermaidRender.ts   # `theme-dark` を見て `mermaid.initialize({ theme })` を切替えるラッパ
 │       ├── svgExport.ts       # SVG エクスポート
 │       └── io.ts              # vault/editor 経由の IO adapter
 │   ※ MermaidView.ts（専用ビュー P1.5）・widget.ts（CM6 P2）は未実装
@@ -211,7 +212,8 @@ mermaid-gui-obsidian/
 ### 6.2 ビルド
 - `obsidian-plugin` は **esbuild** で `main.js` 単一ファイルへバンドル（Obsidian 公式 sample-plugin 準拠）。
 - `obsidian` / `@codemirror/*` は external、本体に同梱しない。
-- **`mermaid` 本体はバンドルしない** — Obsidian 内蔵の renderer (`MarkdownRenderer.render`) を呼ぶ。SVG エクスポート時もこれに委譲する。
+- **`mermaid` 本体はバンドルしない** — Obsidian 内蔵の `loadMermaid()` を呼ぶ。SVG エクスポート時もこれに委譲する。
+- **テーマ追従**: `src/obsidian/mermaidRender.ts` の `renderMermaidThemed` が `document.body.classList.contains("theme-dark")` を見て `mermaid.initialize({ theme })` を切り替える。Modal プレビューと Reading view（`postProcessor.ts`）の双方が同 helper を経由するため、ライト/ダークどちらでも SVG テキストのコントラストが確保される。プレビューラッパには `color-scheme: light dark` も付与。
 
 ### 6.3 React マウントとライフサイクル（複数ブロック同居前提）
 
@@ -222,6 +224,7 @@ mermaid-gui-obsidian/
 - **Zustand store のファクトリ化**: `createEditorStore()` が呼び出しごとに独立した store を返す形へリファクタする（既存のモジュールトップレベル `create()` は不可）。
 - 同一ノート内のブロック間でショートカット・選択状態が混線しないよう、キーボードイベントは**フォーカスのある root に閉じ込める**（document-level listener を避ける）。
 - Modal 起動中はその Modal の store のみ active。背後の Reading view 上の他ブロックは静的プレビューのまま。
+- Modal は toolbar ドラッグで移動、四隅のカスタムハンドル（`mge-resize-handle-{nw,ne,sw,se}`）で拡縮できる。左/上辺ドラッグ時は `left`/`top` も同時更新し反対側を基準に固定する。クランプは最小 540×360、最大 98vw×96vh。CSS の `resize: both` は撤去し、grippers は `EditorModal.onOpen` で生成し `onClose` で破棄する。
 
 ### 6.4 IO レイヤ
 

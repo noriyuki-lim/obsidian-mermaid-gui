@@ -3,12 +3,11 @@ import {
   MarkdownRenderChild,
   Notice,
   Plugin,
-  loadMermaid,
 } from "obsidian";
 import { EditorModal } from "./EditorModal";
 import { writeBlockBack } from "./io";
 import { exportSvgToVault } from "./svgExport";
-import { stripGuiComments } from "../core";
+import { renderMermaidThemed } from "./mermaidRender";
 
 /**
  * Decorate a single ```mermaid code block: render the diagram via Obsidian's
@@ -43,10 +42,7 @@ export const mountMermaidBlock = (
 
 const renderPreview = async (source: string, target: HTMLElement): Promise<void> => {
   try {
-    const mermaid = await loadMermaid();
-    const id = `mge-${Math.random().toString(36).slice(2, 9)}`;
-    const result = await mermaid.render(id, stripGuiComments(source));
-    target.innerHTML = result.svg;
+    target.innerHTML = await renderMermaidThemed(source);
   } catch (err) {
     target.empty();
     target.createDiv({

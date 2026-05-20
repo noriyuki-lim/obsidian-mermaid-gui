@@ -123,13 +123,14 @@ mermaid-gui-obsidian/
 │   │   └── radar/
 │   │       └── RadarEditor.tsx
 │   └── obsidian/                  ← Obsidian API 固有レイヤ
-│       ├── EditorModal.ts
+│       ├── EditorModal.ts         ← Modal の生成・toolbar ドラッグ・四隅リサイズハンドル
 │       ├── ReactHost.tsx          ← createRoot / unmount ライフサイクル管理
-│       ├── postProcessor.ts       ← Reading view ブロック装飾
-│       ├── commands.ts            ← コマンドパレット & 右クリックメニュー登録（既存ブロック編集 / 新規挿入）
-│       ├── editorExtension.ts     ← Live Preview CM6 拡張
+│       ├── postProcessor.ts      ← Reading view ブロック装飾
+│       ├── commands.ts           ← コマンドパレット & 右クリックメニュー登録（既存ブロック編集 / 新規挿入）
+│       ├── editorExtension.ts    ← Live Preview CM6 拡張
+│       ├── mermaidRender.ts      ← Mermaid 描画のテーマ追従ヘルパ（modal preview / reading view 共通）
 │       ├── svgExport.ts
-│       └── io.ts                  ← vault/editor IO adapter
+│       └── io.ts                 ← vault/editor IO adapter
 ├── tests/
 │   ├── core/
 │   │   ├── parser.test.ts
@@ -228,7 +229,7 @@ src/obsidian/  →  src/ui/  →  src/core/
 flowchart を除く全ての専用エディタは `src/ui/EditorShell.tsx` を root として使う。シェルは 3 つの責務を一手に引き受ける：
 
 1. **ドラッグ可能な toolbar** — `.mge-toolbar` クラスを付けたヘッダを描画する。`EditorModal` の delegated mousedown handler がこれを検知し、modal を移動させる。専用 toolbar をエディタ側で再実装してはいけない（drag 対象が外れる）。
-2. **ライブ Mermaid プレビュー** — 親から渡された `renderMermaid(source)` を使い、IR の更新ごとに最新の Mermaid SVG を再描画する。`EditorModal` から `loadMermaid()` をラップした実装が注入される。
+2. **ライブ Mermaid プレビュー** — 親から渡された `renderMermaid(source)` を使い、IR の更新ごとに最新の Mermaid SVG を再描画する。`EditorModal` からは `src/obsidian/mermaidRender.ts` の `renderMermaidThemed` が注入される。同 helper は Obsidian の `theme-dark` クラスを見て `mermaid.initialize({ theme })` を切り替えるため、ライト/ダーク両方で文字色が追従する。Reading view の `postProcessor.ts` も同じ helper を経由するので、プレビューの見た目はモーダルと一致する（#37）。
 3. **コードペイン** — 生成中のソースを read-only textarea に同期表示する。
 
 各 `<Kind>Editor` は次のシグネチャを満たす：
