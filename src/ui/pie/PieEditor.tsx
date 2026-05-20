@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { parsePie } from "../../core/pie/parser";
 import { generatePie } from "../../core/pie/generator";
-import { EditorShell } from "../EditorShell";
+import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import type { PieIR, PieItem } from "../../core/pie/ir-types";
 
 interface Props {
@@ -44,6 +44,13 @@ export const PieEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Pr
 
   const currentSource = useMemo(() => generatePie(ir), [ir]);
 
+  const handleSourceEdit = useCallback((next: string): SourceEditOutcome => {
+    const outcome = parsePie(next);
+    if (!outcome.ok) return { ok: false, error: outcome.message };
+    setIr(outcome.ir);
+    return { ok: true };
+  }, []);
+
   const handleSave = useCallback(async () => {
     if (saving) return;
     setSaving(true);
@@ -61,6 +68,7 @@ export const PieEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Pr
       onCancel={onCancel}
       saving={saving}
       renderMermaid={renderMermaid}
+      onSourceEdit={handleSourceEdit}
     >
       <div className="mge-seq-body">
         <section className="mge-seq-section">

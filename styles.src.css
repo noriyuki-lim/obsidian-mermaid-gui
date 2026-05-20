@@ -680,6 +680,33 @@ body.mge-side-resizing * {
   letter-spacing: 0.06em;
   color: var(--text-muted, #6b6b7b);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.mge-editor-shell .mge-source-status {
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.mge-editor-shell .mge-source-status.ok {
+  color: var(--text-muted, #6b6b7b);
+}
+.mge-editor-shell .mge-source-status.dirty {
+  color: var(--mge-accent, #04aed6);
+  background: rgba(4, 174, 214, 0.12);
+}
+.mge-editor-shell .mge-source-status.err {
+  color: var(--text-error, #c83333);
+  background: rgba(200, 51, 51, 0.12);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60%;
 }
 .mge-editor-shell > .mge-editor-side > .mge-preview-resizer {
   cursor: ns-resize;

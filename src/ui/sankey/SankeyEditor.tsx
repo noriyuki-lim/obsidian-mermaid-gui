@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { parseSankey } from "../../core/sankey/parser";
 import { generateSankey } from "../../core/sankey/generator";
-import { EditorShell } from "../EditorShell";
+import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import type { SankeyIR, SankeyItem } from "../../core/sankey/ir-types";
 
 interface Props {
@@ -43,6 +43,13 @@ export const SankeyEditor = ({ initialSource, onSave, onCancel, renderMermaid }:
 
   const currentSource = useMemo(() => generateSankey(ir), [ir]);
 
+  const handleSourceEdit = useCallback((next: string): SourceEditOutcome => {
+    const outcome = parseSankey(next);
+    if (!outcome.ok) return { ok: false, error: outcome.message };
+    setIr(outcome.ir);
+    return { ok: true };
+  }, []);
+
   const handleSave = useCallback(async () => {
     if (saving) return;
     setSaving(true);
@@ -60,6 +67,7 @@ export const SankeyEditor = ({ initialSource, onSave, onCancel, renderMermaid }:
       onCancel={onCancel}
       saving={saving}
       renderMermaid={renderMermaid}
+      onSourceEdit={handleSourceEdit}
     >
       <div className="mge-seq-body">
         <section className="mge-seq-section">

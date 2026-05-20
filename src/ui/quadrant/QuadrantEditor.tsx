@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { parseQuadrant } from "../../core/quadrant/parser";
 import { generateQuadrant } from "../../core/quadrant/generator";
-import { EditorShell } from "../EditorShell";
+import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import { QuadrantInteractivePreview } from "./QuadrantInteractivePreview";
 import type {
   QuadrantIR,
@@ -72,6 +72,13 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
 
   const currentSource = useMemo(() => generateQuadrant(ir), [ir]);
 
+  const handleSourceEdit = useCallback((next: string): SourceEditOutcome => {
+    const outcome = parseQuadrant(next);
+    if (!outcome.ok) return { ok: false, error: outcome.message };
+    setIr(outcome.ir);
+    return { ok: true };
+  }, []);
+
   const handleSave = useCallback(async () => {
     if (saving) return;
     setSaving(true);
@@ -89,6 +96,7 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
       onCancel={onCancel}
       saving={saving}
       previewOverride={<QuadrantInteractivePreview ir={ir} onPointMove={movePoint} />}
+      onSourceEdit={handleSourceEdit}
     >
       <div className="mge-seq-body">
         <section className="mge-seq-section">

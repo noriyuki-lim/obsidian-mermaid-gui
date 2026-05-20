@@ -230,7 +230,7 @@ flowchart を除く全ての専用エディタは `src/ui/EditorShell.tsx` を r
 
 1. **ドラッグ可能な toolbar** — `.mge-toolbar` クラスを付けたヘッダを描画する。`EditorModal` の delegated mousedown handler がこれを検知し、modal を移動させる。専用 toolbar をエディタ側で再実装してはいけない（drag 対象が外れる）。
 2. **ライブ Mermaid プレビュー** — 親から渡された `renderMermaid(source)` を使い、IR の更新ごとに最新の Mermaid SVG を再描画する。`EditorModal` からは `src/obsidian/mermaidRender.ts` の `renderMermaidThemed` が注入される。同 helper は Obsidian の `theme-dark` クラスを見て `mermaid.initialize({ theme })` を切り替えるため、ライト/ダーク両方で文字色が追従する。Reading view の `postProcessor.ts` も同じ helper を経由するので、プレビューの見た目はモーダルと一致する（#37）。
-3. **コードペイン** — 生成中のソースを read-only textarea に同期表示する。
+3. **コードペイン** — 生成中のソースを textarea に同期表示する。`onSourceEdit` を渡すと編集可能になり、ユーザーのキーストロークごとに `parse<Kind>(next)` を呼んで IR を差し替える。draft state がユーザーの正確な入力を保持し続け、blur で IR から再生成された canonical 形に戻る。parse 失敗時はインラインの error バッジ（赤）が出るだけで IR は据え置く。
 
 各 `<Kind>Editor` は次のシグネチャを満たす：
 
@@ -243,14 +243,21 @@ flowchart を除く全ての専用エディタは `src/ui/EditorShell.tsx` を r
   renderMermaid={props.renderMermaid}
   previewOverride={/* グラフィカル編集が必要なら独自プレビューで上書き */}
   previewUnavailableMessage={/* Mermaid が非対応な図種 (radar 等) のメッセージ */}
+  onSourceEdit={(next) => {        // コードペインからの編集を受け取る
+    const outcome = parse(next);
+    if (!outcome.ok) return { ok: false, error: outcome.message };
+    setIr(outcome.ir);            // class/state では rawItems も state 化して setRawItems
+    return { ok: true };
+  }}
 >
   {/* フォーム / リスト等 */}
 </EditorShell>
 ```
 
 - **数値入力欄のみで構成しない**。プレビュー上でグラフィカルに操作できるなら `previewOverride` で SVG エディタを差し込み、ドラッグやハンドルで直接編集する経路を提供する（例: `QuadrantInteractivePreview`）。フォームは補助。
+- **`onSourceEdit` は再 parse を伴う**ため、未対応構文を `rawLines` / `rawItems` 経由で round-trip させているエディタ（class / state）は当該配列も `useState` で管理し、再 parse の結果で必ず置き換える。closure-captured な const のままだとコードペイン経由の編集で raw 行が消えてしまう。
 - 共通シェルの toolbar の見た目を変えたければ `toolbarExtras` slot を使う。`<header>` の DOM 構造には触れない。
-- flowchart は React Flow canvas そのものがグラフィカルプレビューなので `EditorShell` を使わず `mge-app-shell` の独自レイアウトを維持する。例外として扱う。
+- flowchart は React Flow canvas そのものがグラフィカルプレビューなので `EditorShell` を使わず `mge-app-shell` の独自レイアウトを維持する。例外として扱う。コード編集は既存の `src/ui/panels/TextPane.tsx`（store の `setText` / `commitText` 経由、debounce ありの blur commit）に集約。
 
 ---
 

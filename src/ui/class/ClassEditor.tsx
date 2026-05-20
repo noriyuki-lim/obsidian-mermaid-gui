@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { parseClassDiagram } from "../../core/class/parser";
 import { generateClassDiagram } from "../../core/class/generator";
-import { EditorShell } from "../EditorShell";
+import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import type {
   ClassDiagramItem,
   ClassNote,
@@ -98,7 +98,9 @@ export const ClassEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
   const [classes, setClasses] = useState<ClassState[]>(init.classes);
   const [relations, setRelations] = useState<ClassRelation[]>(init.relations);
   const [notes, setNotes] = useState<ClassNote[]>(init.notes);
-  const rawItems = init.rawItems; // never mutated through GUI
+  // rawItems used to be a const captured at mount; it is now state so source-pane
+  // edits that introduce unsupported syntax round-trip cleanly via `rawLines`.
+  const [rawItems, setRawItems] = useState<RawItem[]>(init.rawItems);
   const [saving, setSaving] = useState(false);
 
   const classNames = classes.map((c) => c.name);
@@ -124,6 +126,17 @@ export const ClassEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
     try { await onSave(currentSource); }
     finally { setSaving(false); }
   }, [saving, currentSource, onSave]);
+
+  const handleSourceEdit = useCallback((next: string): SourceEditOutcome => {
+    const outcome = parseClassDiagram(next);
+    if (!outcome.ok) return { ok: false, error: outcome.message };
+    const re = initState(outcome.ir.items);
+    setClasses(re.classes);
+    setRelations(re.relations);
+    setNotes(re.notes);
+    setRawItems(re.rawItems);
+    return { ok: true };
+  }, []);
 
   // --- Class mutations ---
   const addClass = () => {
@@ -194,6 +207,7 @@ export const ClassEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       onCancel={onCancel}
       saving={saving}
       renderMermaid={renderMermaid}
+      onSourceEdit={handleSourceEdit}
     >
       <div className="mge-seq-body">
 

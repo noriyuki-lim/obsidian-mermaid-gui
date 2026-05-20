@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { parseRadar } from "../../core/radar/parser";
 import { generateRadar } from "../../core/radar/generator";
-import { EditorShell } from "../EditorShell";
+import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import type { RadarAxis, RadarCurve, RadarIR } from "../../core/radar/ir-types";
 
 interface Props {
@@ -65,6 +65,13 @@ export const RadarEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
 
   const currentSource = useMemo(() => generateRadar(ir), [ir]);
 
+  const handleSourceEdit = useCallback((next: string): SourceEditOutcome => {
+    const outcome = parseRadar(next);
+    if (!outcome.ok) return { ok: false, error: outcome.message };
+    setIr(outcome.ir);
+    return { ok: true };
+  }, []);
+
   const handleSave = useCallback(async () => {
     if (saving) return;
     setSaving(true);
@@ -86,6 +93,7 @@ export const RadarEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       saving={saving}
       renderMermaid={renderMermaid}
       previewUnavailableMessage="Obsidian の内蔵 Mermaid は radar-beta 非対応。コードのみ確認可能。"
+      onSourceEdit={handleSourceEdit}
     >
       <div className="mge-seq-body">
         <section className="mge-seq-section">

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { parseXYChart } from "../../core/xychart/parser";
 import { generateXYChart } from "../../core/xychart/generator";
-import { EditorShell } from "../EditorShell";
+import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import type {
   XYAxis,
   XYChartIR,
@@ -66,6 +66,13 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
 
   const currentSource = useMemo(() => generateXYChart(ir), [ir]);
 
+  const handleSourceEdit = useCallback((next: string): SourceEditOutcome => {
+    const outcome = parseXYChart(next);
+    if (!outcome.ok) return { ok: false, error: outcome.message };
+    setIr(outcome.ir);
+    return { ok: true };
+  }, []);
+
   const handleSave = useCallback(async () => {
     if (saving) return;
     setSaving(true);
@@ -83,6 +90,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
       onCancel={onCancel}
       saving={saving}
       renderMermaid={renderMermaid}
+      onSourceEdit={handleSourceEdit}
     >
       <div className="mge-seq-body">
         <section className="mge-seq-section">

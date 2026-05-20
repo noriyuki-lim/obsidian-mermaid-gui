@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback } from "react";
 import { parseSequence } from "../../core/sequence/parser";
 import { generateSequence } from "../../core/sequence/generator";
-import { EditorShell } from "../EditorShell";
+import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import type {
   ActorItem,
   ActivationItem,
@@ -90,6 +90,13 @@ export const SequenceEditor = ({ initialSource, onSave, onCancel, renderMermaid 
     [items],
   );
 
+  const handleSourceEdit = useCallback((next: string): SourceEditOutcome => {
+    const outcome = parseSequence(next);
+    if (!outcome.ok) return { ok: false, error: outcome.message };
+    setItems(outcome.ir.items);
+    return { ok: true };
+  }, []);
+
   const handleSave = useCallback(async () => {
     if (saving) return;
     setSaving(true);
@@ -118,6 +125,7 @@ export const SequenceEditor = ({ initialSource, onSave, onCancel, renderMermaid 
       onCancel={onCancel}
       saving={saving}
       renderMermaid={renderMermaid}
+      onSourceEdit={handleSourceEdit}
     >
       <div className="mge-seq-body">
         {/* Participants */}

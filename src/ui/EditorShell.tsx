@@ -13,6 +13,8 @@ const PREVIEW_DEFAULT = 0.58;
 const PREVIEW_MIN = 0.2;
 const PREVIEW_MAX = 0.85;
 
+export type SourceEditOutcome = { ok: true } | { ok: false; error: string };
+
 interface Props {
   /** Brand label rendered on the left of the toolbar. */
   title?: string;
@@ -33,6 +35,15 @@ interface Props {
   previewOverride?: ReactNode;
   /** Note shown when the host editor cannot render a preview. */
   previewUnavailableMessage?: string;
+  /**
+   * When provided, the Mermaid source textarea becomes editable. The shell
+   * keeps the user's draft visible until they blur the textarea so the
+   * generator's canonical form does not stomp partial edits. Each keystroke
+   * calls back: returning `{ ok: true }` means the new source parses and the
+   * host editor has reflected it in IR; returning `{ ok: false }` keeps the
+   * old IR and surfaces the error inline.
+   */
+  onSourceEdit?: (next: string) => SourceEditOutcome;
   /** Main editor body — controls / form sections live here. */
   children: ReactNode;
 }
@@ -57,11 +68,21 @@ export const EditorShell = ({
   renderMermaid,
   previewOverride,
   previewUnavailableMessage,
+  onSourceEdit,
   children,
 }: Props) => {
   const [svg, setSvg] = useState<string>("");
   const [renderError, setRenderError] = useState<string | null>(null);
   const renderToken = useRef(0);
+
+  // Source-pane editing state. `draft` is null when the textarea is in lockstep
+  // with the IR-derived `currentSource`. The host editor flips into draft mode
+  // on the first keystroke and stays there until blur — that prevents the
+  // generator's canonical form from stomping partial edits mid-typing.
+  const [draft, setDraft] = useState<string | null>(null);
+  const [sourceError, setSourceError] = useState<string | null>(null);
+  const editable = typeof onSourceEdit === "function";
+  const displaySource = draft ?? currentSource;
 
   const shellRef = useRef<HTMLDivElement>(null);
   const sideDrag = useRef<{ startX: number; startRatio: number } | null>(null);
@@ -262,12 +283,44 @@ export const EditorShell = ({
           onPointerCancel={endPreviewDrag}
         />
         <div className="mge-editor-code">
-          <div className="mge-editor-pane-header">Mermaid source</div>
+          <div className="mge-editor-pane-header">
+            <span>Mermaid source</span>
+            {editable ? (
+              sourceError ? (
+                <span className="mge-source-status err">parse error: {sourceError}</span>
+              ) : draft !== null ? (
+                <span className="mge-source-status dirty">編集中… blur で確定</span>
+              ) : (
+                <span className="mge-source-status ok">同期済み</span>
+              )
+            ) : null}
+          </div>
           <textarea
-            value={currentSource}
-            readOnly
+            value={displaySource}
+            readOnly={!editable}
             spellCheck={false}
             wrap="off"
+            onChange={
+              editable
+                ? (e) => {
+                    const next = e.target.value;
+                    setDraft(next);
+                    const result = onSourceEdit!(next);
+                    setSourceError(result.ok ? null : result.error);
+                  }
+                : undefined
+            }
+            onBlur={
+              editable
+                ? () => {
+                    // Snap back to the canonical IR-derived source. When the
+                    // draft still has a parse error, we keep it visible so the
+                    // user can fix it instead of silently losing their typing.
+                    if (sourceError !== null) return;
+                    setDraft(null);
+                  }
+                : undefined
+            }
           />
         </div>
       </aside>

@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { parseStateDiagram } from "../../core/state/parser";
 import { generateStateDiagram } from "../../core/state/generator";
-import { EditorShell } from "../EditorShell";
+import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import type {
   NotePosition,
   RawItem,
@@ -64,7 +64,9 @@ export const StateEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
   const [stateDecls, setStateDecls] = useState<StateDeclRow[]>(init.stateDecls);
   const [stateDescs, setStateDescs] = useState<StateDescRow[]>(init.stateDescs);
   const [notes, setNotes] = useState<NoteRow[]>(init.notes);
-  const rawItems = init.rawItems;
+  // rawItems was a closure-captured const; moved to state so source-pane edits
+  // can replace lines the GUI does not model directly (handled via rawLines).
+  const [rawItems, setRawItems] = useState<RawItem[]>(init.rawItems);
   const [saving, setSaving] = useState(false);
 
   // Collect known state names for autocomplete
@@ -93,6 +95,18 @@ export const StateEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
     try { await onSave(currentSource); }
     finally { setSaving(false); }
   }, [saving, currentSource, onSave]);
+
+  const handleSourceEdit = useCallback((next: string): SourceEditOutcome => {
+    const outcome = parseStateDiagram(next);
+    if (!outcome.ok) return { ok: false, error: outcome.message };
+    const re = initState(outcome.ir.items);
+    setTransitions(re.transitions);
+    setStateDecls(re.stateDecls);
+    setStateDescs(re.stateDescs);
+    setNotes(re.notes);
+    setRawItems(re.rawItems);
+    return { ok: true };
+  }, []);
 
   // --- Transition mutations ---
   const addTransition = () =>
@@ -163,6 +177,7 @@ export const StateEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       onCancel={onCancel}
       saving={saving}
       renderMermaid={renderMermaid}
+      onSourceEdit={handleSourceEdit}
     >
       <div className="mge-seq-body">
 
