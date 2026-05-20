@@ -1,6 +1,7 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { parseXYChart } from "../../core/xychart/parser";
 import { generateXYChart } from "../../core/xychart/generator";
+import { EditorShell } from "../EditorShell";
 import type {
   XYAxis,
   XYChartIR,
@@ -13,6 +14,7 @@ interface Props {
   initialSource: string;
   onSave: (newSource: string) => void | Promise<void>;
   onCancel: () => void;
+  renderMermaid?: (source: string) => Promise<string>;
 }
 
 const seed = (initialSource: string): XYChartIR => {
@@ -34,7 +36,7 @@ const parseValues = (text: string): number[] => {
   return out;
 };
 
-export const XYChartEditor = ({ initialSource, onSave, onCancel }: Props) => {
+export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
   const [ir, setIr] = useState<XYChartIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
 
@@ -62,27 +64,26 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel }: Props) => {
     setIr((prev) => ({ ...prev, [which]: axis }));
   };
 
+  const currentSource = useMemo(() => generateXYChart(ir), [ir]);
+
   const handleSave = useCallback(async () => {
     if (saving) return;
     setSaving(true);
     try {
-      await onSave(generateXYChart(ir));
+      await onSave(currentSource);
     } finally {
       setSaving(false);
     }
-  }, [saving, ir, onSave]);
+  }, [saving, currentSource, onSave]);
 
   return (
-    <div className="mge-seq-editor">
-      <div className="mge-seq-toolbar">
-        <button className="mge-seq-btn mge-seq-btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? "保存中…" : "保存"}
-        </button>
-        <button className="mge-seq-btn" onClick={onCancel} disabled={saving}>
-          キャンセル
-        </button>
-      </div>
-
+    <EditorShell
+      currentSource={currentSource}
+      onSave={handleSave}
+      onCancel={onCancel}
+      saving={saving}
+      renderMermaid={renderMermaid}
+    >
       <div className="mge-seq-body">
         <section className="mge-seq-section">
           <div className="mge-seq-section-header">
@@ -169,7 +170,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel }: Props) => {
           })}
         </section>
       </div>
-    </div>
+    </EditorShell>
   );
 };
 

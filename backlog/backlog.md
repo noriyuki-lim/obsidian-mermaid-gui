@@ -27,3 +27,16 @@
 | 23 | 🟡 ペンディング | 水平スクロールが効かない不具合の修正 | 横スクロールバー追加の再設計に統合。まず表示空白化の再現条件を分離してから対応 |
 | 24 | ✅ 完了 | ライブプレビューでEditボタンがスクロールに追従しない | `view.scrollDOM` の scroll イベントを購読して再計測。`requestMeasure` に `key` を付与して重複排除。可視エリア外ブロックのボタンはスキップ |
 | 25 | ✅ 完了 | ノード選択時の枠線が太すぎる | 選択時の `stroke-width` を 2.25 → 1.5 に変更し、色のみで選択状態を表現 |
+| 26 | ✅ 完了 | 全エディタ共通の上部バーをドラッグ可能に | `src/ui/EditorShell.tsx` を新設し、全図種エディタが `.mge-toolbar` を持つ共通シェルを使用。modal の drag handle が flowchart 以外でも作動 |
+| 27 | ✅ 完了 | 全図種でコード+プレビューを横に並べる | EditorShell の右ペインに Mermaid 描画と生成ソースを上下分割表示。`renderMermaid` を `EditorModal` から `loadMermaid()` 経由で注入 |
+| 28 | ✅ 完了 | quadrantChart：プレビュー上でポイントをドラッグ編集 | `QuadrantInteractivePreview` を導入し、ポイントを SVG 上でドラッグして x/y を更新（IR 座標 0..1 を直接編集） |
+| 29 | ⏳ 未着手 | pie：プレビュー上でスライス境界をドラッグ編集 | 各スライスのエッジハンドルを掴んで割合を直接調整できるようにする |
+| 30 | ⏳ 未着手 | xychart：バー/折れ線の値をドラッグ編集 | プロット領域でデータポイントを上下ドラッグし values 配列を直接編集 |
+| 31 | ⏳ 未着手 | sankey：ノード移動とフロー値のドラッグ編集 | source/target ノードの並べ替えや link の幅を直接掴んで編集 |
+| 32 | ⏳ 未着手 | sequence/class/state：プレビュー要素のドラッグ並べ替え | participant 順、class 配置、state 遷移の起点/終点を SVG オーバーレイ上で操作 |
+| 33 | ⏳ 未着手 | radar：軸/カーブのドラッグ編集 | 内蔵 Mermaid が radar-beta 対応する将来を見据え、独自 SVG プレビューを検討 |
+| 34 | ⏳ 未着手 | flowchart：React Flow canvas に加えて Mermaid 出力プレビューも併設 | 現状 canvas が graphical preview を兼ねるが、最終 SVG を独立に確認できる小窓を検討 |
+| 35 | ✅ 完了 | まっさらな状態から GUI で新規作成（右クリックメニュー＋種別ピッカー＋初期テンプレート） | エディタ内右クリックで「Insert new Mermaid diagram (GUI)」を追加。空ソースで Modal を開くと `DiagramKindPicker` が表示され、種別を選ぶと `src/core/templates.ts` のテンプレートをロード。保存時に新規 `\`\`\`mermaid` フェンスをカーソル位置に挿入。コマンドパレットからも実行可能 |
+| 36 | ⏳ 未着手 | DiagramKindPicker のタイル内テキストはみ出しを根本対応 | 現状 `description` が長いとタイル右辺・下辺をはみ出す。`min-width: 0` と長文の折返し制御（`overflow-wrap: anywhere` 等）、行数クランプ（`-webkit-line-clamp` または `max-height`+ellipsis）、グリッド `auto-rows: 1fr` での高さ揃え、タイル内 `padding`/`gap` の再設計を組み合わせ、どの言語・どの説明長でもタイル内に収まるレイアウト規約を確立する。`label` のフォントサイズも縮小ブレークポイントを検討 |
+| 37 | ⏳ 未着手 | プレビュー上のテキスト可視性（暗い背景・図形でのコントラスト不足） | Mermaid が描画する SVG は文字色が固定のため、ダークテーマや濃色の図形上で黒テキストが沈んで読めない。対応案：(a) プレビューラッパに `color-scheme` を付与して Mermaid 内部 CSS 変数を上書き、(b) `mermaid.initialize({ theme: 'base'/'dark' })` を Obsidian テーマと連動させる、(c) SVG 内 `<text>` の `fill` をプレビュー側 CSS で強制上書き、(d) 図形 fill の輝度から自動的に文字色を決める後処理。最も副作用が少ないものを選定して標準化する |
+| 38 | ⏳ 未着手 | エディタウィンドウのリサイズハンドルを四隅に拡張 | 現状 `resize: both` で右下のみリサイズ可能。左下・右上・左上の三隅にも独自ハンドルを実装し、左/上辺ドラッグ時は `modalEl.style.left` / `top` も同時に更新して反対側を基準にリサイズする。`getBoundingClientRect` を起点に幅・高さ・座標を一括更新するハンドラに統一し、`mge-dragging` と同様の cursor 切替も用意 |

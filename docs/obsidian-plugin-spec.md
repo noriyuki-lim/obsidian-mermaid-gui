@@ -172,7 +172,9 @@ mermaid-gui-obsidian/
 │   │   ├── xychart/           # xychart-beta 固有ロジック
 │   │   └── radar/             # radar-beta 固有ロジック
 │   ├── ui/                    # React コンポーネント
-│   │   ├── MermaidEditor.tsx  # 図種に応じてエディタを切り替えるルートコンポーネント
+│   │   ├── MermaidEditor.tsx  # 図種に応じてエディタを切り替えるルートコンポーネント（空ソース時は DiagramKindPicker）
+│   │   ├── EditorShell.tsx    # 非 flowchart エディタ共通のシェル（toolbar / preview / code pane）
+│   │   ├── DiagramKindPicker.tsx  # 新規作成フローの図種選択 UI
 │   │   ├── FlowchartEditor.tsx
 │   │   ├── SourceOnlyEditor.tsx  # GUI 未対応図種のフォールバック
 │   │   ├── EditorContext.tsx
@@ -186,7 +188,7 @@ mermaid-gui-obsidian/
 │   │   ├── state/             # StateEditor.tsx
 │   │   ├── pie/               # PieEditor.tsx
 │   │   ├── sankey/            # SankeyEditor.tsx
-│   │   ├── quadrant/          # QuadrantEditor.tsx
+│   │   ├── quadrant/          # QuadrantEditor.tsx + QuadrantInteractivePreview.tsx
 │   │   ├── xychart/           # XYChartEditor.tsx
 │   │   └── radar/             # RadarEditor.tsx
 │   └── obsidian/              # Obsidian 固有レイヤ

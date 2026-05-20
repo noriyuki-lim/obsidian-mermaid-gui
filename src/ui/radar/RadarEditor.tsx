@@ -1,12 +1,14 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { parseRadar } from "../../core/radar/parser";
 import { generateRadar } from "../../core/radar/generator";
+import { EditorShell } from "../EditorShell";
 import type { RadarAxis, RadarCurve, RadarIR } from "../../core/radar/ir-types";
 
 interface Props {
   initialSource: string;
   onSave: (newSource: string) => void | Promise<void>;
   onCancel: () => void;
+  renderMermaid?: (source: string) => Promise<string>;
 }
 
 const seed = (initialSource: string): RadarIR => {
@@ -26,7 +28,7 @@ const parseValues = (text: string): number[] => {
   return out;
 };
 
-export const RadarEditor = ({ initialSource, onSave, onCancel }: Props) => {
+export const RadarEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
   const [ir, setIr] = useState<RadarIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
 
@@ -61,27 +63,30 @@ export const RadarEditor = ({ initialSource, onSave, onCancel }: Props) => {
     }));
   };
 
+  const currentSource = useMemo(() => generateRadar(ir), [ir]);
+
   const handleSave = useCallback(async () => {
     if (saving) return;
     setSaving(true);
     try {
-      await onSave(generateRadar(ir));
+      await onSave(currentSource);
     } finally {
       setSaving(false);
     }
-  }, [saving, ir, onSave]);
+  }, [saving, currentSource, onSave]);
 
+  // Obsidian's bundled mermaid does not parse radar-beta. We still wire
+  // renderMermaid in case a future version does; today the shell shows the
+  // error returned by the renderer (or the "preview unavailable" hint).
   return (
-    <div className="mge-seq-editor">
-      <div className="mge-seq-toolbar">
-        <button className="mge-seq-btn mge-seq-btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? "保存中…" : "保存"}
-        </button>
-        <button className="mge-seq-btn" onClick={onCancel} disabled={saving}>
-          キャンセル
-        </button>
-      </div>
-
+    <EditorShell
+      currentSource={currentSource}
+      onSave={handleSave}
+      onCancel={onCancel}
+      saving={saving}
+      renderMermaid={renderMermaid}
+      previewUnavailableMessage="Obsidian の内蔵 Mermaid は radar-beta 非対応。コードのみ確認可能。"
+    >
       <div className="mge-seq-body">
         <section className="mge-seq-section">
           <div className="mge-seq-section-header">
@@ -96,9 +101,6 @@ export const RadarEditor = ({ initialSource, onSave, onCancel }: Props) => {
               placeholder="(no title)"
             />
           </div>
-          <p className="mge-seq-empty">
-            ※ Obsidian の内蔵 Mermaid は radar-beta 非対応のため、プレビューは表示されない。
-          </p>
         </section>
 
         <section className="mge-seq-section">
@@ -286,6 +288,6 @@ export const RadarEditor = ({ initialSource, onSave, onCancel }: Props) => {
           </section>
         )}
       </div>
-    </div>
+    </EditorShell>
   );
 };

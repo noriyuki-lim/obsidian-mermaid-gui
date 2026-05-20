@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { parseSequence } from "../../core/sequence/parser";
 import { generateSequence } from "../../core/sequence/generator";
+import { EditorShell } from "../EditorShell";
 import type {
   ActorItem,
   ActivationItem,
@@ -17,9 +18,10 @@ interface Props {
   initialSource: string;
   onSave: (newSource: string) => void | Promise<void>;
   onCancel: () => void;
+  renderMermaid?: (source: string) => Promise<string>;
 }
 
-export const SequenceEditor = ({ initialSource, onSave, onCancel }: Props) => {
+export const SequenceEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
   const [items, setItems] = useState<SequenceItem[]>(() => {
     const outcome = parseSequence(initialSource);
     return outcome.ok ? outcome.ir.items : [];
@@ -83,15 +85,20 @@ export const SequenceEditor = ({ initialSource, onSave, onCancel }: Props) => {
     setItems((prev) => [...prev, item]);
   };
 
+  const currentSource = useMemo(
+    () => generateSequence({ kind: "sequenceDiagram", items }),
+    [items],
+  );
+
   const handleSave = useCallback(async () => {
     if (saving) return;
     setSaving(true);
     try {
-      await onSave(generateSequence({ kind: "sequenceDiagram", items }));
+      await onSave(currentSource);
     } finally {
       setSaving(false);
     }
-  }, [saving, items, onSave]);
+  }, [saving, currentSource, onSave]);
 
   const participantSelect = (value: string, onChange: (v: string) => void) => (
     <select className="mge-seq-select" value={value} onChange={(e) => onChange(e.target.value)}>
@@ -105,16 +112,13 @@ export const SequenceEditor = ({ initialSource, onSave, onCancel }: Props) => {
   );
 
   return (
-    <div className="mge-seq-editor">
-      <div className="mge-seq-toolbar">
-        <button className="mge-seq-btn mge-seq-btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? "保存中…" : "保存"}
-        </button>
-        <button className="mge-seq-btn" onClick={onCancel} disabled={saving}>
-          キャンセル
-        </button>
-      </div>
-
+    <EditorShell
+      currentSource={currentSource}
+      onSave={handleSave}
+      onCancel={onCancel}
+      saving={saving}
+      renderMermaid={renderMermaid}
+    >
       <div className="mge-seq-body">
         {/* Participants */}
         <section className="mge-seq-section">
@@ -295,6 +299,6 @@ export const SequenceEditor = ({ initialSource, onSave, onCancel }: Props) => {
           })}
         </section>
       </div>
-    </div>
+    </EditorShell>
   );
 };

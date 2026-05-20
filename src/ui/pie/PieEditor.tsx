@@ -1,12 +1,14 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { parsePie } from "../../core/pie/parser";
 import { generatePie } from "../../core/pie/generator";
+import { EditorShell } from "../EditorShell";
 import type { PieIR, PieItem } from "../../core/pie/ir-types";
 
 interface Props {
   initialSource: string;
   onSave: (newSource: string) => void | Promise<void>;
   onCancel: () => void;
+  renderMermaid?: (source: string) => Promise<string>;
 }
 
 const seed = (initialSource: string): PieIR => {
@@ -15,7 +17,7 @@ const seed = (initialSource: string): PieIR => {
   return { kind: "pie", showData: false, items: [] };
 };
 
-export const PieEditor = ({ initialSource, onSave, onCancel }: Props) => {
+export const PieEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
   const [ir, setIr] = useState<PieIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
 
@@ -40,27 +42,26 @@ export const PieEditor = ({ initialSource, onSave, onCancel }: Props) => {
     }));
   };
 
+  const currentSource = useMemo(() => generatePie(ir), [ir]);
+
   const handleSave = useCallback(async () => {
     if (saving) return;
     setSaving(true);
     try {
-      await onSave(generatePie(ir));
+      await onSave(currentSource);
     } finally {
       setSaving(false);
     }
-  }, [saving, ir, onSave]);
+  }, [saving, currentSource, onSave]);
 
   return (
-    <div className="mge-seq-editor">
-      <div className="mge-seq-toolbar">
-        <button className="mge-seq-btn mge-seq-btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? "保存中…" : "保存"}
-        </button>
-        <button className="mge-seq-btn" onClick={onCancel} disabled={saving}>
-          キャンセル
-        </button>
-      </div>
-
+    <EditorShell
+      currentSource={currentSource}
+      onSave={handleSave}
+      onCancel={onCancel}
+      saving={saving}
+      renderMermaid={renderMermaid}
+    >
       <div className="mge-seq-body">
         <section className="mge-seq-section">
           <div className="mge-seq-section-header">
@@ -139,6 +140,6 @@ export const PieEditor = ({ initialSource, onSave, onCancel }: Props) => {
           })}
         </section>
       </div>
-    </div>
+    </EditorShell>
   );
 };

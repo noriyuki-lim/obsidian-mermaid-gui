@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { parseStateDiagram } from "../../core/state/parser";
 import { generateStateDiagram } from "../../core/state/generator";
+import { EditorShell } from "../EditorShell";
 import type {
   NotePosition,
   RawItem,
@@ -16,6 +17,7 @@ interface Props {
   initialSource: string;
   onSave: (newSource: string) => void | Promise<void>;
   onCancel: () => void;
+  renderMermaid?: (source: string) => Promise<string>;
 }
 
 let _idCounter = 0;
@@ -47,7 +49,7 @@ const initState = (items: StateDiagramItem[]) => {
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export const StateEditor = ({ initialSource, onSave, onCancel }: Props) => {
+export const StateEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
   const parsed = parseStateDiagram(initialSource);
   const init = parsed.ok
     ? initState(parsed.ir.items)
@@ -74,7 +76,7 @@ export const StateEditor = ({ initialSource, onSave, onCancel }: Props) => {
     ]).values(),
   ).filter((s) => s !== "[*]");
 
-  const buildSource = useCallback(() => {
+  const currentSource = useMemo(() => {
     const items: StateDiagramItem[] = [
       ...stateDecls,
       ...stateDescs,
@@ -88,9 +90,9 @@ export const StateEditor = ({ initialSource, onSave, onCancel }: Props) => {
   const handleSave = useCallback(async () => {
     if (saving) return;
     setSaving(true);
-    try { await onSave(buildSource()); }
+    try { await onSave(currentSource); }
     finally { setSaving(false); }
-  }, [saving, buildSource, onSave]);
+  }, [saving, currentSource, onSave]);
 
   // --- Transition mutations ---
   const addTransition = () =>
@@ -155,14 +157,13 @@ export const StateEditor = ({ initialSource, onSave, onCancel }: Props) => {
   );
 
   return (
-    <div className="mge-seq-editor">
-      <div className="mge-seq-toolbar">
-        <button className="mge-seq-btn mge-seq-btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? "保存中…" : "保存"}
-        </button>
-        <button className="mge-seq-btn" onClick={onCancel} disabled={saving}>キャンセル</button>
-      </div>
-
+    <EditorShell
+      currentSource={currentSource}
+      onSave={handleSave}
+      onCancel={onCancel}
+      saving={saving}
+      renderMermaid={renderMermaid}
+    >
       <div className="mge-seq-body">
 
         {/* ── Transitions ── */}
@@ -229,7 +230,7 @@ export const StateEditor = ({ initialSource, onSave, onCancel }: Props) => {
         </section>
 
         {/* ── State Descriptions ── */}
-        {(stateDescs.length > 0 || false) && (
+        {stateDescs.length > 0 ? (
           <section className="mge-seq-section">
             <div className="mge-seq-section-header">
               <span className="mge-seq-section-title">State Descriptions</span>
@@ -252,8 +253,7 @@ export const StateEditor = ({ initialSource, onSave, onCancel }: Props) => {
               </div>
             ))}
           </section>
-        )}
-        {stateDescs.length === 0 && (
+        ) : (
           <div className="mge-seq-section">
             <div className="mge-seq-section-header">
               <span className="mge-seq-section-title">State Descriptions</span>
@@ -312,6 +312,6 @@ export const StateEditor = ({ initialSource, onSave, onCancel }: Props) => {
           </section>
         )}
       </div>
-    </div>
+    </EditorShell>
   );
 };

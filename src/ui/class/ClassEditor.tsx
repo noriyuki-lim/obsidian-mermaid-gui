@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { parseClassDiagram } from "../../core/class/parser";
 import { generateClassDiagram } from "../../core/class/generator";
+import { EditorShell } from "../EditorShell";
 import type {
   ClassDiagramItem,
   ClassNote,
@@ -14,6 +15,7 @@ interface Props {
   initialSource: string;
   onSave: (newSource: string) => void | Promise<void>;
   onCancel: () => void;
+  renderMermaid?: (source: string) => Promise<string>;
 }
 
 // UI-internal class state (richer than IR for easier editing)
@@ -89,7 +91,7 @@ const initState = (items: ClassDiagramItem[]) => {
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export const ClassEditor = ({ initialSource, onSave, onCancel }: Props) => {
+export const ClassEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
   const parsed = parseClassDiagram(initialSource);
   const init = parsed.ok ? initState(parsed.ir.items) : { classes: [], relations: [], notes: [], rawItems: [] };
 
@@ -102,7 +104,7 @@ export const ClassEditor = ({ initialSource, onSave, onCancel }: Props) => {
   const classNames = classes.map((c) => c.name);
 
   // Build IR and generate source
-  const buildSource = useCallback(() => {
+  const currentSource = useMemo(() => {
     const items: ClassDiagramItem[] = [];
     for (const cls of classes) {
       items.push({ type: "class", name: cls.name, annotation: cls.annotation || undefined });
@@ -119,9 +121,9 @@ export const ClassEditor = ({ initialSource, onSave, onCancel }: Props) => {
   const handleSave = useCallback(async () => {
     if (saving) return;
     setSaving(true);
-    try { await onSave(buildSource()); }
+    try { await onSave(currentSource); }
     finally { setSaving(false); }
-  }, [saving, buildSource, onSave]);
+  }, [saving, currentSource, onSave]);
 
   // --- Class mutations ---
   const addClass = () => {
@@ -186,14 +188,13 @@ export const ClassEditor = ({ initialSource, onSave, onCancel }: Props) => {
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="mge-seq-editor">
-      <div className="mge-seq-toolbar">
-        <button className="mge-seq-btn mge-seq-btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? "保存中…" : "保存"}
-        </button>
-        <button className="mge-seq-btn" onClick={onCancel} disabled={saving}>キャンセル</button>
-      </div>
-
+    <EditorShell
+      currentSource={currentSource}
+      onSave={handleSave}
+      onCancel={onCancel}
+      saving={saving}
+      renderMermaid={renderMermaid}
+    >
       <div className="mge-seq-body">
 
         {/* ── Classes ── */}
@@ -310,41 +311,39 @@ export const ClassEditor = ({ initialSource, onSave, onCancel }: Props) => {
         </section>
 
         {/* ── Notes ── */}
-        {(notes.length > 0 || true) && (
-          <section className="mge-seq-section">
-            <div className="mge-seq-section-header">
-              <span className="mge-seq-section-title">Notes</span>
-              <div className="mge-seq-add-btns">
-                <button className="mge-seq-btn mge-seq-btn-sm" onClick={addNote}>+ note</button>
-              </div>
+        <section className="mge-seq-section">
+          <div className="mge-seq-section-header">
+            <span className="mge-seq-section-title">Notes</span>
+            <div className="mge-seq-add-btns">
+              <button className="mge-seq-btn mge-seq-btn-sm" onClick={addNote}>+ note</button>
             </div>
-            {notes.length === 0 && <p className="mge-seq-empty">ノートなし。</p>}
-            {notes.map((note, idx) => (
-              <div key={idx} className="mge-seq-row">
-                <span className="mge-seq-badge">note</span>
-                <span className="mge-seq-row-label">for</span>
-                <input
-                  className="mge-seq-input"
-                  list={`mge-cls-note-cls-${idx}`}
-                  value={note.forClass ?? ""}
-                  onChange={(e) => updateNote(idx, { forClass: e.target.value || undefined })}
-                  placeholder="ClassName (optional)"
-                />
-                <datalist id={`mge-cls-note-cls-${idx}`}>
-                  {classNames.map((n) => <option key={n} value={n} />)}
-                </datalist>
-                <span className="mge-seq-row-label">:</span>
-                <input
-                  className="mge-seq-input mge-seq-input-wide"
-                  value={note.text}
-                  onChange={(e) => updateNote(idx, { text: e.target.value })}
-                  placeholder="note text"
-                />
-                <button className="mge-seq-btn mge-seq-btn-sm mge-seq-btn-danger" onClick={() => deleteNote(idx)}>×</button>
-              </div>
-            ))}
-          </section>
-        )}
+          </div>
+          {notes.length === 0 && <p className="mge-seq-empty">ノートなし。</p>}
+          {notes.map((note, idx) => (
+            <div key={idx} className="mge-seq-row">
+              <span className="mge-seq-badge">note</span>
+              <span className="mge-seq-row-label">for</span>
+              <input
+                className="mge-seq-input"
+                list={`mge-cls-note-cls-${idx}`}
+                value={note.forClass ?? ""}
+                onChange={(e) => updateNote(idx, { forClass: e.target.value || undefined })}
+                placeholder="ClassName (optional)"
+              />
+              <datalist id={`mge-cls-note-cls-${idx}`}>
+                {classNames.map((n) => <option key={n} value={n} />)}
+              </datalist>
+              <span className="mge-seq-row-label">:</span>
+              <input
+                className="mge-seq-input mge-seq-input-wide"
+                value={note.text}
+                onChange={(e) => updateNote(idx, { text: e.target.value })}
+                placeholder="note text"
+              />
+              <button className="mge-seq-btn mge-seq-btn-sm mge-seq-btn-danger" onClick={() => deleteNote(idx)}>×</button>
+            </div>
+          ))}
+        </section>
 
         {/* ── Raw lines (read-only) ── */}
         {rawItems.length > 0 && (
@@ -361,6 +360,6 @@ export const ClassEditor = ({ initialSource, onSave, onCancel }: Props) => {
           </section>
         )}
       </div>
-    </div>
+    </EditorShell>
   );
 };

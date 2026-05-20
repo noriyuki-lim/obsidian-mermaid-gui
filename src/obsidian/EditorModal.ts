@@ -1,7 +1,15 @@
-import { App, Modal, Notice } from "obsidian";
+import { App, Modal, Notice, loadMermaid } from "obsidian";
 import { createElement } from "react";
 import { ReactHost } from "./ReactHost";
 import { MermaidEditor } from "../ui/MermaidEditor";
+import { stripGuiComments } from "../core";
+
+const renderMermaidForShell = async (source: string): Promise<string> => {
+  const mermaid = await loadMermaid();
+  const id = `mge-modal-${Math.random().toString(36).slice(2, 9)}`;
+  const result = await mermaid.render(id, stripGuiComments(source));
+  return result.svg;
+};
 
 export interface EditorModalHandlers {
   onSave: (newSource: string) => Promise<void> | void;
@@ -51,6 +59,7 @@ export class EditorModal extends Modal {
         onParseError: (msg: string) => {
           new Notice(`Parse error: ${msg}`);
         },
+        renderMermaid: renderMermaidForShell,
       }),
     );
     this.dragCleanup = installToolbarDrag(this.modalEl, this.contentEl);

@@ -1,6 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { parseQuadrant } from "../../core/quadrant/parser";
 import { generateQuadrant } from "../../core/quadrant/generator";
+import { EditorShell } from "../EditorShell";
+import { QuadrantInteractivePreview } from "./QuadrantInteractivePreview";
 import type {
   QuadrantIR,
   QuadrantItem,
@@ -10,6 +12,7 @@ interface Props {
   initialSource: string;
   onSave: (newSource: string) => void | Promise<void>;
   onCancel: () => void;
+  renderMermaid?: (source: string) => Promise<string>;
 }
 
 const seed = (initialSource: string): QuadrantIR => {
@@ -26,7 +29,12 @@ const quadrantLabels: Record<(typeof quadrantKeys)[number], string> = {
   q4: "Quadrant 4 (bottom right)",
 };
 
+const round = (n: number) => Math.round(n * 1000) / 1000;
+
 export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
+  // QuadrantEditor swaps Mermaid's static render for an interactive SVG so the
+  // user can drag points instead of typing x/y by hand. `renderMermaid` from
+  // props is intentionally ignored — the override always wins.
   const [ir, setIr] = useState<QuadrantIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
 
@@ -35,6 +43,17 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
       ...prev,
       items: prev.items.map((item, i) =>
         i === index ? ({ ...item, ...patch } as QuadrantItem) : item,
+      ),
+    }));
+  };
+
+  const movePoint = (index: number, x: number, y: number) => {
+    setIr((prev) => ({
+      ...prev,
+      items: prev.items.map((item, i) =>
+        i === index && item.type === "point"
+          ? { ...item, x: round(x), y: round(y) }
+          : item,
       ),
     }));
   };
@@ -51,27 +70,26 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
     }));
   };
 
+  const currentSource = useMemo(() => generateQuadrant(ir), [ir]);
+
   const handleSave = useCallback(async () => {
     if (saving) return;
     setSaving(true);
     try {
-      await onSave(generateQuadrant(ir));
+      await onSave(currentSource);
     } finally {
       setSaving(false);
     }
-  }, [saving, ir, onSave]);
+  }, [saving, currentSource, onSave]);
 
   return (
-    <div className="mge-seq-editor">
-      <div className="mge-seq-toolbar">
-        <button className="mge-seq-btn mge-seq-btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? "保存中…" : "保存"}
-        </button>
-        <button className="mge-seq-btn" onClick={onCancel} disabled={saving}>
-          キャンセル
-        </button>
-      </div>
-
+    <EditorShell
+      currentSource={currentSource}
+      onSave={handleSave}
+      onCancel={onCancel}
+      saving={saving}
+      previewOverride={<QuadrantInteractivePreview ir={ir} onPointMove={movePoint} />}
+    >
       <div className="mge-seq-body">
         <section className="mge-seq-section">
           <div className="mge-seq-section-header">
@@ -190,7 +208,7 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
             </div>
           </div>
           {ir.items.filter((i) => i.type === "point").length === 0 && (
-            <p className="mge-seq-empty">ポイントが未定義。+ で追加。</p>
+            <p className="mge-seq-empty">ポイントが未定義。+ で追加するか、プレビューを右にスクロール。</p>
           )}
           {ir.items.map((item, idx) => {
             if (item.type === "point") {
@@ -240,6 +258,6 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
           })}
         </section>
       </div>
-    </div>
+    </EditorShell>
   );
 };

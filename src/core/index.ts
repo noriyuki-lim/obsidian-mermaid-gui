@@ -12,3 +12,4 @@ export {
 } from "./store-factory";
 export { detectDiagramKind, isFlowchart, type DiagramKind } from "./diagram-kind";
 export { type DiagramIR } from "./diagram-ir";
+export { DIAGRAM_TEMPLATES, getTemplate, type DiagramTemplate } from "./templates";

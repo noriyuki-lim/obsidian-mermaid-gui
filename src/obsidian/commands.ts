@@ -97,3 +97,59 @@ export const openModalForBlock = (
     },
   }).open();
 };
+
+/**
+ * Open the GUI editor with an empty initial source, so the user lands on the
+ * diagram-kind picker and can scaffold a brand-new diagram. On save, insert a
+ * fresh `\`\`\`mermaid` fence at the cursor in the active editor.
+ *
+ * If the cursor is mid-line we drop a blank line above the fence so the new
+ * block is recognised as a code block (markdown requires fences to start on
+ * their own line).
+ */
+export const openModalForNewBlock = (
+  plugin: Plugin,
+  file: TFile | null,
+  editor: Editor,
+): void => {
+  if (!file) {
+    new Notice("Cannot insert Mermaid block — no active file.");
+    return;
+  }
+  new EditorModal(plugin.app, "", {
+    onSave: async (newSource) => {
+      insertNewMermaidFence(editor, newSource);
+    },
+    onExportSvg: async (src) => {
+      await exportSvgToVault(plugin.app, file.path, src);
+    },
+  }).open();
+};
+
+const insertNewMermaidFence = (editor: Editor, body: string): void => {
+  const cursor = editor.getCursor();
+  const line = editor.getLine(cursor.line);
+  const atLineStart = cursor.ch === 0 || /^\s*$/.test(line.slice(0, cursor.ch));
+  const lineIsEmpty = line.trim().length === 0;
+
+  const trimmed = body.replace(/\n+$/, "");
+  const fence = `\`\`\`mermaid\n${trimmed}\n\`\`\``;
+
+  // Build the chunk so the fence starts on its own line and is followed by a
+  // blank line — feels right both at end-of-document and between paragraphs.
+  let chunk: string;
+  if (atLineStart && lineIsEmpty) {
+    chunk = `${fence}\n`;
+  } else if (atLineStart) {
+    chunk = `${fence}\n\n`;
+  } else {
+    chunk = `\n\n${fence}\n`;
+  }
+  editor.replaceRange(chunk, cursor);
+  // Place the cursor just after the inserted block so subsequent typing flows.
+  const inserted = chunk.split("\n");
+  editor.setCursor({
+    line: cursor.line + inserted.length - 1,
+    ch: inserted[inserted.length - 1].length,
+  });
+};

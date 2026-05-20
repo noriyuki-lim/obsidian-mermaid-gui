@@ -510,6 +510,164 @@ body.mge-text-pane-resizing * {
 }
 .mge-modal .mge-react-root > .mge-app-shell { height: 100%; }
 
+/* ============================================================
+   Shared editor shell — applies to every non-flowchart GUI.
+   Layout: top toolbar (drag handle) + left body + right side
+   pane with live Mermaid preview above the generated source.
+============================================================ */
+.mge-editor-shell {
+  display: grid;
+  grid-template-rows: 44px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 6px minmax(240px, calc(var(--mge-side-ratio, 0.42) * 100%));
+  grid-template-areas:
+    "toolbar toolbar toolbar"
+    "body    sep     side";
+  height: 100%;
+  width: 100%;
+  background: var(--background-primary, #f7f7fa);
+  color: var(--text-normal, #1f1f2e);
+  font-size: 13px;
+  min-height: 0;
+}
+.mge-editor-shell .mge-editor-toolbar { grid-area: toolbar; }
+.mge-editor-shell .mge-editor-body {
+  grid-area: body;
+  overflow: auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.mge-editor-shell > .mge-side-resizer {
+  grid-area: sep;
+  cursor: ew-resize;
+  background: transparent;
+  position: relative;
+}
+.mge-editor-shell > .mge-side-resizer::after {
+  content: "";
+  position: absolute;
+  inset: 0 2px;
+  background: var(--background-modifier-border, #d6d6df);
+  transition: background 0.1s;
+}
+.mge-editor-shell > .mge-side-resizer:hover::after,
+body.mge-side-resizing .mge-editor-shell > .mge-side-resizer::after {
+  background: var(--mge-accent, #04aed6);
+}
+body.mge-side-resizing,
+body.mge-side-resizing * {
+  cursor: ew-resize !important;
+  user-select: none !important;
+}
+
+.mge-editor-shell .mge-editor-side {
+  grid-area: side;
+  display: grid;
+  grid-template-rows: minmax(60px, calc(var(--mge-preview-ratio, 0.58) * 100%)) 6px minmax(60px, 1fr);
+  background: var(--background-secondary, #fff);
+  border-left: 1px solid var(--background-modifier-border, #d6d6df);
+  min-height: 0;
+  min-width: 0;
+}
+.mge-editor-shell .mge-editor-preview {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.mge-editor-shell .mge-editor-preview-inner {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background-primary, #f7f7fa);
+}
+.mge-editor-shell .mge-mermaid-preview {
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mge-editor-shell .mge-mermaid-preview svg {
+  max-width: 100%;
+  height: auto;
+}
+.mge-editor-shell .mge-editor-preview-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted, #6b6b7b);
+  font-style: italic;
+}
+.mge-editor-shell .mge-preview-error {
+  background: var(--background-modifier-error, #fbe6e6);
+  color: var(--text-error, #c0392b);
+  border: 1px solid var(--text-error, #c0392b);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  max-width: 100%;
+}
+.mge-editor-shell .mge-editor-code {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.mge-editor-shell .mge-editor-code textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 8px 10px;
+  font-family: var(--font-monospace, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  line-height: 1.45;
+  resize: none;
+  background: var(--background-secondary-alt, #f1f1f6);
+  color: var(--text-normal, #1f1f2e);
+  min-height: 0;
+}
+.mge-editor-shell .mge-editor-pane-header {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--background-modifier-border, #d6d6df);
+  background: var(--background-secondary-alt, #f1f1f6);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, #6b6b7b);
+  flex-shrink: 0;
+}
+.mge-editor-shell > .mge-editor-side > .mge-preview-resizer {
+  cursor: ns-resize;
+  background: transparent;
+  position: relative;
+}
+.mge-editor-shell > .mge-editor-side > .mge-preview-resizer::after {
+  content: "";
+  position: absolute;
+  inset: 2px 0;
+  background: var(--background-modifier-border, #d6d6df);
+  transition: background 0.1s;
+}
+.mge-editor-shell > .mge-editor-side > .mge-preview-resizer:hover::after,
+body.mge-preview-resizing .mge-editor-shell > .mge-editor-side > .mge-preview-resizer::after {
+  background: var(--mge-accent, #04aed6);
+}
+body.mge-preview-resizing,
+body.mge-preview-resizing * {
+  cursor: ns-resize !important;
+  user-select: none !important;
+}
+
+.mge-editor-toolbar-extras {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 /* ---------- Source-only / Sequence editors — shared button base ---------- */
 .mge-source-only,
 .mge-seq-editor {
@@ -530,7 +688,13 @@ body.mge-text-pane-resizing * {
   background: var(--mge-brand, #2b245c);
   border-bottom: 1px solid #1a1640;
   flex-shrink: 0;
+  cursor: grab;
+  user-select: none;
 }
+.mge-source-only .mge-source-only-toolbar.mge-toolbar,
+.mge-seq-toolbar.mge-toolbar { cursor: grab; }
+body.mge-dragging .mge-source-only .mge-source-only-toolbar,
+body.mge-dragging .mge-seq-toolbar { cursor: grabbing; }
 
 /* Generic button — used outside the toolbar's white-text context */
 .mge-source-only-toolbar button,
@@ -705,6 +869,134 @@ body.mge-text-pane-resizing * {
 }
 
 .mge-cls-vis-select { min-width: 90px; }
+
+/* ---------- Diagram kind picker (blank-state) ---------- */
+.mge-kind-picker-body {
+  padding: 16px 20px;
+  gap: 12px;
+}
+.mge-kind-picker-lead {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted, #6b6b7b);
+}
+.mge-kind-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+.mge-kind-picker-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--background-modifier-border, #d6d6df);
+  border-radius: 6px;
+  background: var(--background-secondary, #fff);
+  color: var(--text-normal, #1f1f2e);
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s;
+  font: inherit;
+}
+.mge-kind-picker-item:hover {
+  border-color: var(--mge-brand, #2b245c);
+  background: color-mix(in srgb, var(--background-secondary, #fff) 90%, var(--mge-brand, #2b245c) 10%);
+}
+.mge-kind-picker-item.active {
+  border-color: var(--mge-brand, #2b245c);
+  background: color-mix(in srgb, var(--background-secondary, #fff) 80%, var(--mge-brand, #2b245c) 20%);
+  box-shadow: 0 0 0 1px var(--mge-brand, #2b245c) inset;
+}
+.mge-kind-picker-item-label {
+  font-weight: 600;
+  font-size: 14px;
+}
+.mge-kind-picker-item-desc {
+  font-size: 11.5px;
+  color: var(--text-muted, #6b6b7b);
+  line-height: 1.35;
+}
+
+/* ---------- Quadrant interactive preview ---------- */
+.mge-quad-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+  gap: 6px;
+}
+.mge-quad-preview-title {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-normal, #1f1f2e);
+  flex-shrink: 0;
+}
+.mge-quad-preview-help {
+  margin: 0;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-muted, #6b6b7b);
+  text-align: center;
+  flex-shrink: 0;
+}
+.mge-quad-preview-svg {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  background: var(--background-secondary, #fff);
+  border: 1px solid var(--background-modifier-border, #d6d6df);
+  border-radius: 4px;
+  touch-action: none;
+}
+.mge-quad-bg { fill: var(--background-secondary, #fff); }
+.mge-quad-fill { fill: var(--mge-brand, #2b245c); opacity: 0.04; }
+.mge-quad-fill-q1 { opacity: 0.08; }
+.mge-quad-fill-q3 { opacity: 0.06; }
+.mge-quad-axis {
+  stroke: var(--background-modifier-border-hover, #b5b5b5);
+  stroke-width: 0.4;
+}
+.mge-quad-label {
+  font-size: 4px;
+  fill: var(--text-muted, #6b6b7b);
+  font-weight: 600;
+  user-select: none;
+  pointer-events: none;
+}
+.mge-quad-axis-label {
+  font-size: 3.5px;
+  fill: var(--text-muted, #6b6b7b);
+  user-select: none;
+  pointer-events: none;
+}
+.mge-quad-point-dot {
+  fill: var(--mge-accent, #04aed6);
+  stroke: var(--background-primary, #fff);
+  stroke-width: 0.5;
+  cursor: grab;
+  transition: r 0.1s ease, fill 0.1s ease;
+}
+.mge-quad-point.active .mge-quad-point-dot,
+.mge-quad-point-dot:active {
+  fill: var(--mge-brand, #2b245c);
+  cursor: grabbing;
+  r: 3.2;
+}
+.mge-quad-point-label {
+  font-size: 3.5px;
+  fill: var(--text-normal, #1f1f2e);
+  font-weight: 500;
+  user-select: none;
+  pointer-events: none;
+}
 
 /* ---------- Source-only textarea ---------- */
 .mge-source-only-textarea {

@@ -39,6 +39,7 @@ mermaid-gui-obsidian/
 │   │   ├── store-factory.ts       ← createEditorStore() ファクトリ
 │   │   ├── diagram-kind.ts        ← detectDiagramKind()
 │   │   ├── diagram-ir.ts          ← DiagramIR 判別 union
+│   │   ├── templates.ts           ← 図種別の初期テンプレート（新規作成フロー）
 │   │   ├── index.ts
 │   │   ├── adapters/              ← アダプタレジストリ
 │   │   │   ├── types.ts           ← DiagramAdapter インターフェイス
@@ -85,7 +86,9 @@ mermaid-gui-obsidian/
 │   │       ├── parser.ts
 │   │       └── generator.ts
 │   ├── ui/                        ← React コンポーネント（obsidian 非依存）
-│   │   ├── MermaidEditor.tsx      ← 図種に応じてエディタを切り替えるルート
+│   │   ├── MermaidEditor.tsx      ← 図種に応じてエディタを切り替えるルート（空ソース時は DiagramKindPicker）
+│   │   ├── EditorShell.tsx        ← 非 flowchart 全エディタ共通の外殻（ドラッグ可能 toolbar + プレビュー + コードペイン）
+│   │   ├── DiagramKindPicker.tsx  ← 新規作成時の図種選択 UI（テンプレートのプレビュー付き）
 │   │   ├── FlowchartEditor.tsx
 │   │   ├── SourceOnlyEditor.tsx   ← GUI 未対応図種のフォールバック
 │   │   ├── EditorContext.tsx
@@ -113,7 +116,8 @@ mermaid-gui-obsidian/
 │   │   ├── sankey/
 │   │   │   └── SankeyEditor.tsx
 │   │   ├── quadrant/
-│   │   │   └── QuadrantEditor.tsx
+│   │   │   ├── QuadrantEditor.tsx
+│   │   │   └── QuadrantInteractivePreview.tsx   ← プレビュー上でポイントを直接ドラッグできる SVG エディタ
 │   │   ├── xychart/
 │   │   │   └── XYChartEditor.tsx
 │   │   └── radar/
@@ -122,7 +126,7 @@ mermaid-gui-obsidian/
 │       ├── EditorModal.ts
 │       ├── ReactHost.tsx          ← createRoot / unmount ライフサイクル管理
 │       ├── postProcessor.ts       ← Reading view ブロック装飾
-│       ├── commands.ts            ← コマンドパレット登録
+│       ├── commands.ts            ← コマンドパレット & 右クリックメニュー登録（既存ブロック編集 / 新規挿入）
 │       ├── editorExtension.ts     ← Live Preview CM6 拡張
 │       ├── svgExport.ts
 │       └── io.ts                  ← vault/editor IO adapter
@@ -214,8 +218,64 @@ src/obsidian/  →  src/ui/  →  src/core/
 2. `src/core/adapters/<kind>.ts` で `DiagramAdapter` を実装
 3. `src/core/adapters/index.ts` のレジストリに登録
 4. `src/core/diagram-ir.ts` の `DiagramIR` union に variant を追加
-5. GUI が必要なら `src/ui/<kind>/<Kind>Editor.tsx` を実装して `MermaidEditor.tsx` に組み込む
+5. GUI が必要なら `src/ui/<kind>/<Kind>Editor.tsx` を実装して `MermaidEditor.tsx` に組み込む（**`EditorShell` を経由すること**。後述の共通シェル契約を遵守）
 6. **本ファイル（`AGENTS.md`）・`docs/obsidian-plugin-spec.md`・`docs/mermaid-diagram-types.md` を更新する**
+
+---
+
+## 共通エディタシェル（EditorShell）
+
+flowchart を除く全ての専用エディタは `src/ui/EditorShell.tsx` を root として使う。シェルは 3 つの責務を一手に引き受ける：
+
+1. **ドラッグ可能な toolbar** — `.mge-toolbar` クラスを付けたヘッダを描画する。`EditorModal` の delegated mousedown handler がこれを検知し、modal を移動させる。専用 toolbar をエディタ側で再実装してはいけない（drag 対象が外れる）。
+2. **ライブ Mermaid プレビュー** — 親から渡された `renderMermaid(source)` を使い、IR の更新ごとに最新の Mermaid SVG を再描画する。`EditorModal` から `loadMermaid()` をラップした実装が注入される。
+3. **コードペイン** — 生成中のソースを read-only textarea に同期表示する。
+
+各 `<Kind>Editor` は次のシグネチャを満たす：
+
+```tsx
+<EditorShell
+  currentSource={generate(ir)}      // IR から都度生成。useMemo 推奨
+  onSave={async () => onSave(...)}
+  onCancel={onCancel}
+  saving={saving}
+  renderMermaid={props.renderMermaid}
+  previewOverride={/* グラフィカル編集が必要なら独自プレビューで上書き */}
+  previewUnavailableMessage={/* Mermaid が非対応な図種 (radar 等) のメッセージ */}
+>
+  {/* フォーム / リスト等 */}
+</EditorShell>
+```
+
+- **数値入力欄のみで構成しない**。プレビュー上でグラフィカルに操作できるなら `previewOverride` で SVG エディタを差し込み、ドラッグやハンドルで直接編集する経路を提供する（例: `QuadrantInteractivePreview`）。フォームは補助。
+- 共通シェルの toolbar の見た目を変えたければ `toolbarExtras` slot を使う。`<header>` の DOM 構造には触れない。
+- flowchart は React Flow canvas そのものがグラフィカルプレビューなので `EditorShell` を使わず `mge-app-shell` の独自レイアウトを維持する。例外として扱う。
+
+---
+
+## 新規作成フロー（blank-state）
+
+既存ブロックを編集する経路に加えて、**まっさらな状態から GUI で作り始める**経路がある。エントリポイントは 2 つ：
+
+1. **エディタ右クリック → "Insert new Mermaid diagram (GUI)"** — `main.ts` の `editor-menu` ハンドラから `openModalForNewBlock()` を呼ぶ。
+2. **コマンドパレット → "Insert new Mermaid diagram (GUI)"** — 同じ関数を呼ぶ。
+
+`openModalForNewBlock()` は `EditorModal` を **空ソース**で開く。`MermaidEditor` は `initialSource.trim().length === 0` を見て `DiagramKindPicker` をレンダリングする。ユーザーが種別を選ぶと、`src/core/templates.ts` のテンプレートが `seeded` state に格納され、その文字列を起点に通常の図種別エディタが立ち上がる。Save が押されたら、`commands.ts` の `insertNewMermaidFence()` が現在のカーソル位置に新しい `\`\`\`mermaid` フェンスを挿入する。
+
+### 新しい図種テンプレートを足すとき
+
+`src/core/templates.ts` の `DIAGRAM_TEMPLATES` 配列にエントリを追加する：
+
+- `kind` は `DiagramKind` の値
+- `source` は **最小だが parser が通る** Mermaid テキスト（テストで保証）
+- `supportsGui: true` を立てるのは bespoke エディタがある図種だけ。`false` だと `SourceOnlyEditor` 経由になるが、テンプレートピッカーには出てよい
+
+テンプレートは `tests/core/templates.test.ts` が次の不変条件を検証する：
+
+- `detectDiagramKind(template.source) === template.kind`
+- `getAdapter(kind).parse(template.source).ok === true`（adapter が GUI 対応のとき）
+
+新規追加時にここに引っかかったら、テンプレートの構文を見直す。フィクスチャを増やすのではなく**テンプレート自体を直す**。
 
 ---
 

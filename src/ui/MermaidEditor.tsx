@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { stripGuiComments } from "../core";
 import { detectDiagramKind, isFlowchart } from "../core/diagram-kind";
 import { FlowchartEditor } from "./FlowchartEditor";
@@ -10,9 +11,11 @@ import { SankeyEditor } from "./sankey/SankeyEditor";
 import { QuadrantEditor } from "./quadrant/QuadrantEditor";
 import { XYChartEditor } from "./xychart/XYChartEditor";
 import { RadarEditor } from "./radar/RadarEditor";
+import { DiagramKindPicker } from "./DiagramKindPicker";
 
 export interface Props {
-  /** Raw text from inside ```mermaid fences (without the fences themselves). */
+  /** Raw text from inside ```mermaid fences (without the fences themselves).
+   *  Pass an empty string to land on the diagram-kind picker. */
   initialSource: string;
   /** Called with the new block body (without fences) when the user saves. */
   onSave: (newSource: string) => void | Promise<void>;
@@ -22,31 +25,59 @@ export interface Props {
   onExportSvg?: (mermaidSource: string) => void | Promise<void>;
   /** Optional callback for parse errors that should bubble up to the host. */
   onParseError?: (message: string) => void;
+  /** Optional Mermaid SVG renderer (wraps obsidian's loadMermaid). When
+   *  provided, non-flowchart editors show a live preview alongside the
+   *  generated source. */
+  renderMermaid?: (source: string) => Promise<string>;
 }
 
+const isBlank = (s: string): boolean => s.trim().length === 0;
+
 /**
- * Top-level editor entry point. Routes to the appropriate GUI by diagram kind.
- * flowchart        → FlowchartEditor (full canvas GUI)
- * sequenceDiagram  → SequenceEditor (structured list editor)
- * classDiagram     → ClassEditor (class + relation editor)
- * stateDiagram-v2  → StateEditor (transition list editor)
- * stateDiagram     → StateEditor (same editor, outputs stateDiagram-v2)
- * pie              → PieEditor (form: title / slices)
- * sankey-beta      → SankeyEditor (CSV link table)
- * quadrantChart    → QuadrantEditor (axes / quadrants / points)
- * xychart-beta     → XYChartEditor (axes / series)
- * radar-beta       → RadarEditor (axes / curves / options; no preview in Obsidian)
- * others           → SourceOnlyEditor (plain textarea fallback)
+ * Top-level editor entry point. Routes by:
+ *   1. If `initialSource` is blank, show the DiagramKindPicker so the user can
+ *      pick a kind and seed a starter template.
+ *   2. Otherwise detect the kind and mount the matching editor.
+ *      flowchart        → FlowchartEditor (canvas itself = preview)
+ *      sequenceDiagram  → SequenceEditor   ┐
+ *      classDiagram     → ClassEditor      │
+ *      stateDiagram-v2  → StateEditor      │ shared EditorShell with drag bar,
+ *      stateDiagram     → StateEditor      │ live Mermaid preview + source pane
+ *      pie              → PieEditor        │
+ *      sankey-beta      → SankeyEditor     │
+ *      quadrantChart    → QuadrantEditor   │ (interactive drag-on-preview)
+ *      xychart-beta     → XYChartEditor    │
+ *      radar-beta       → RadarEditor      ┘ (preview unsupported by obsidian)
+ *      others           → SourceOnlyEditor
  */
 export const MermaidEditor = (props: Props) => {
-  const kind = detectDiagramKind(props.initialSource);
+  const [seeded, setSeeded] = useState<string | null>(null);
+  const effectiveSource = seeded ?? props.initialSource;
 
-  if (isFlowchart(kind)) {
-    return <FlowchartEditor {...props} />;
+  if (isBlank(effectiveSource)) {
+    return (
+      <DiagramKindPicker
+        onPick={(template) => setSeeded(template.source)}
+        onCancel={props.onCancel}
+        renderMermaid={props.renderMermaid}
+      />
+    );
   }
 
-  const stripped = stripGuiComments(props.initialSource);
-  const passthrough = { initialSource: stripped, onSave: props.onSave, onCancel: props.onCancel };
+  const kind = detectDiagramKind(effectiveSource);
+  const dispatchProps = { ...props, initialSource: effectiveSource };
+
+  if (isFlowchart(kind)) {
+    return <FlowchartEditor {...dispatchProps} />;
+  }
+
+  const stripped = stripGuiComments(effectiveSource);
+  const passthrough = {
+    initialSource: stripped,
+    onSave: props.onSave,
+    onCancel: props.onCancel,
+    renderMermaid: props.renderMermaid,
+  };
 
   if (kind === "sequenceDiagram") return <SequenceEditor {...passthrough} />;
   if (kind === "classDiagram") return <ClassEditor {...passthrough} />;
