@@ -140,6 +140,36 @@ radar-beta
   showLegend true
 `),
   },
+  {
+    kind: "gantt",
+    label: "Gantt",
+    description: "タスクとスケジュールをバーで表現するプロジェクト管理図",
+    supportsGui: true,
+    source: dedent(`
+gantt
+    title My Project
+    dateFormat YYYY-MM-DD
+    section Phase 1
+        Task A :done, 2024-01-01, 7d
+        Task B :active, after Task A, 5d
+    section Phase 2
+        Task C :crit, 2024-01-15, 3d
+`),
+  },
+  {
+    kind: "timeline",
+    label: "Timeline",
+    description: "時系列のイベントや出来事を年表形式で表現",
+    supportsGui: true,
+    source: dedent(`
+timeline
+    title Project History
+    2022 : Planning
+    2023 : Development
+         : Testing
+    2024 : Launch
+`),
+  },
 ];
 
 export const getTemplate = (kind: DiagramKind): DiagramTemplate | undefined =>

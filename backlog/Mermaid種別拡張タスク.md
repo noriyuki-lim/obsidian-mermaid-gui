@@ -183,10 +183,10 @@ Task 1,2 (detectDiagramKind)
 
 | 状態 | 順序 | タスク | 変更候補 | 完了条件 |
 | --- | ---: | --- | --- | --- |
-| ⏳ 未着手 | 36 | 各種別のMVPスコープを確定する | 公式docs参照 | タスク/イベントのGUI化範囲とrawLines扱い構文が決まる |
-| ⏳ 未着手 | 37 | IR・parser・generator・adapterを実装する | `src/core/<kind>/`, `src/core/adapters/` | parse → generate round-tripが成立する |
-| ⏳ 未着手 | 38 | table editor GUIを実装する | `src/ui/<kind>/` | タスク/イベントの追加・編集・並び替えができる |
-| ⏳ 未着手 | 39 | 保存経路を接続し回帰テストを追加する | `src/ui/MermaidEditor.tsx`, `tests/` | 編集後にMermaidブロックとして保存できる |
+| ✅ 完了 | 36 | 各種別のMVPスコープを確定する | 公式docs参照 | タスク/イベントのGUI化範囲とrawLines扱い構文が決まる |
+| ✅ 完了 | 37 | IR・parser・generator・adapterを実装する | `src/core/<kind>/`, `src/core/adapters/` | parse → generate round-tripが成立する |
+| ✅ 完了 | 38 | table editor GUIを実装する | `src/ui/<kind>/` | タスク/イベントの追加・編集・並び替えができる |
+| ✅ 完了 | 39 | 保存経路を接続し回帰テストを追加する | `src/ui/MermaidEditor.tsx`, `tests/` | 編集後にMermaidブロックとして保存できる |
 
 ## Phase 8: 関係/階層系（erDiagram / mindmap / treemap-beta / venn-beta）
 

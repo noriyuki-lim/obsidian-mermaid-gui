@@ -1122,3 +1122,40 @@ body.theme-dark .mge-seq-badge-raw {
   background: var(--background-primary, #f7f7fa);
   color: var(--text-normal, #1f1f2e);
 }
+
+/* ---------- Gantt / Timeline editors ---------- */
+.mge-gantt-section-row {
+  background: var(--background-secondary, #f0f0f5);
+  border-radius: 4px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.mge-gantt-task-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--background-modifier-border, #e0e0e8);
+}
+
+.mge-gantt-task-detail {
+  padding-left: 24px;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.mge-gantt-mod-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-muted, #888);
+  cursor: pointer;
+  user-select: none;
+}
+
+.mge-timeline-period-badge {
+  background: color-mix(in srgb, var(--color-green, #2a9d8f) 15%, transparent);
+  color: var(--color-green, #2a9d8f);
+}

@@ -11,6 +11,8 @@ import { SankeyEditor } from "./sankey/SankeyEditor";
 import { QuadrantEditor } from "./quadrant/QuadrantEditor";
 import { XYChartEditor } from "./xychart/XYChartEditor";
 import { RadarEditor } from "./radar/RadarEditor";
+import { GanttEditor } from "./gantt/GanttEditor";
+import { TimelineEditor } from "./timeline/TimelineEditor";
 import { DiagramKindPicker } from "./DiagramKindPicker";
 
 export interface Props {
@@ -47,7 +49,9 @@ const isBlank = (s: string): boolean => s.trim().length === 0;
  *      sankey-beta      → SankeyEditor     │
  *      quadrantChart    → QuadrantEditor   │ (interactive drag-on-preview)
  *      xychart-beta     → XYChartEditor    │
- *      radar-beta       → RadarEditor      ┘ (preview unsupported by obsidian)
+ *      radar-beta       → RadarEditor      │ (preview unsupported by obsidian)
+ *      gantt            → GanttEditor      │
+ *      timeline         → TimelineEditor   ┘
  *      others           → SourceOnlyEditor
  */
 export const MermaidEditor = (props: Props) => {
@@ -87,6 +91,8 @@ export const MermaidEditor = (props: Props) => {
   if (kind === "quadrantChart") return <QuadrantEditor {...passthrough} />;
   if (kind === "xychart-beta") return <XYChartEditor {...passthrough} />;
   if (kind === "radar-beta") return <RadarEditor {...passthrough} />;
+  if (kind === "gantt") return <GanttEditor {...passthrough} />;
+  if (kind === "timeline") return <TimelineEditor {...passthrough} />;
 
   return <SourceOnlyEditor {...passthrough} />;
 };

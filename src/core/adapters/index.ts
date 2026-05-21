@@ -9,6 +9,8 @@ import { sankeyAdapter } from "./sankey";
 import { quadrantAdapter } from "./quadrant";
 import { xychartAdapter } from "./xychart";
 import { radarAdapter } from "./radar";
+import { ganttAdapter } from "./gantt";
+import { timelineAdapter } from "./timeline";
 
 export type { DiagramAdapter, ParseOutcome, ParseSuccess, ParseFailure } from "./types";
 
@@ -27,6 +29,8 @@ const registry = new Map<DiagramKind, DiagramAdapter>([
   ["quadrantChart", quadrantAdapter as DiagramAdapter],
   ["xychart-beta", xychartAdapter as DiagramAdapter],
   ["radar-beta", radarAdapter as DiagramAdapter],
+  ["gantt", ganttAdapter as DiagramAdapter],
+  ["timeline", timelineAdapter as DiagramAdapter],
 ]);
 
 /** Returns the adapter for `kind`, or `null` if no adapter is registered. */

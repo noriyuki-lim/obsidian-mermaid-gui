@@ -52,7 +52,9 @@ mermaid-gui-obsidian/
 │   │   │   ├── sankey.ts
 │   │   │   ├── quadrant.ts
 │   │   │   ├── xychart.ts
-│   │   │   └── radar.ts
+│   │   │   ├── radar.ts
+│   │   │   ├── gantt.ts
+│   │   │   └── timeline.ts
 │   │   ├── sequence/
 │   │   │   ├── ir-types.ts
 │   │   │   ├── parser.ts
@@ -81,7 +83,15 @@ mermaid-gui-obsidian/
 │   │   │   ├── ir-types.ts
 │   │   │   ├── parser.ts
 │   │   │   └── generator.ts
-│   │   └── radar/
+│   │   ├── radar/
+│   │   │   ├── ir-types.ts
+│   │   │   ├── parser.ts
+│   │   │   └── generator.ts
+│   │   ├── gantt/
+│   │   │   ├── ir-types.ts
+│   │   │   ├── parser.ts
+│   │   │   └── generator.ts
+│   │   └── timeline/
 │   │       ├── ir-types.ts
 │   │       ├── parser.ts
 │   │       └── generator.ts
@@ -120,8 +130,12 @@ mermaid-gui-obsidian/
 │   │   │   └── QuadrantInteractivePreview.tsx   ← プレビュー上でポイントを直接ドラッグできる SVG エディタ
 │   │   ├── xychart/
 │   │   │   └── XYChartEditor.tsx
-│   │   └── radar/
-│   │       └── RadarEditor.tsx
+│   │   ├── radar/
+│   │   │   └── RadarEditor.tsx
+│   │   ├── gantt/
+│   │   │   └── GanttEditor.tsx
+│   │   └── timeline/
+│   │       └── TimelineEditor.tsx
 │   └── obsidian/                  ← Obsidian API 固有レイヤ
 │       ├── EditorModal.ts         ← Modal の生成・toolbar ドラッグ・四隅リサイズハンドル
 │       ├── ReactHost.tsx          ← createRoot / unmount ライフサイクル管理
@@ -153,6 +167,10 @@ mermaid-gui-obsidian/
 │   │   ├── xychart-generator.test.ts
 │   │   ├── radar-parser.test.ts
 │   │   ├── radar-generator.test.ts
+│   │   ├── gantt-parser.test.ts
+│   │   ├── gantt-generator.test.ts
+│   │   ├── timeline-parser.test.ts
+│   │   ├── timeline-generator.test.ts
 │   │   └── adapters.test.ts
 │   └── ui/
 │       ├── adapter.test.ts
@@ -211,7 +229,7 @@ src/obsidian/  →  src/ui/  →  src/core/
 | `src/core/adapters/index.ts` | `getAdapter(kind)` レジストリ |
 | `src/core/diagram-ir.ts` | `DiagramIR` 判別 union |
 
-**登録済み図種（Phase 1–6 完了）**：flowchart / sequenceDiagram / classDiagram / stateDiagram-v2 / stateDiagram / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta の 10 種。`supportsGui: false` のアダプタ、または未登録の図種は `src/ui/SourceOnlyEditor.tsx` にフォールバックする。radar-beta は Obsidian 内蔵 Mermaid が非対応のため、GUI 編集は可能だがプレビューは描画されない。
+**登録済み図種（Phase 1–7 完了）**：flowchart / sequenceDiagram / classDiagram / stateDiagram-v2 / stateDiagram / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta / gantt / timeline の 12 種。`supportsGui: false` のアダプタ、または未登録の図種は `src/ui/SourceOnlyEditor.tsx` にフォールバックする。radar-beta は Obsidian 内蔵 Mermaid が非対応のため、GUI 編集は可能だがプレビューは描画されない。
 
 ### 新図種の追加手順
 

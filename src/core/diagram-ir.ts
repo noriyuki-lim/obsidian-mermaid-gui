@@ -7,6 +7,8 @@ import type { SankeyIR } from "./sankey/ir-types";
 import type { QuadrantIR } from "./quadrant/ir-types";
 import type { XYChartIR } from "./xychart/ir-types";
 import type { RadarIR } from "./radar/ir-types";
+import type { GanttIR } from "./gantt/ir-types";
+import type { TimelineIR } from "./timeline/ir-types";
 
 /**
  * Discriminated union of all per-kind intermediate representations.
@@ -26,4 +28,6 @@ export type DiagramIR =
   | { kind: "quadrantChart"; ir: QuadrantIR }
   | { kind: "xychart-beta"; ir: XYChartIR }
   | { kind: "radar-beta"; ir: RadarIR }
+  | { kind: "gantt"; ir: GanttIR }
+  | { kind: "timeline"; ir: TimelineIR }
   | { kind: "unknown"; source: string };
