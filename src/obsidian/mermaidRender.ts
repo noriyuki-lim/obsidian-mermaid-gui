@@ -6,50 +6,37 @@ import { stripGuiComments } from "../core";
  * `DiagramKindPicker` and the Reading-view post processor. Keeping a single
  * entry-point means theme detection stays consistent everywhere — backlog #37.
  *
- * Strategy:
- *   - Detect Obsidian's active theme via `document.body.classList`.
- *   - Re-initialise Mermaid with `theme: 'dark' | 'default'` whenever the
- *     active theme flips, so SVG text colours follow Obsidian's light/dark
- *     setting instead of staying stuck on Mermaid's hard-coded defaults.
- *   - Strip the `%% gui:*` comments that the GUI persists so Mermaid only
- *     sees standards-compliant source.
- *
- * If a chart still leaves text unreadable on top of a custom-coloured node,
- * the next step would be a per-text luminance fix-up. Deferred until we see
- * a concrete failure.
+ * Obsidian's `loadMermaid()` returns a shared singleton whose global config is
+ * touched by Obsidian's own post-processing pipeline. Calling
+ * `mermaid.initialize({ theme })` ourselves turned out to be unreliable — the
+ * modal preview picked it up but the Reading-view render kept falling back to
+ * `default`. We sidestep the global by **injecting a per-diagram `%%{init}%%`
+ * directive into the source**, which Mermaid evaluates as the highest-priority
+ * config for that single render regardless of the singleton's current state.
  */
 
 type MermaidTheme = "default" | "dark";
-
-type MermaidLike = Awaited<ReturnType<typeof loadMermaid>>;
-
-let appliedTheme: MermaidTheme | null = null;
 
 const detectTheme = (): MermaidTheme => {
   if (typeof document === "undefined") return "default";
   return document.body.classList.contains("theme-dark") ? "dark" : "default";
 };
 
-const ensureTheme = (mermaid: MermaidLike): void => {
-  const next = detectTheme();
-  if (next === appliedTheme) return;
-  mermaid.initialize({
-    startOnLoad: false,
-    theme: next,
-    securityLevel: "loose",
-  });
-  appliedTheme = next;
+/**
+ * Prepend a `%%{init: ... }%%` directive so Mermaid applies the theme to this
+ * one render only. The directive must come before any diagram syntax; existing
+ * sources never start with their own `%%{init}%%` in our pipeline (the GUI
+ * generators don't emit one), so blind prepend is safe.
+ */
+const withThemeDirective = (source: string, theme: MermaidTheme): string => {
+  const directive = `%%{init: {"theme":"${theme}"}}%%`;
+  return `${directive}\n${source}`;
 };
 
 export const renderMermaidThemed = async (source: string): Promise<string> => {
   const mermaid = await loadMermaid();
-  ensureTheme(mermaid);
   const id = `mge-${Math.random().toString(36).slice(2, 9)}`;
-  const result = await mermaid.render(id, stripGuiComments(source));
+  const themedSource = withThemeDirective(stripGuiComments(source), detectTheme());
+  const result = await mermaid.render(id, themedSource);
   return result.svg;
-};
-
-/** Force the next render to re-`initialize`. Safe to call optimistically. */
-export const resetMermaidTheme = (): void => {
-  appliedTheme = null;
 };
