@@ -210,10 +210,10 @@ Task 1,2 (detectDiagramKind)
 
 | 状態 | 順序 | タスク | 変更候補 | 完了条件 |
 | --- | ---: | --- | --- | --- |
-| ⏳ 未着手 | 48 | 各種別のMVPスコープを確定する | 公式docs参照 | サービス/ブロックのGUI化範囲と空間配置方針が決まる |
-| ⏳ 未着手 | 49 | IR・parser・generator・adapterを実装する | `src/core/<kind>/`, `src/core/adapters/` | parse → generate round-tripが成立する |
-| ⏳ 未着手 | 50 | 専用GUIを実装する | `src/ui/<kind>/` | コンポーネント・接続の最低限編集ができる |
-| ⏳ 未着手 | 51 | 保存経路を接続し回帰テストを追加する | `src/ui/MermaidEditor.tsx`, `tests/` | 編集後にMermaidブロックとして保存できる |
+| ✅ 完了 | 48 | 各種別のMVPスコープを確定する | 公式docs参照 | architecture-beta: group/service/junction/edge を構造化、複雑な構文は raw。block-beta: columns/単一ブロック行を構造化、ネスト block:...end や複数/行は raw |
+| ✅ 完了 | 49 | IR・parser・generator・adapterを実装する | `src/core/architecture/`, `src/core/block/`, `src/core/adapters/` | parse → generate round-tripが成立する（356テスト通過） |
+| ✅ 完了 | 50 | 専用GUIを実装する | `src/ui/architecture/ArchitectureEditor.tsx`, `src/ui/block/BlockEditor.tsx` | groups/services/edges 編集（icon datalist 補完）、columns/block/span 編集と並び替え |
+| ✅ 完了 | 51 | 保存経路を接続し回帰テストを追加する | `src/ui/MermaidEditor.tsx`, `tests/core/architecture-*.test.ts`, `tests/core/block-*.test.ts` | 編集後にMermaidブロックとして保存できる |
 
 ## テスト観点
 

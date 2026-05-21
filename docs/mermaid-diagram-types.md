@@ -763,8 +763,8 @@ C4Deployment
 | 17 | Event Modeling       | `eventmodeling`       | 安定    | ❌ Obs非対応              |
 | 18 | Sankey Diagram       | `sankey-beta`         | Beta  | ✅ 実装済み（Phase 6）        |
 | 19 | XY Chart             | `xychart-beta`        | Beta  | ✅ 実装済み（Phase 6）        |
-| 20 | Block Diagram        | `block-beta`          | Beta  | 🔵 実装対象（Phase 10）      |
-| 21 | Architecture Diagram | `architecture-beta`   | Beta  | 🔵 実装対象（Phase 10）      |
+| 20 | Block Diagram        | `block-beta`          | Beta  | ✅ 実装済み（Phase 10）       |
+| 21 | Architecture Diagram | `architecture-beta`   | Beta  | ✅ 実装済み（Phase 10）       |
 | 22 | Packet Diagram       | `packet-beta`         | Beta  | —                       |
 | 23 | Radar Chart          | `radar-beta`          | Beta  | ✅ 実装済み（Phase 6）❌ Obs描画不可 |
 | 24 | Venn Diagram         | `venn-beta`           | Beta  | ✅ Source-only（Phase 8）❌ Obs非対応 |

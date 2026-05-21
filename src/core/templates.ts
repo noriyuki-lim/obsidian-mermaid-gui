@@ -233,6 +233,32 @@ journey
 `),
   },
   {
+    kind: "architecture-beta",
+    label: "Architecture (beta)",
+    description: "クラウド/インフラ構成図。group / service / edge の関係を表現",
+    supportsGui: true,
+    source: dedent(`
+architecture-beta
+    group api(cloud)[API]
+    service db(database)[Database] in api
+    service server(server)[Server] in api
+    db:L -- R:server
+`),
+  },
+  {
+    kind: "block-beta",
+    label: "Block (beta)",
+    description: "コンポーネント配置をブロックとカラム数で表現するシステム設計図",
+    supportsGui: true,
+    source: dedent(`
+block-beta
+    columns 3
+    A["Client"]
+    B["Server"]
+    C["DB"]
+`),
+  },
+  {
     kind: "venn-beta",
     label: "Venn (beta)",
     description: "集合の重なりを表現するベン図（Obsidian 内蔵 Mermaid 非対応のためプレビュー不可）",

@@ -16,6 +16,8 @@ import { TimelineEditor } from "./timeline/TimelineEditor";
 import { ERDiagramEditor } from "./er/ERDiagramEditor";
 import { MindmapEditor } from "./mindmap/MindmapEditor";
 import { JourneyEditor } from "./journey/JourneyEditor";
+import { ArchitectureEditor } from "./architecture/ArchitectureEditor";
+import { BlockEditor } from "./block/BlockEditor";
 import { DiagramKindPicker } from "./DiagramKindPicker";
 
 export interface Props {
@@ -99,6 +101,8 @@ export const MermaidEditor = (props: Props) => {
   if (kind === "erDiagram") return <ERDiagramEditor {...passthrough} />;
   if (kind === "mindmap") return <MindmapEditor {...passthrough} />;
   if (kind === "journey") return <JourneyEditor {...passthrough} />;
+  if (kind === "architecture-beta") return <ArchitectureEditor {...passthrough} />;
+  if (kind === "block-beta") return <BlockEditor {...passthrough} />;
 
   return <SourceOnlyEditor {...passthrough} />;
 };

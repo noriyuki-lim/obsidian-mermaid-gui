@@ -59,7 +59,9 @@ mermaid-gui-obsidian/
 │   │   │   ├── mindmap.ts
 │   │   │   ├── treemap.ts
 │   │   │   ├── venn.ts
-│   │   │   └── journey.ts
+│   │   │   ├── journey.ts
+│   │   │   ├── architecture.ts
+│   │   │   └── block.ts
 │   │   ├── sequence/
 │   │   │   ├── ir-types.ts
 │   │   │   ├── parser.ts
@@ -116,7 +118,15 @@ mermaid-gui-obsidian/
 │   │   │   ├── ir-types.ts
 │   │   │   ├── parser.ts
 │   │   │   └── generator.ts
-│   │   └── journey/
+│   │   ├── journey/
+│   │   │   ├── ir-types.ts
+│   │   │   ├── parser.ts
+│   │   │   └── generator.ts
+│   │   ├── architecture/
+│   │   │   ├── ir-types.ts
+│   │   │   ├── parser.ts
+│   │   │   └── generator.ts
+│   │   └── block/
 │   │       ├── ir-types.ts
 │   │       ├── parser.ts
 │   │       └── generator.ts
@@ -165,8 +175,12 @@ mermaid-gui-obsidian/
 │   │   │   └── ERDiagramEditor.tsx
 │   │   ├── mindmap/
 │   │   │   └── MindmapEditor.tsx
-│   │   └── journey/
-│   │       └── JourneyEditor.tsx
+│   │   ├── journey/
+│   │   │   └── JourneyEditor.tsx
+│   │   ├── architecture/
+│   │   │   └── ArchitectureEditor.tsx
+│   │   └── block/
+│   │       └── BlockEditor.tsx
 │   └── obsidian/                  ← Obsidian API 固有レイヤ
 │       ├── EditorModal.ts         ← Modal の生成・toolbar ドラッグ・四隅リサイズハンドル
 │       ├── ReactHost.tsx          ← createRoot / unmount ライフサイクル管理
@@ -260,7 +274,7 @@ src/obsidian/  →  src/ui/  →  src/core/
 | `src/core/adapters/index.ts` | `getAdapter(kind)` レジストリ |
 | `src/core/diagram-ir.ts` | `DiagramIR` 判別 union |
 
-**登録済み図種（Phase 1–9 完了）**：flowchart / sequenceDiagram / classDiagram / stateDiagram-v2 / stateDiagram / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta / gantt / timeline / erDiagram / mindmap / treemap-beta / venn-beta / journey の 17 種。`supportsGui: false` のアダプタ（treemap-beta / venn-beta）または未登録の図種は `src/ui/SourceOnlyEditor.tsx` にフォールバックする。radar-beta / venn-beta は Obsidian 内蔵 Mermaid が非対応のため GUI 編集は可能だがプレビューは描画されない。treemap-beta は Obsidian 内蔵 Mermaid 非対応のため Source-only 提供。
+**登録済み図種（Phase 1–10 完了）**：flowchart / sequenceDiagram / classDiagram / stateDiagram-v2 / stateDiagram / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta / gantt / timeline / erDiagram / mindmap / treemap-beta / venn-beta / journey / architecture-beta / block-beta の 19 種。`supportsGui: false` のアダプタ（treemap-beta / venn-beta）または未登録の図種は `src/ui/SourceOnlyEditor.tsx` にフォールバックする。radar-beta / venn-beta は Obsidian 内蔵 Mermaid が非対応のため GUI 編集は可能だがプレビューは描画されない。treemap-beta は Obsidian 内蔵 Mermaid 非対応のため Source-only 提供。
 
 ### 新図種の追加手順
 

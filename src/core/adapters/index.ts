@@ -16,6 +16,8 @@ import { mindmapAdapter } from "./mindmap";
 import { treemapAdapter } from "./treemap";
 import { vennAdapter } from "./venn";
 import { journeyAdapter } from "./journey";
+import { architectureAdapter } from "./architecture";
+import { blockAdapter } from "./block";
 
 export type { DiagramAdapter, ParseOutcome, ParseSuccess, ParseFailure } from "./types";
 
@@ -41,6 +43,8 @@ const registry = new Map<DiagramKind, DiagramAdapter>([
   ["treemap-beta", treemapAdapter as DiagramAdapter],
   ["venn-beta", vennAdapter as DiagramAdapter],
   ["journey", journeyAdapter as DiagramAdapter],
+  ["architecture-beta", architectureAdapter as DiagramAdapter],
+  ["block-beta", blockAdapter as DiagramAdapter],
 ]);
 
 /** Returns the adapter for `kind`, or `null` if no adapter is registered. */
