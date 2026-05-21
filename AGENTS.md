@@ -54,7 +54,11 @@ mermaid-gui-obsidian/
 │   │   │   ├── xychart.ts
 │   │   │   ├── radar.ts
 │   │   │   ├── gantt.ts
-│   │   │   └── timeline.ts
+│   │   │   ├── timeline.ts
+│   │   │   ├── er.ts
+│   │   │   ├── mindmap.ts
+│   │   │   ├── treemap.ts
+│   │   │   └── venn.ts
 │   │   ├── sequence/
 │   │   │   ├── ir-types.ts
 │   │   │   ├── parser.ts
@@ -91,7 +95,23 @@ mermaid-gui-obsidian/
 │   │   │   ├── ir-types.ts
 │   │   │   ├── parser.ts
 │   │   │   └── generator.ts
-│   │   └── timeline/
+│   │   ├── timeline/
+│   │   │   ├── ir-types.ts
+│   │   │   ├── parser.ts
+│   │   │   └── generator.ts
+│   │   ├── er/
+│   │   │   ├── ir-types.ts
+│   │   │   ├── parser.ts
+│   │   │   └── generator.ts
+│   │   ├── mindmap/
+│   │   │   ├── ir-types.ts
+│   │   │   ├── parser.ts
+│   │   │   └── generator.ts
+│   │   ├── treemap/
+│   │   │   ├── ir-types.ts
+│   │   │   ├── parser.ts
+│   │   │   └── generator.ts
+│   │   └── venn/
 │   │       ├── ir-types.ts
 │   │       ├── parser.ts
 │   │       └── generator.ts
@@ -134,8 +154,12 @@ mermaid-gui-obsidian/
 │   │   │   └── RadarEditor.tsx
 │   │   ├── gantt/
 │   │   │   └── GanttEditor.tsx
-│   │   └── timeline/
-│   │       └── TimelineEditor.tsx
+│   │   ├── timeline/
+│   │   │   └── TimelineEditor.tsx
+│   │   ├── er/
+│   │   │   └── ERDiagramEditor.tsx
+│   │   └── mindmap/
+│   │       └── MindmapEditor.tsx
 │   └── obsidian/                  ← Obsidian API 固有レイヤ
 │       ├── EditorModal.ts         ← Modal の生成・toolbar ドラッグ・四隅リサイズハンドル
 │       ├── ReactHost.tsx          ← createRoot / unmount ライフサイクル管理
@@ -229,7 +253,7 @@ src/obsidian/  →  src/ui/  →  src/core/
 | `src/core/adapters/index.ts` | `getAdapter(kind)` レジストリ |
 | `src/core/diagram-ir.ts` | `DiagramIR` 判別 union |
 
-**登録済み図種（Phase 1–7 完了）**：flowchart / sequenceDiagram / classDiagram / stateDiagram-v2 / stateDiagram / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta / gantt / timeline の 12 種。`supportsGui: false` のアダプタ、または未登録の図種は `src/ui/SourceOnlyEditor.tsx` にフォールバックする。radar-beta は Obsidian 内蔵 Mermaid が非対応のため、GUI 編集は可能だがプレビューは描画されない。
+**登録済み図種（Phase 1–8 完了）**：flowchart / sequenceDiagram / classDiagram / stateDiagram-v2 / stateDiagram / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta / gantt / timeline / erDiagram / mindmap / treemap-beta / venn-beta の 16 種。`supportsGui: false` のアダプタ（treemap-beta / venn-beta）または未登録の図種は `src/ui/SourceOnlyEditor.tsx` にフォールバックする。radar-beta / venn-beta は Obsidian 内蔵 Mermaid が非対応のため GUI 編集は可能だがプレビューは描画されない。treemap-beta は Obsidian 内蔵 Mermaid 非対応のため Source-only 提供。
 
 ### 新図種の追加手順
 

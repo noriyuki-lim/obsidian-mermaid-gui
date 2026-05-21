@@ -13,6 +13,8 @@ import { XYChartEditor } from "./xychart/XYChartEditor";
 import { RadarEditor } from "./radar/RadarEditor";
 import { GanttEditor } from "./gantt/GanttEditor";
 import { TimelineEditor } from "./timeline/TimelineEditor";
+import { ERDiagramEditor } from "./er/ERDiagramEditor";
+import { MindmapEditor } from "./mindmap/MindmapEditor";
 import { DiagramKindPicker } from "./DiagramKindPicker";
 
 export interface Props {
@@ -93,6 +95,8 @@ export const MermaidEditor = (props: Props) => {
   if (kind === "radar-beta") return <RadarEditor {...passthrough} />;
   if (kind === "gantt") return <GanttEditor {...passthrough} />;
   if (kind === "timeline") return <TimelineEditor {...passthrough} />;
+  if (kind === "erDiagram") return <ERDiagramEditor {...passthrough} />;
+  if (kind === "mindmap") return <MindmapEditor {...passthrough} />;
 
   return <SourceOnlyEditor {...passthrough} />;
 };

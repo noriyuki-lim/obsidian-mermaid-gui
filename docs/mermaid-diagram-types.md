@@ -748,14 +748,14 @@ C4Deployment
 | 2  | Sequence Diagram     | `sequenceDiagram`     | 安定    | ✅ 実装済み（Phase 4）        |
 | 3  | Class Diagram        | `classDiagram`        | 安定    | ✅ 実装済み（Phase 5）        |
 | 4  | State Diagram        | `stateDiagram-v2`     | 安定    | ✅ 実装済み（Phase 5）        |
-| 5  | ER Diagram           | `erDiagram`           | 安定    | 🔵 実装対象（Phase 8）       |
+| 5  | ER Diagram           | `erDiagram`           | 安定    | ✅ 実装済み（Phase 8）        |
 | 6  | User Journey         | `journey`             | 安定    | 🔵 実装対象（Phase 9）       |
 | 7  | Gantt                | `gantt`               | 安定    | ✅ 実装済み（Phase 7）        |
 | 8  | Pie Chart            | `pie`                 | 安定    | ✅ 実装済み（Phase 6）        |
 | 9  | Quadrant Chart       | `quadrantChart`       | 安定    | ✅ 実装済み（Phase 6）        |
 | 10 | Requirement Diagram  | `requirementDiagram`  | 安定    | —                       |
 | 11 | GitGraph             | `gitgraph`            | 安定    | —                       |
-| 12 | Mindmap              | `mindmap`             | 安定    | 🔵 実装対象（Phase 8）       |
+| 12 | Mindmap              | `mindmap`             | 安定    | ✅ 実装済み（Phase 8）        |
 | 13 | Timeline             | `timeline`            | 安定    | ✅ 実装済み（Phase 7）        |
 | 14 | ZenUML               | `zenuml`              | 安定    | ❌ Obs非対応              |
 | 15 | Kanban               | `kanban`              | 安定    | —                       |
@@ -767,9 +767,9 @@ C4Deployment
 | 21 | Architecture Diagram | `architecture-beta`   | Beta  | 🔵 実装対象（Phase 10）      |
 | 22 | Packet Diagram       | `packet-beta`         | Beta  | —                       |
 | 23 | Radar Chart          | `radar-beta`          | Beta  | ✅ 実装済み（Phase 6）❌ Obs描画不可 |
-| 24 | Venn Diagram         | `venn-beta`           | Beta  | 🔵 実装対象（Phase 8）❌ Obs非対応 |
+| 24 | Venn Diagram         | `venn-beta`           | Beta  | ✅ Source-only（Phase 8）❌ Obs非対応 |
 | 25 | Wardley Map          | `wardley-beta`        | Beta  | ❌ Obs非対応              |
-| 26 | Treemap              | `treemap-beta`        | Beta  | 🔵 実装対象（Phase 8）       |
+| 26 | Treemap              | `treemap-beta`        | Beta  | ✅ Source-only（Phase 8）  |
 | 27 | TreeView             | `treeView-beta`       | Beta  | ❌ Obs非対応              |
 | 28 | C4 Context           | `C4Context`           | 実験的   | —                       |
 | 29 | C4 Container         | `C4Container`         | 実験的   | —                       |

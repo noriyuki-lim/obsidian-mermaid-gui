@@ -192,10 +192,10 @@ Task 1,2 (detectDiagramKind)
 
 | 状態 | 順序 | タスク | 変更候補 | 完了条件 |
 | --- | ---: | --- | --- | --- |
-| ⏳ 未着手 | 40 | 各種別のMVPスコープを確定する | 公式docs参照 | エンティティ/ノード/集合のGUI化範囲が決まる |
-| ⏳ 未着手 | 41 | IR・parser・generator・adapterを実装する | `src/core/<kind>/`, `src/core/adapters/` | parse → generate round-tripが成立する |
-| ⏳ 未着手 | 42 | graph / tree editor GUIを実装する | `src/ui/<kind>/` | ノード・エッジ・階層の最低限編集ができる |
-| ⏳ 未着手 | 43 | 保存経路を接続し回帰テストを追加する | `src/ui/MermaidEditor.tsx`, `tests/` | 編集後にMermaidブロックとして保存できる |
+| ✅ 完了 | 40 | 各種別のMVPスコープを確定する | 公式docs参照 | erDiagram: entity/attribute/relationship GUI。mindmap: tree editor。treemap-beta/venn-beta: Source-only（Obsidian 非対応） |
+| ✅ 完了 | 41 | IR・parser・generator・adapterを実装する | `src/core/er/`, `src/core/mindmap/`, `src/core/treemap/`, `src/core/venn/`, `src/core/adapters/` | parse → generate round-tripが成立する（328テスト通過） |
+| ✅ 完了 | 42 | graph / tree editor GUIを実装する | `src/ui/er/ERDiagramEditor.tsx`, `src/ui/mindmap/MindmapEditor.tsx` | erDiagram: entity/attribute/relationship 編集。mindmap: ツリー構造・形状編集（ダブルクリック＋階層的 + Child ボタン） |
+| ✅ 完了 | 43 | 保存経路を接続し回帰テストを追加する | `src/ui/MermaidEditor.tsx`, `tests/core/er-*.test.ts`, `tests/core/mindmap-*.test.ts` | 各種別の編集後にMermaidブロックとして保存できる |
 
 ## Phase 9: インタラクション系（journey）
 

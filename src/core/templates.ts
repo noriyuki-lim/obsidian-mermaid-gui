@@ -170,6 +170,64 @@ timeline
     2024 : Launch
 `),
   },
+  {
+    kind: "erDiagram",
+    label: "ER Diagram",
+    description: "エンティティ・属性・リレーションシップを表現するER図",
+    supportsGui: true,
+    source: dedent(`
+erDiagram
+    CUSTOMER {
+        string name
+        string customerId PK
+    }
+    ORDER {
+        int orderId PK
+        string customerId FK
+    }
+    CUSTOMER ||--o{ ORDER : "places"
+`),
+  },
+  {
+    kind: "mindmap",
+    label: "Mindmap",
+    description: "階層的なアイデアや構造をツリーで表現するマインドマップ",
+    supportsGui: true,
+    source: dedent(`
+mindmap
+  root((Root))
+    Topic A
+      Subtopic 1
+      Subtopic 2
+    Topic B
+`),
+  },
+  {
+    kind: "treemap-beta",
+    label: "Treemap (beta)",
+    description: "階層データの面積比で可視化（Obsidian 内蔵 Mermaid 非対応のためプレビュー不可）",
+    supportsGui: false,
+    source: dedent(`
+treemap-beta
+  title My Treemap
+  A: 40
+  B: 30
+  C: 30
+`),
+  },
+  {
+    kind: "venn-beta",
+    label: "Venn (beta)",
+    description: "集合の重なりを表現するベン図（Obsidian 内蔵 Mermaid 非対応のためプレビュー不可）",
+    supportsGui: false,
+    source: dedent(`
+venn-beta
+  title Venn
+  A "Set A"
+  B "Set B"
+  A,B "Intersection"
+`),
+  },
 ];
 
 export const getTemplate = (kind: DiagramKind): DiagramTemplate | undefined =>

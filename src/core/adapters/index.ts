@@ -11,6 +11,10 @@ import { xychartAdapter } from "./xychart";
 import { radarAdapter } from "./radar";
 import { ganttAdapter } from "./gantt";
 import { timelineAdapter } from "./timeline";
+import { erAdapter } from "./er";
+import { mindmapAdapter } from "./mindmap";
+import { treemapAdapter } from "./treemap";
+import { vennAdapter } from "./venn";
 
 export type { DiagramAdapter, ParseOutcome, ParseSuccess, ParseFailure } from "./types";
 
@@ -31,6 +35,10 @@ const registry = new Map<DiagramKind, DiagramAdapter>([
   ["radar-beta", radarAdapter as DiagramAdapter],
   ["gantt", ganttAdapter as DiagramAdapter],
   ["timeline", timelineAdapter as DiagramAdapter],
+  ["erDiagram", erAdapter as DiagramAdapter],
+  ["mindmap", mindmapAdapter as DiagramAdapter],
+  ["treemap-beta", treemapAdapter as DiagramAdapter],
+  ["venn-beta", vennAdapter as DiagramAdapter],
 ]);
 
 /** Returns the adapter for `kind`, or `null` if no adapter is registered. */

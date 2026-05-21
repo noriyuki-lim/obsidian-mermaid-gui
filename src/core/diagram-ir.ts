@@ -9,6 +9,10 @@ import type { XYChartIR } from "./xychart/ir-types";
 import type { RadarIR } from "./radar/ir-types";
 import type { GanttIR } from "./gantt/ir-types";
 import type { TimelineIR } from "./timeline/ir-types";
+import type { ErDiagramIR } from "./er/ir-types";
+import type { MindmapIR } from "./mindmap/ir-types";
+import type { TreemapIR } from "./treemap/ir-types";
+import type { VennIR } from "./venn/ir-types";
 
 /**
  * Discriminated union of all per-kind intermediate representations.
@@ -30,4 +34,8 @@ export type DiagramIR =
   | { kind: "radar-beta"; ir: RadarIR }
   | { kind: "gantt"; ir: GanttIR }
   | { kind: "timeline"; ir: TimelineIR }
+  | { kind: "erDiagram"; ir: ErDiagramIR }
+  | { kind: "mindmap"; ir: MindmapIR }
+  | { kind: "treemap-beta"; ir: TreemapIR }
+  | { kind: "venn-beta"; ir: VennIR }
   | { kind: "unknown"; source: string };
