@@ -749,7 +749,7 @@ C4Deployment
 | 3  | Class Diagram        | `classDiagram`        | 安定    | ✅ 実装済み（Phase 5）        |
 | 4  | State Diagram        | `stateDiagram-v2`     | 安定    | ✅ 実装済み（Phase 5）        |
 | 5  | ER Diagram           | `erDiagram`           | 安定    | ✅ 実装済み（Phase 8）        |
-| 6  | User Journey         | `journey`             | 安定    | 🔵 実装対象（Phase 9）       |
+| 6  | User Journey         | `journey`             | 安定    | ✅ 実装済み（Phase 9）        |
 | 7  | Gantt                | `gantt`               | 安定    | ✅ 実装済み（Phase 7）        |
 | 8  | Pie Chart            | `pie`                 | 安定    | ✅ 実装済み（Phase 6）        |
 | 9  | Quadrant Chart       | `quadrantChart`       | 安定    | ✅ 実装済み（Phase 6）        |

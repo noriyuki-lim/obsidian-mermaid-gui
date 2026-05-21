@@ -216,6 +216,23 @@ treemap-beta
 `),
   },
   {
+    kind: "journey",
+    label: "User Journey",
+    description: "ユーザータスクと満足度スコア（1-7）を時系列で表現するUX分析図",
+    supportsGui: true,
+    source: dedent(`
+journey
+    title My working day
+    section Go to work
+      Make tea: 5: Me
+      Go upstairs: 3: Me
+      Do work: 1: Me, Cat
+    section Go home
+      Go downstairs: 5: Me
+      Sit down: 5: Me
+`),
+  },
+  {
     kind: "venn-beta",
     label: "Venn (beta)",
     description: "集合の重なりを表現するベン図（Obsidian 内蔵 Mermaid 非対応のためプレビュー不可）",

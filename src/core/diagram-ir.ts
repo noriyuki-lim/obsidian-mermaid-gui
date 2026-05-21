@@ -13,6 +13,7 @@ import type { ErDiagramIR } from "./er/ir-types";
 import type { MindmapIR } from "./mindmap/ir-types";
 import type { TreemapIR } from "./treemap/ir-types";
 import type { VennIR } from "./venn/ir-types";
+import type { JourneyIR } from "./journey/ir-types";
 
 /**
  * Discriminated union of all per-kind intermediate representations.
@@ -38,4 +39,5 @@ export type DiagramIR =
   | { kind: "mindmap"; ir: MindmapIR }
   | { kind: "treemap-beta"; ir: TreemapIR }
   | { kind: "venn-beta"; ir: VennIR }
+  | { kind: "journey"; ir: JourneyIR }
   | { kind: "unknown"; source: string };

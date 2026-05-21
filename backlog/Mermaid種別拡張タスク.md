@@ -201,10 +201,10 @@ Task 1,2 (detectDiagramKind)
 
 | 状態 | 順序 | タスク | 変更候補 | 完了条件 |
 | --- | ---: | --- | --- | --- |
-| ⏳ 未着手 | 44 | `journey` MVPスコープを確定する | [公式docs](https://mermaid.js.org/syntax/userJourney.html) | ステップ/アクターのGUI化範囲とrawLines扱い構文が決まる |
-| ⏳ 未着手 | 45 | IR・parser・generator・adapterを実装する | `src/core/<kind>/`, `src/core/adapters/` | parse → generate round-tripが成立する |
-| ⏳ 未着手 | 46 | step / sequence editor GUIを実装する | `src/ui/<kind>/` | ステップ/メッセージの追加・編集ができる |
-| ⏳ 未着手 | 47 | 保存経路を接続し回帰テストを追加する | `src/ui/MermaidEditor.tsx`, `tests/` | 編集後にMermaidブロックとして保存できる |
+| ✅ 完了 | 44 | `journey` MVPスコープを確定する | [公式docs](https://mermaid.js.org/syntax/userJourney.html) | title / section / task (name:score:actors) を構造化、未対応行は rawItem |
+| ✅ 完了 | 45 | IR・parser・generator・adapterを実装する | `src/core/journey/`, `src/core/adapters/journey.ts` | parse → generate round-tripが成立する（337テスト通過） |
+| ✅ 完了 | 46 | step / sequence editor GUIを実装する | `src/ui/journey/JourneyEditor.tsx` | section/task の追加・並び替え・スコア絵文字選択・アクター編集 |
+| ✅ 完了 | 47 | 保存経路を接続し回帰テストを追加する | `src/ui/MermaidEditor.tsx`, `tests/core/journey-*.test.ts` | 編集後にMermaidブロックとして保存できる |
 
 ## Phase 10: インフラ/アーキテクチャ系（architecture-beta / block-beta）
 
