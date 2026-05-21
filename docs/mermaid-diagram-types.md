@@ -1,3 +1,8 @@
+---
+date: 2026-05-18
+tags:
+  - mermaid
+---
 # Mermaid 図種別リファレンス
 
 Mermaid 公式（<https://mermaid.js.org/syntax/）が提供する全図種別を網羅したリファレンス。>\
@@ -174,9 +179,9 @@ gantt
 
 ```mermaid
 pie title 売上構成
-  "製品A" : 42
+  "製品A" : 37
   "製品B" : 30
-  "製品C" : 28
+  "製品C" : 33
 ```
 
 ***
