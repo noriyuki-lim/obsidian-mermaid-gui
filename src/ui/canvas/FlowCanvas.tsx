@@ -233,18 +233,26 @@ export const FlowCanvas = () => {
       const normalized = normalizeNewConnection(c, connectStart.current);
       connectStart.current = null;
       if (!normalized) return;
+      // Flow ids for subgraph backdrops carry a `:sg:` prefix; the IR layer
+      // stores the bare subgraph id (same identifier as in Mermaid source).
+      const sourceBare = subgraphIdFromFlowId(normalized.source) ?? normalized.source;
+      const targetBare = subgraphIdFromFlowId(normalized.target) ?? normalized.target;
       const state = storeApi.getState();
       const edgeToUpdate = findEdgeForHandleUpdate(
         state.ir.edges,
         state.selection,
-        normalized.source,
-        normalized.target,
+        sourceBare,
+        targetBare,
       );
       if (edgeToUpdate) {
-        updateEdge(edgeToUpdate.id, normalized);
+        updateEdge(edgeToUpdate.id, {
+          ...normalized,
+          source: sourceBare,
+          target: targetBare,
+        });
         return;
       }
-      addEdge(normalized.source, normalized.target, {
+      addEdge(sourceBare, targetBare, {
         sourceHandle: edgeHandleOrUndefined(normalized.sourceHandle),
         targetHandle: edgeHandleOrUndefined(normalized.targetHandle),
       });
@@ -263,7 +271,13 @@ export const FlowCanvas = () => {
       const normalized = normalizeReconnect(irEdge, c, reconnectMovingSide.current);
       reconnectMovingSide.current = null;
       if (!normalized) return;
-      updateEdge(oldEdge.id, normalized);
+      // Strip subgraph flow-id prefix when persisting endpoints to the IR.
+      const patch = {
+        ...normalized,
+        source: normalized.source ? (subgraphIdFromFlowId(normalized.source) ?? normalized.source) : normalized.source,
+        target: normalized.target ? (subgraphIdFromFlowId(normalized.target) ?? normalized.target) : normalized.target,
+      };
+      updateEdge(oldEdge.id, patch);
     },
     [storeApi, updateEdge],
   );

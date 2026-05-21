@@ -61,6 +61,41 @@ describe("irToFlow edge handles", () => {
 
     expect(sg).toMatchObject({ draggable: true, zIndex: 0 });
     expect(sg).not.toHaveProperty("dragHandle");
-    expect(node).toMatchObject({ zIndex: 1 });
+    // Nodes paint above any nested subgraph backdrop, regardless of depth.
+    expect(node).toMatchObject({ zIndex: 1000 });
+  });
+
+  it("routes edge endpoints that reference a subgraph through the :sg: flow id", () => {
+    const ir = baseIR("TD");
+    ir.subgraphs = [{ id: "S1", label: "Group", parent: null }];
+    // Replace B with an edge to S1 (the subgraph itself).
+    ir.edges = [{ id: "e1", source: "A", target: "S1", style: "solid", head: "arrow", length: 2 }];
+    const { edges } = irToFlow(ir, ir.positions);
+    expect(edges[0]).toMatchObject({ source: "A", target: ":sg:S1" });
+  });
+
+  it("nested subgraphs receive increasing zIndex by depth", () => {
+    const ir = baseIR("TD");
+    ir.subgraphs = [
+      { id: "Outer", parent: null },
+      { id: "Inner", parent: "Outer" },
+    ];
+    const { nodes } = irToFlow(ir, ir.positions);
+    const outer = nodes.find((n) => n.id === ":sg:Outer");
+    const inner = nodes.find((n) => n.id === ":sg:Inner");
+    expect(outer).toMatchObject({ zIndex: 0 });
+    expect(inner).toMatchObject({ zIndex: 1 });
+  });
+
+  it("passes color/borderColor through to flow node data", () => {
+    const ir = baseIR("TD");
+    ir.nodes[0].color = "#ff9999";
+    ir.nodes[0].borderColor = "#003366";
+    ir.subgraphs = [{ id: "S1", parent: null, color: "#eef", borderColor: "#88f" }];
+    const { nodes } = irToFlow(ir, ir.positions);
+    const nodeA = nodes.find((n) => n.id === "A");
+    const sg = nodes.find((n) => n.id === ":sg:S1");
+    expect(nodeA?.data).toMatchObject({ color: "#ff9999", borderColor: "#003366" });
+    expect(sg?.data).toMatchObject({ color: "#eef", borderColor: "#88f" });
   });
 });

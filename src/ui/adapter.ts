@@ -22,11 +22,15 @@ export type FlowNodeData = {
   label: string;
   shape: IRNode["shape"];
   subgraph: string | null;
+  color?: string;
+  borderColor?: string;
 };
 
 export type SubgraphNodeData = {
   label: string;
   sgId: string;
+  color?: string;
+  borderColor?: string;
 };
 
 export type FlowEdgeData = {
@@ -157,19 +161,23 @@ export const irToFlow = (
   const bboxes = computeSubgraphBboxes(ir.nodes, ir.subgraphs, positions, ir.subgraphFrames);
 
   // Subgraph backdrop nodes — purely visual, render below regular nodes.
+  // zIndex grows with depth so nested subgraphs paint above their parents
+  // (otherwise the outer rectangle would swallow inner click/drag events).
+  const sgDepth = computeSgDepth(ir.subgraphs);
   const sgNodes: FlowNode[] = ir.subgraphs.map((sg) => {
     const bb = bboxes.get(sg.id) ?? { x: 0, y: 0, w: SG_MIN_W, h: SG_MIN_H };
+    const depth = sgDepth.get(sg.id) ?? 0;
     return {
       id: SG_PREFIX + sg.id,
       type: "subgraph" as const,
       position: { x: bb.x, y: bb.y },
-      data: { label: sg.label ?? sg.id, sgId: sg.id },
-      style: { width: bb.w, height: bb.h, zIndex: -1 },
+      data: { label: sg.label ?? sg.id, sgId: sg.id, color: sg.color, borderColor: sg.borderColor },
+      style: { width: bb.w, height: bb.h },
       draggable: true,
       selectable: true,
       deletable: true,
       focusable: true,
-      zIndex: 0,
+      zIndex: depth, // outer subgraphs at 0, deeper ones above
     };
   });
 
@@ -181,14 +189,22 @@ export const irToFlow = (
       label: n.label,
       shape: n.shape,
       subgraph: n.subgraph ?? null,
+      color: n.color,
+      borderColor: n.borderColor,
     },
-    zIndex: 1,
+    // Regular nodes sit above any subgraph backdrop, regardless of nesting depth.
+    zIndex: 1000,
   }));
+
+  // If an edge endpoint references a subgraph id (not a node id), route it to
+  // the :sg: flow id so React Flow can resolve the handle on the backdrop.
+  const sgIdSet = new Set(ir.subgraphs.map((s) => s.id));
+  const routeEndpoint = (id: string): string => (sgIdSet.has(id) ? SG_PREFIX + id : id);
 
   const edges: FlowEdge[] = ir.edges.map((e) => ({
     id: e.id,
-    source: e.source,
-    target: e.target,
+    source: routeEndpoint(e.source),
+    target: routeEndpoint(e.target),
     sourceHandle: e.sourceHandle ?? handlePairForDirection(ir.direction).sourceHandle,
     targetHandle: e.targetHandle ?? handlePairForDirection(ir.direction).targetHandle,
     label: e.label,
@@ -205,7 +221,7 @@ export const irToFlow = (
       length: e.length,
       customLabel: e.label,
     },
-    zIndex: 2,
+    zIndex: 2000,
   }));
 
   // Backdrops first so nodes/edges layer on top.

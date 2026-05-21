@@ -106,6 +106,42 @@ export const PropertyPanel = () => {
             ))}
           </select>
         </div>
+        <div className="mge-prop-field mge-prop-color-row">
+          <label>Fill</label>
+          <input
+            type="color"
+            value={node.color ?? "#ffffff"}
+            onChange={(e) => updateNode(node.id, { color: e.target.value }, { recordHistory: false })}
+            onBlur={() => recordHistorySnapshot()}
+          />
+          {node.color && (
+            <button
+              type="button"
+              className="mge-link-btn"
+              onClick={() => updateNode(node.id, { color: undefined })}
+            >
+              clear
+            </button>
+          )}
+        </div>
+        <div className="mge-prop-field mge-prop-color-row">
+          <label>Border</label>
+          <input
+            type="color"
+            value={node.borderColor ?? "#000000"}
+            onChange={(e) => updateNode(node.id, { borderColor: e.target.value }, { recordHistory: false })}
+            onBlur={() => recordHistorySnapshot()}
+          />
+          {node.borderColor && (
+            <button
+              type="button"
+              className="mge-link-btn"
+              onClick={() => updateNode(node.id, { borderColor: undefined })}
+            >
+              clear
+            </button>
+          )}
+        </div>
         <button
           className="mge-danger-btn"
           type="button"
@@ -167,6 +203,22 @@ export const PropertyPanel = () => {
   }
 
   if (subgraph) {
+    // Block ancestors of `subgraph` from appearing in the parent dropdown to
+    // keep the nesting acyclic. Otherwise users could create a parent loop
+    // that the IR can express but the layout cannot satisfy.
+    const isDescendantOf = (candidateId: string, ancestorId: string): boolean => {
+      let cur: string | null | undefined = candidateId;
+      const seen = new Set<string>();
+      while (cur && !seen.has(cur)) {
+        if (cur === ancestorId) return true;
+        seen.add(cur);
+        cur = ir.subgraphs.find((s) => s.id === cur)?.parent ?? null;
+      }
+      return false;
+    };
+    const parentOptions = ir.subgraphs.filter(
+      (s) => s.id !== subgraph.id && !isDescendantOf(s.id, subgraph.id),
+    );
     return (
       <aside className="mge-prop-panel">
         <h3>Subgraph — {subgraph.id}</h3>
@@ -182,6 +234,62 @@ export const PropertyPanel = () => {
             }}
             onBlur={() => recordHistorySnapshot()}
           />
+        </div>
+        <div className="mge-prop-field">
+          <label>Parent</label>
+          <select
+            value={subgraph.parent ?? ""}
+            onChange={(e) =>
+              updateSubgraph(subgraph.id, { parent: e.target.value === "" ? null : e.target.value })
+            }
+          >
+            <option value="">(none — top level)</option>
+            {parentOptions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label ?? s.id}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="mge-prop-field mge-prop-color-row">
+          <label>Fill</label>
+          <input
+            type="color"
+            value={subgraph.color ?? "#ffffff"}
+            onChange={(e) =>
+              updateSubgraph(subgraph.id, { color: e.target.value }, { recordHistory: false })
+            }
+            onBlur={() => recordHistorySnapshot()}
+          />
+          {subgraph.color && (
+            <button
+              type="button"
+              className="mge-link-btn"
+              onClick={() => updateSubgraph(subgraph.id, { color: undefined })}
+            >
+              clear
+            </button>
+          )}
+        </div>
+        <div className="mge-prop-field mge-prop-color-row">
+          <label>Border</label>
+          <input
+            type="color"
+            value={subgraph.borderColor ?? "#000000"}
+            onChange={(e) =>
+              updateSubgraph(subgraph.id, { borderColor: e.target.value }, { recordHistory: false })
+            }
+            onBlur={() => recordHistorySnapshot()}
+          />
+          {subgraph.borderColor && (
+            <button
+              type="button"
+              className="mge-link-btn"
+              onClick={() => updateSubgraph(subgraph.id, { borderColor: undefined })}
+            >
+              clear
+            </button>
+          )}
         </div>
         <button
           className="mge-danger-btn"

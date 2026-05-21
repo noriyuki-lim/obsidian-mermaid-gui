@@ -37,6 +37,10 @@ export interface IRNode {
   label: string;
   /** id of the parent subgraph, if any */
   subgraph?: string | null;
+  /** Background fill color (CSS hex like `#ff9999`). Emitted as Mermaid `style id fill:...`. */
+  color?: string;
+  /** Border / stroke color. Emitted as Mermaid `style id stroke:...`. */
+  borderColor?: string;
 }
 
 export interface IREdge {
@@ -61,6 +65,10 @@ export interface IRSubgraph {
   parent?: string | null;
   /** optional direction declared inside the subgraph */
   direction?: Direction;
+  /** Background fill color (CSS hex). Emitted as Mermaid `style id fill:...`. */
+  color?: string;
+  /** Border / stroke color. */
+  borderColor?: string;
 }
 
 /** Per-node 2-D coordinates persisted to a sidecar JSON */

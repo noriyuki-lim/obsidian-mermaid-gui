@@ -227,6 +227,31 @@ body.mge-dragging .mge-toolbar { cursor: grabbing !important; }
   outline-offset: -1px;
   border-color: var(--mge-brand);
 }
+.mge-prop-color-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.mge-prop-color-row label {
+  flex: 0 0 60px;
+  margin-bottom: 0;
+}
+.mge-prop-color-row input[type="color"] {
+  flex: 0 0 36px;
+  padding: 0;
+  height: 28px;
+  cursor: pointer;
+}
+.mge-link-btn {
+  background: none;
+  border: none;
+  color: var(--mge-text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+.mge-link-btn:hover { color: var(--mge-text-normal); }
 .mge-danger-btn {
   width: 100%;
   padding: 7px 10px;
@@ -407,6 +432,19 @@ body.mge-text-pane-resizing * {
   height: 8px;
   background: var(--mge-selection);
   border: 1.5px solid var(--mge-node-bg);
+}
+/* Subgraph handles: slightly larger and tinted to match the dashed border */
+.mge-canvas .react-flow__handle.mge-sg-handle {
+  width: 10px;
+  height: 10px;
+  background: var(--mge-subgraph-border);
+  border: 1.5px solid var(--mge-subgraph-bg);
+  opacity: 0.55;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+.mge-subgraph-node:hover .mge-sg-handle,
+.mge-subgraph-node.selected .mge-sg-handle {
+  opacity: 1;
 }
 
 /* ============================================================

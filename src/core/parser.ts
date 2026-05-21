@@ -354,6 +354,46 @@ export const parseMermaid = (source: string): ParseOutcome => {
       continue;
     }
 
+    // style <id> fill:#xxx,stroke:#yyy[,...other...]
+    // Recognised fill/stroke properties go to node/subgraph color fields.
+    // Any non-color properties are preserved on a residual rawLine so we never
+    // drop user intent (e.g., stroke-width). When the directive only touches
+    // colors, the whole line is consumed.
+    const styleMatch = /^style\s+([A-Za-z0-9_-]+)\s+(.+)$/.exec(line);
+    if (styleMatch) {
+      const targetId = styleMatch[1];
+      const props = styleMatch[2]
+        .split(",")
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0);
+      let fill: string | undefined;
+      let stroke: string | undefined;
+      const leftover: string[] = [];
+      for (const p of props) {
+        const fm = /^fill\s*:\s*(\S+)$/i.exec(p);
+        const sm = /^stroke\s*:\s*(\S+)$/i.exec(p);
+        if (fm) fill = fm[1];
+        else if (sm) stroke = sm[1];
+        else leftover.push(p);
+      }
+      const node = nodeMap.get(targetId);
+      const sg = sgMap.get(targetId);
+      if (node || sg) {
+        if (node) {
+          if (fill) node.color = fill;
+          if (stroke) node.borderColor = stroke;
+        }
+        if (sg) {
+          if (fill) sg.color = fill;
+          if (stroke) sg.borderColor = stroke;
+        }
+        if (leftover.length > 0) {
+          ir.rawLines.push(`style ${targetId} ${leftover.join(",")}`);
+        }
+        continue;
+      }
+    }
+
     // Unknown statement — preserve verbatim so round-trip stays loss-free.
     ir.rawLines.push(original);
     warnings.push(`line ${li + 1}: kept as raw — not parsed`);
@@ -361,6 +401,16 @@ export const parseMermaid = (source: string): ParseOutcome => {
 
   // Suppress directions/dummy validation: no side effects beyond ir population.
   void DIRECTIONS;
+
+  // Edges that target a subgraph create phantom nodes in upsertNode (because
+  // the parser doesn't know upfront whether an identifier belongs to a
+  // subgraph). Reconcile here: any node whose id collides with a subgraph id
+  // and which was never explicitly defined is removed. Edges keep pointing at
+  // the subgraph id; the adapter routes them via the :sg: prefix.
+  const sgIds = new Set(ir.subgraphs.map((s) => s.id));
+  if (sgIds.size > 0) {
+    ir.nodes = ir.nodes.filter((n) => !sgIds.has(n.id));
+  }
 
   return { ok: true, ir, warnings };
 };

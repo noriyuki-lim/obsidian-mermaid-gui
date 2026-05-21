@@ -160,8 +160,16 @@ const renderShapeBg = (shape: NodeShape) => {
 };
 
 export const ShapeNode = ({ data, selected }: NodeProps<ShapeFlowNode>) => {
+  // Inline CSS variables let users override the theme's fill/stroke per node
+  // without touching the shared stylesheet. The SVG inside reads
+  // `--mge-node-bg` and `--mge-node-border` via the .mge-fill / .mge-stroke
+  // selectors in styles.src.css.
+  const style: React.CSSProperties = {};
+  if (data.color) (style as Record<string, string>)["--mge-node-bg"] = data.color;
+  if (data.borderColor) (style as Record<string, string>)["--mge-node-border"] = data.borderColor;
+
   return (
-    <div className={`mge-shape-node${selected ? " selected" : ""}`}>
+    <div className={`mge-shape-node${selected ? " selected" : ""}`} style={style}>
       <svg className="mge-bg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
         {renderShapeBg(data.shape)}
       </svg>

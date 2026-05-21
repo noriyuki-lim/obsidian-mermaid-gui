@@ -68,6 +68,7 @@ export const generateMermaid = (ir: MermaidIR, opts: RenderOptions = {}): string
   lines.push(`flowchart ${ir.direction}`);
 
   const nodeById = new Map(ir.nodes.map((n) => [n.id, n] as const));
+  const sgById = new Map(ir.subgraphs.map((s) => [s.id, s] as const));
   const edgeNodeIds = new Set<string>();
   for (const e of ir.edges) {
     edgeNodeIds.add(e.source);
@@ -76,6 +77,14 @@ export const generateMermaid = (ir: MermaidIR, opts: RenderOptions = {}): string
 
   const isBare = (n: IRNode) =>
     n.subgraph == null && n.shape === "rect" && n.label === n.id && edgeNodeIds.has(n.id);
+
+  const renderStyle = (id: string, fill?: string, stroke?: string): string | null => {
+    const parts: string[] = [];
+    if (fill) parts.push(`fill:${fill}`);
+    if (stroke) parts.push(`stroke:${stroke}`);
+    if (parts.length === 0) return null;
+    return `style ${id} ${parts.join(",")}`;
+  };
 
   // Group nodes by subgraph.
   const nodesBySg = new Map<string | null, IRNode[]>();
@@ -114,10 +123,24 @@ export const generateMermaid = (ir: MermaidIR, opts: RenderOptions = {}): string
   const topSgs = sgChildren.get(null) ?? [];
   for (const sg of topSgs) renderSg(sg, 1);
 
-  // Edges (always at top level for stability).
+  // Edges (always at top level for stability). Endpoints may reference
+  // a node id OR a subgraph id — both are valid edge targets in Mermaid.
   for (const e of ir.edges) {
-    if (!nodeById.has(e.source) || !nodeById.has(e.target)) continue;
+    const srcOk = nodeById.has(e.source) || sgById.has(e.source);
+    const dstOk = nodeById.has(e.target) || sgById.has(e.target);
+    if (!srcOk || !dstOk) continue;
     lines.push(INDENT + renderEdge(e));
+  }
+
+  // Emit style directives for any node/subgraph carrying colors. Keep them
+  // grouped at the bottom so the topology section stays readable.
+  for (const n of ir.nodes) {
+    const styleLine = renderStyle(n.id, n.color, n.borderColor);
+    if (styleLine) lines.push(INDENT + styleLine);
+  }
+  for (const sg of ir.subgraphs) {
+    const styleLine = renderStyle(sg.id, sg.color, sg.borderColor);
+    if (styleLine) lines.push(INDENT + styleLine);
   }
 
   // Preserve raw lines that we couldn't parse.
