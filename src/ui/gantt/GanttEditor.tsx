@@ -635,6 +635,8 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       saving={saving}
       renderMermaid={renderMermaid}
       onSourceEdit={handleSourceEdit}
+      layout="stacked"
+      sourceToggleLabel="ソースを表示"
       previewOverride={
         <GanttInteractivePreview
           ir={ir}

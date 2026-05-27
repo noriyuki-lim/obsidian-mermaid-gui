@@ -25,6 +25,12 @@ interface Props {
   saving?: boolean;
   /** Extra toolbar controls (between brand and Save/Cancel). */
   toolbarExtras?: ReactNode;
+  /** Layout variant. `side` preserves the classic two-pane editor. */
+  layout?: "side" | "stacked";
+  /** For stacked layouts, source starts hidden unless explicitly opened. */
+  sourceInitiallyOpen?: boolean;
+  /** Button label for the collapsible source pane in stacked layouts. */
+  sourceToggleLabel?: string;
   /** Render a Mermaid source into an SVG string (wraps Obsidian's loadMermaid). */
   renderMermaid?: (source: string) => Promise<string>;
   /**
@@ -65,6 +71,9 @@ export const EditorShell = ({
   onCancel,
   saving,
   toolbarExtras,
+  layout = "side",
+  sourceInitiallyOpen = false,
+  sourceToggleLabel = "Mermaid source",
   renderMermaid,
   previewOverride,
   previewUnavailableMessage,
@@ -81,8 +90,10 @@ export const EditorShell = ({
   // generator's canonical form from stomping partial edits mid-typing.
   const [draft, setDraft] = useState<string | null>(null);
   const [sourceError, setSourceError] = useState<string | null>(null);
+  const [sourceOpen, setSourceOpen] = useState(sourceInitiallyOpen);
   const editable = typeof onSourceEdit === "function";
   const displaySource = draft ?? currentSource;
+  const stacked = layout === "stacked";
 
   const shellRef = useRef<HTMLDivElement>(null);
   const sideDrag = useRef<{ startX: number; startRatio: number } | null>(null);
@@ -224,6 +235,105 @@ export const EditorShell = ({
     );
   })();
 
+  const sourcePane = (
+    <div className="mge-editor-code">
+      <div className="mge-editor-pane-header">
+        <span>Mermaid source</span>
+        {editable ? (
+          sourceError ? (
+            <span className="mge-source-status err">parse error: {sourceError}</span>
+          ) : draft !== null ? (
+            <span className="mge-source-status dirty">編集中… blur で確定</span>
+          ) : (
+            <span className="mge-source-status ok">同期済み</span>
+          )
+        ) : null}
+      </div>
+      <textarea
+        value={displaySource}
+        readOnly={!editable}
+        spellCheck={false}
+        wrap="off"
+        onChange={
+          editable
+            ? (e) => {
+                const next = e.target.value;
+                setDraft(next);
+                const result = onSourceEdit!(next);
+                setSourceError(result.ok ? null : result.error);
+              }
+            : undefined
+        }
+        onBlur={
+          editable
+            ? () => {
+                // Snap back to the canonical IR-derived source. When the
+                // draft still has a parse error, we keep it visible so the
+                // user can fix it instead of silently losing their typing.
+                if (sourceError !== null) return;
+                setDraft(null);
+              }
+            : undefined
+        }
+      />
+    </div>
+  );
+
+  const previewPane = (
+    <div className="mge-editor-preview">
+      <div className="mge-editor-pane-header">Preview</div>
+      <div className="mge-editor-preview-inner">{previewBody}</div>
+    </div>
+  );
+
+  if (stacked) {
+    return (
+      <div
+        className={`mge-editor-shell mge-editor-shell-stacked ${sourceOpen ? "mge-source-open" : ""}`}
+        ref={shellRef}
+        style={{
+          ["--mge-side-ratio" as string]: SIDE_DEFAULT,
+          ["--mge-preview-ratio" as string]: PREVIEW_DEFAULT,
+        }}
+      >
+        <header className="mge-toolbar mge-editor-toolbar">
+          <span className="mge-brand">{title}</span>
+          {toolbarExtras ? <div className="mge-editor-toolbar-extras">{toolbarExtras}</div> : null}
+          <div className="mge-group" style={{ marginLeft: "auto" }}>
+            <button
+              className="mge-btn-secondary"
+              onClick={() => setSourceOpen((open) => !open)}
+              aria-pressed={sourceOpen}
+            >
+              {sourceOpen ? "ソースを隠す" : sourceToggleLabel}
+            </button>
+            <button
+              className="mge-btn-secondary"
+              onClick={onCancel}
+              disabled={saving}
+            >
+              キャンセル
+            </button>
+            <button
+              className="mge-btn-primary"
+              onClick={() => void onSave()}
+              disabled={saving}
+            >
+              {saving ? "保存中…" : "保存"}
+            </button>
+          </div>
+        </header>
+
+        {previewPane}
+
+        <section className="mge-editor-body">
+          <div className="mge-editor-main-content">{children}</div>
+          {sourceOpen ? <aside className="mge-editor-source-drawer">{sourcePane}</aside> : null}
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div
       className="mge-editor-shell"
@@ -268,10 +378,7 @@ export const EditorShell = ({
       />
 
       <aside className="mge-editor-side">
-        <div className="mge-editor-preview">
-          <div className="mge-editor-pane-header">Preview</div>
-          <div className="mge-editor-preview-inner">{previewBody}</div>
-        </div>
+        {previewPane}
         <div
           className="mge-preview-resizer"
           role="separator"
@@ -282,47 +389,7 @@ export const EditorShell = ({
           onPointerUp={endPreviewDrag}
           onPointerCancel={endPreviewDrag}
         />
-        <div className="mge-editor-code">
-          <div className="mge-editor-pane-header">
-            <span>Mermaid source</span>
-            {editable ? (
-              sourceError ? (
-                <span className="mge-source-status err">parse error: {sourceError}</span>
-              ) : draft !== null ? (
-                <span className="mge-source-status dirty">編集中… blur で確定</span>
-              ) : (
-                <span className="mge-source-status ok">同期済み</span>
-              )
-            ) : null}
-          </div>
-          <textarea
-            value={displaySource}
-            readOnly={!editable}
-            spellCheck={false}
-            wrap="off"
-            onChange={
-              editable
-                ? (e) => {
-                    const next = e.target.value;
-                    setDraft(next);
-                    const result = onSourceEdit!(next);
-                    setSourceError(result.ok ? null : result.error);
-                  }
-                : undefined
-            }
-            onBlur={
-              editable
-                ? () => {
-                    // Snap back to the canonical IR-derived source. When the
-                    // draft still has a parse error, we keep it visible so the
-                    // user can fix it instead of silently losing their typing.
-                    if (sourceError !== null) return;
-                    setDraft(null);
-                  }
-                : undefined
-            }
-          />
-        </div>
+        {sourcePane}
       </aside>
     </div>
   );

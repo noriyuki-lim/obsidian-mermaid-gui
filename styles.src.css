@@ -768,6 +768,56 @@ body.mge-preview-resizing * {
   user-select: none !important;
 }
 
+.mge-editor-shell-stacked {
+  grid-template-rows: 44px minmax(260px, 52%) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "toolbar"
+    "preview"
+    "body";
+}
+
+.mge-editor-shell-stacked .mge-editor-preview {
+  grid-area: preview;
+  border-bottom: 1px solid var(--background-modifier-border, #d6d6df);
+  min-height: 0;
+}
+
+.mge-editor-shell-stacked .mge-editor-preview-inner {
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 10px;
+}
+
+.mge-editor-shell-stacked .mge-editor-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.mge-editor-shell-stacked.mge-source-open .mge-editor-body {
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 36%);
+}
+
+.mge-editor-main-content {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mge-editor-source-drawer {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  border-left: 1px solid var(--background-modifier-border, #d6d6df);
+  background: var(--background-secondary, #fff);
+}
+
+.mge-editor-source-drawer .mge-editor-code {
+  flex: 1;
+}
+
 .mge-editor-toolbar-extras {
   display: flex;
   align-items: center;
@@ -1351,12 +1401,35 @@ body.theme-dark .mge-seq-badge-raw {
 }
 
 .mge-gantt-preview {
+  --mge-gantt-canvas: #111827;
+  --mge-gantt-grid: rgba(226, 232, 240, 0.18);
+  --mge-gantt-axis: rgba(226, 232, 240, 0.42);
+  --mge-gantt-text: #f8fafc;
+  --mge-gantt-muted: #cbd5e1;
+  --mge-gantt-bar-default: #60a5fa;
+  --mge-gantt-bar-active: #22d3ee;
+  --mge-gantt-bar-done: #34d399;
+  --mge-gantt-bar-crit: #fb7185;
+  --mge-gantt-bar-milestone: #f59e0b;
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
   min-height: 0;
   gap: 6px;
+}
+
+body:not(.theme-dark) .mge-gantt-preview {
+  --mge-gantt-canvas: #f8fafc;
+  --mge-gantt-grid: #cbd5e1;
+  --mge-gantt-axis: #64748b;
+  --mge-gantt-text: #0f172a;
+  --mge-gantt-muted: #475569;
+  --mge-gantt-bar-default: #2563eb;
+  --mge-gantt-bar-active: #0891b2;
+  --mge-gantt-bar-done: #059669;
+  --mge-gantt-bar-crit: #e11d48;
+  --mge-gantt-bar-milestone: #d97706;
 }
 
 .mge-gantt-preview-tools {
@@ -1380,34 +1453,35 @@ body.theme-dark .mge-seq-badge-raw {
   flex: 1;
   min-height: 0;
   width: 100%;
-  border: 1px solid var(--background-modifier-border, #d6d6df);
+  border: 1px solid var(--mge-gantt-axis);
   border-radius: 4px;
-  background: var(--background-secondary, #fff);
+  background: var(--mge-gantt-canvas);
   touch-action: none;
 }
 
 .mge-gantt-bg {
-  fill: var(--background-secondary, #fff);
+  fill: var(--mge-gantt-canvas);
 }
 
 .mge-gantt-axis,
 .mge-gantt-grid-line {
-  stroke: var(--background-modifier-border, #d6d6df);
+  stroke: var(--mge-gantt-axis);
   stroke-width: 1;
 }
 
 .mge-gantt-grid-line {
-  opacity: 0.78;
+  stroke: var(--mge-gantt-grid);
+  opacity: 1;
 }
 
 .mge-gantt-tick {
-  fill: var(--text-muted, #6b6b7b);
+  fill: var(--mge-gantt-muted);
   font-size: 11px;
   user-select: none;
 }
 
 .mge-gantt-row-label {
-  fill: var(--text-normal, #1f1f2e);
+  fill: var(--mge-gantt-text);
   font-size: 12px;
   font-weight: 600;
   pointer-events: none;
@@ -1415,42 +1489,39 @@ body.theme-dark .mge-seq-badge-raw {
 }
 
 .mge-gantt-bar-label {
-  fill: var(--text-muted, #6b6b7b);
+  fill: var(--mge-gantt-muted);
   font-size: 11px;
   pointer-events: none;
   user-select: none;
 }
 
 .mge-gantt-bar {
-  fill: var(--mge-brand, #2b245c);
-  stroke: color-mix(in srgb, var(--mge-brand, #2b245c) 80%, #000 20%);
-  stroke-width: 1;
+  fill: var(--mge-gantt-bar-default);
+  stroke: rgba(255, 255, 255, 0.72);
+  stroke-width: 1.2;
   cursor: grab;
 }
 
 .mge-gantt-task.active .mge-gantt-bar {
-  fill: var(--mge-accent, #04aed6);
-  stroke: color-mix(in srgb, var(--mge-accent, #04aed6) 70%, #000 30%);
+  fill: var(--mge-gantt-bar-active);
 }
 
 .mge-gantt-task.done .mge-gantt-bar {
-  fill: color-mix(in srgb, var(--color-green, #2a9d8f) 72%, var(--background-secondary, #fff) 28%);
-  stroke: var(--color-green, #2a9d8f);
+  fill: var(--mge-gantt-bar-done);
 }
 
 .mge-gantt-task.crit .mge-gantt-bar {
-  fill: color-mix(in srgb, var(--text-error, #c0392b) 78%, var(--background-secondary, #fff) 22%);
-  stroke: var(--text-error, #c0392b);
+  fill: var(--mge-gantt-bar-crit);
 }
 
 .mge-gantt-task.milestone .mge-gantt-bar {
-  fill: var(--color-orange, #f2994a);
-  stroke: color-mix(in srgb, var(--color-orange, #f2994a) 70%, #000 30%);
+  fill: var(--mge-gantt-bar-milestone);
 }
 
 .mge-gantt-task.selected .mge-gantt-bar {
-  stroke-width: 2;
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.24));
+  stroke: #fff;
+  stroke-width: 2.4;
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.45)) drop-shadow(0 2px 5px rgba(0, 0, 0, 0.44));
 }
 
 .mge-gantt-resize-hit {
@@ -1466,7 +1537,7 @@ body.theme-dark .mge-seq-badge-raw {
 }
 
 .mge-gantt-empty-preview {
-  fill: var(--text-muted, #6b6b7b);
+  fill: var(--mge-gantt-muted);
   font-size: 13px;
   font-style: italic;
 }
