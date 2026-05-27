@@ -1162,6 +1162,324 @@ body.theme-dark .mge-seq-badge-raw {
 }
 
 /* ---------- Gantt / Timeline editors ---------- */
+.mge-gantt-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--background-primary, #f7f7fa) 96%, var(--mge-brand, #2b245c) 4%),
+      var(--background-primary, #f7f7fa)
+    );
+}
+
+.mge-gantt-settings {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(140px, 0.65fr) auto;
+  align-items: end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mge-gantt-settings label {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, #6b6b7b);
+}
+
+.mge-gantt-field,
+.mge-gantt-cell-input,
+.mge-gantt-cell-select,
+.mge-gantt-inline-input {
+  border: 1px solid var(--background-modifier-border, #d6d6df);
+  background: var(--background-primary, #f7f7fa);
+  color: var(--text-normal, #1f1f2e);
+  font: inherit;
+  border-radius: 3px;
+}
+
+.mge-gantt-field {
+  height: 30px;
+  padding: 4px 8px;
+}
+
+.mge-gantt-field:focus,
+.mge-gantt-cell-input:focus,
+.mge-gantt-cell-select:focus,
+.mge-gantt-inline-input:focus {
+  outline: 2px solid var(--mge-accent, #04aed6);
+  outline-offset: -1px;
+  border-color: var(--mge-accent, #04aed6);
+}
+
+.mge-gantt-table-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.mge-gantt-action,
+.mge-gantt-preview-btn {
+  border: 1px solid color-mix(in srgb, var(--mge-brand, #2b245c) 40%, transparent);
+  background: color-mix(in srgb, var(--background-secondary, #fff) 86%, var(--mge-brand, #2b245c) 14%);
+  color: var(--text-normal, #1f1f2e);
+  border-radius: 4px;
+  padding: 5px 9px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.mge-gantt-action:hover,
+.mge-gantt-preview-btn:hover {
+  background: color-mix(in srgb, var(--background-secondary, #fff) 74%, var(--mge-brand, #2b245c) 26%);
+}
+
+.mge-gantt-grid-shell {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--background-modifier-border, #d6d6df);
+  border-radius: 6px;
+  background: var(--background-secondary, #fff);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+}
+
+.mge-gantt-grid-header,
+.mge-gantt-grid-row {
+  display: grid;
+  grid-template-columns: 88px minmax(190px, 1.35fr) minmax(78px, 0.55fr) minmax(118px, 0.75fr) minmax(142px, 0.9fr) minmax(112px, 0.7fr) 34px;
+  align-items: center;
+  min-width: 860px;
+}
+
+.mge-gantt-grid-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-height: 31px;
+  background: var(--background-secondary-alt, #f1f1f6);
+  border-bottom: 1px solid var(--background-modifier-border, #d6d6df);
+  color: var(--text-muted, #6b6b7b);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mge-gantt-grid-header > span,
+.mge-gantt-grid-row > * {
+  min-width: 0;
+}
+
+.mge-gantt-grid-header > span {
+  padding: 6px 8px;
+}
+
+.mge-gantt-grid-row {
+  border-bottom: 1px solid var(--background-modifier-border, #d6d6df);
+  background: var(--background-secondary, #fff);
+}
+
+.mge-gantt-grid-row:nth-child(even) {
+  background: color-mix(in srgb, var(--background-secondary, #fff) 88%, var(--background-primary, #f7f7fa) 12%);
+}
+
+.mge-gantt-grid-row.selected {
+  box-shadow: 3px 0 0 var(--mge-accent, #04aed6) inset;
+  background: color-mix(in srgb, var(--background-secondary, #fff) 86%, var(--mge-accent, #04aed6) 14%);
+}
+
+.mge-gantt-grid-row.section {
+  background: color-mix(in srgb, var(--background-secondary-alt, #f1f1f6) 86%, var(--mge-brand, #2b245c) 14%);
+  font-weight: 650;
+}
+
+.mge-gantt-grid-row.raw {
+  opacity: 0.78;
+}
+
+.mge-gantt-cell-input,
+.mge-gantt-cell-select {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 4px 7px;
+  border-radius: 0;
+  border-width: 0 1px 0 0;
+  background: transparent;
+}
+
+.mge-gantt-cell-input[readonly] {
+  color: var(--text-faint, #8a8a95);
+}
+
+.mge-gantt-cell-mono {
+  font-family: var(--font-monospace, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+}
+
+.mge-gantt-delete {
+  width: 100%;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #6b6b7b);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.mge-gantt-delete:hover {
+  color: var(--text-error, #c0392b);
+  background: rgba(192, 57, 43, 0.1);
+}
+
+.mge-gantt-grid-empty {
+  padding: 18px;
+  color: var(--text-muted, #6b6b7b);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.mge-gantt-preview {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  gap: 6px;
+}
+
+.mge-gantt-preview-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-normal, #1f1f2e);
+}
+
+.mge-gantt-preview-btn {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.mge-gantt-preview-svg {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 1px solid var(--background-modifier-border, #d6d6df);
+  border-radius: 4px;
+  background: var(--background-secondary, #fff);
+  touch-action: none;
+}
+
+.mge-gantt-bg {
+  fill: var(--background-secondary, #fff);
+}
+
+.mge-gantt-axis,
+.mge-gantt-grid-line {
+  stroke: var(--background-modifier-border, #d6d6df);
+  stroke-width: 1;
+}
+
+.mge-gantt-grid-line {
+  opacity: 0.78;
+}
+
+.mge-gantt-tick {
+  fill: var(--text-muted, #6b6b7b);
+  font-size: 11px;
+  user-select: none;
+}
+
+.mge-gantt-row-label {
+  fill: var(--text-normal, #1f1f2e);
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+  user-select: none;
+}
+
+.mge-gantt-bar-label {
+  fill: var(--text-muted, #6b6b7b);
+  font-size: 11px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.mge-gantt-bar {
+  fill: var(--mge-brand, #2b245c);
+  stroke: color-mix(in srgb, var(--mge-brand, #2b245c) 80%, #000 20%);
+  stroke-width: 1;
+  cursor: grab;
+}
+
+.mge-gantt-task.active .mge-gantt-bar {
+  fill: var(--mge-accent, #04aed6);
+  stroke: color-mix(in srgb, var(--mge-accent, #04aed6) 70%, #000 30%);
+}
+
+.mge-gantt-task.done .mge-gantt-bar {
+  fill: color-mix(in srgb, var(--color-green, #2a9d8f) 72%, var(--background-secondary, #fff) 28%);
+  stroke: var(--color-green, #2a9d8f);
+}
+
+.mge-gantt-task.crit .mge-gantt-bar {
+  fill: color-mix(in srgb, var(--text-error, #c0392b) 78%, var(--background-secondary, #fff) 22%);
+  stroke: var(--text-error, #c0392b);
+}
+
+.mge-gantt-task.milestone .mge-gantt-bar {
+  fill: var(--color-orange, #f2994a);
+  stroke: color-mix(in srgb, var(--color-orange, #f2994a) 70%, #000 30%);
+}
+
+.mge-gantt-task.selected .mge-gantt-bar {
+  stroke-width: 2;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.24));
+}
+
+.mge-gantt-resize-hit {
+  fill: transparent;
+  cursor: ew-resize;
+}
+
+.mge-gantt-inline-input {
+  width: 100%;
+  height: 24px;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+.mge-gantt-empty-preview {
+  fill: var(--text-muted, #6b6b7b);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.mge-gantt-preview-help {
+  margin: 0;
+  flex-shrink: 0;
+  color: var(--text-muted, #6b6b7b);
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: center;
+}
+
 .mge-gantt-section-row {
   background: var(--background-secondary, #f0f0f5);
   border-radius: 4px;

@@ -25,7 +25,7 @@
 - 既存 Web 版の IR・パーサ・ジェネレータ・Dagre レイアウトを共通ソースで再利用する。
 
 ### 非ゴール（初版）
-- Mermaid 全図種 GUI 対応（現在 flowchart / sequenceDiagram / classDiagram / stateDiagram / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta が GUI 実装済み。それ以外は `SourceOnlyEditor` でソース表示のみ。radar-beta は Obsidian 内蔵 Mermaid 非対応のためプレビュー描画なし）。
+- Mermaid 全図種 GUI 対応（現在 flowchart / sequenceDiagram / classDiagram / stateDiagram / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta / gantt などが GUI 実装済み。Gantt は表形式エディタと操作可能 SVG プレビューを持つ。それ以外は `SourceOnlyEditor` でソース表示のみ。radar-beta は Obsidian 内蔵 Mermaid 非対応のためプレビュー描画なし）。
 - モバイル（Obsidian Mobile）対応。
 - Vault 横断検索や Dataview 連携。
 - 共同編集・コンフリクト解決（個人利用前提）。
@@ -225,7 +225,7 @@ mermaid-gui-obsidian/
 - 同一ノート内のブロック間でショートカット・選択状態が混線しないよう、キーボードイベントは**フォーカスのある root に閉じ込める**（document-level listener を避ける）。
 - Modal 起動中はその Modal の store のみ active。背後の Reading view 上の他ブロックは静的プレビューのまま。
 - Modal は toolbar ドラッグで移動、四隅のカスタムハンドル（`mge-resize-handle-{nw,ne,sw,se}`）で拡縮できる。左/上辺ドラッグ時は `left`/`top` も同時更新し反対側を基準に固定する。クランプは最小 540×360、最大 98vw×96vh。CSS の `resize: both` は撤去し、grippers は `EditorModal.onOpen` で生成し `onClose` で破棄する。
-- `EditorShell` の右ペインに同居する Mermaid ソースは `onSourceEdit` callback の有無で編集可否が決まる。非 flowchart の各エディタは callback を渡し、毎キーストロークで `parse<Kind>` を再実行 → IR に反映 → 失敗時はインライン error バッジで通知（IR は据え置き）。ユーザー入力中は draft を保持し、blur で IR から再生成された canonical 形へスナップする。class / state など `rawItems` 経由で round-trip しているエディタは当該配列を `useState` 管理して再 parse 結果を反映する。flowchart は `src/ui/panels/TextPane.tsx` 経由（store の `setText` / `commitText` を blur or debounce で commit）。
+- `EditorShell` の右ペインに同居する Mermaid ソースは `onSourceEdit` callback の有無で編集可否が決まる。非 flowchart の各エディタは callback を渡し、毎キーストロークで `parse<Kind>` を再実行 → IR に反映 → 失敗時はインライン error バッジで通知（IR は据え置き）。ユーザー入力中は draft を保持し、blur で IR から再生成された canonical 形へスナップする。class / state など `rawItems` 経由で round-trip しているエディタは当該配列を `useState` 管理して再 parse 結果を反映する。Gantt は `previewOverride` で操作可能 SVG を表示し、バー移動・リサイズ・ラベル編集・タスク追加を IR に直接反映する。flowchart は `src/ui/panels/TextPane.tsx` 経由（store の `setText` / `commitText` を blur or debounce で commit）。
 
 ### 6.4 IO レイヤ
 

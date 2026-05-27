@@ -157,9 +157,10 @@ journey
 
 ### 7. Gantt — ガントチャート
 
-> **GUI対応:** ✅ 実装済み（Phase 7 完了）
+> **GUI対応:** ✅ 実装済み（Phase 7 完了、表形式エディタ + 操作可能プレビュー）
 
 タスク・期間・依存関係・マイルストーンをバーで表示するプロジェクト管理図。
+GUI では Excel ライクな表でタスクを編集し、プレビュー上のバーをドラッグして開始日移動、左右端をドラッグして期間変更、ダブルクリックでタスク名編集、ボタンまたは空白ダブルクリックでタスク追加できる。
 
 ```mermaid
 gantt
@@ -750,7 +751,7 @@ C4Deployment
 | 4  | State Diagram        | `stateDiagram-v2`     | 安定    | ✅ 実装済み（Phase 5）        |
 | 5  | ER Diagram           | `erDiagram`           | 安定    | ✅ 実装済み（Phase 8）        |
 | 6  | User Journey         | `journey`             | 安定    | ✅ 実装済み（Phase 9）        |
-| 7  | Gantt                | `gantt`               | 安定    | ✅ 実装済み（Phase 7）        |
+| 7  | Gantt                | `gantt`               | 安定    | ✅ 実装済み（表形式 + 操作可能プレビュー） |
 | 8  | Pie Chart            | `pie`                 | 安定    | ✅ 実装済み（Phase 6）        |
 | 9  | Quadrant Chart       | `quadrantChart`       | 安定    | ✅ 実装済み（Phase 6）        |
 | 10 | Requirement Diagram  | `requirementDiagram`  | 安定    | —                       |
@@ -776,6 +777,5 @@ C4Deployment
 | 30 | C4 Component         | `C4Component`         | 実験的   | —                       |
 | 31 | C4 Dynamic           | `C4Dynamic`           | 実験的   | —                       |
 | 32 | C4 Deployment        | `C4Deployment`        | 実験的   | —                       |
-
 
 
