@@ -22,6 +22,10 @@ interface Props {
 
 type GanttCellColumn = "kind" | "label" | "id" | "modifiers" | "start" | "end";
 type CellElement = HTMLInputElement | HTMLSelectElement;
+type ScheduleField = "start" | "end";
+type SchedulePickerMode = "duration" | "after";
+type ScheduleValueType = "date" | "duration" | "after";
+type DatePart = "year" | "month" | "day";
 
 type PrimaryStatus = GanttTaskStatus | "";
 /** Statuses selectable as the single "primary" status in the table dropdown. */
@@ -94,10 +98,35 @@ const parseAfterReference = (value: string | undefined): string | null => {
   return match ? match[1] : null;
 };
 
+const isAfterReference = (value: string | undefined) => parseAfterReference(value) !== null;
+
 const addDays = (time: number, days: number) => time + days * DAY_MS;
 
 const diffDays = (start: number, end: number) =>
   Math.max(1, Math.round((end - start) / DAY_MS));
+
+const addUtcDatePart = (time: number, part: DatePart, delta: number) => {
+  const date = new Date(time);
+  const year = date.getUTCFullYear() + (part === "year" ? delta : 0);
+  const month = date.getUTCMonth() + (part === "month" ? delta : 0);
+  const day = date.getUTCDate() + (part === "day" ? delta : 0);
+  return Date.UTC(year, month, day);
+};
+
+const datePartFromCaret = (input: HTMLInputElement): DatePart => {
+  const position = input.selectionStart ?? input.value.length;
+  if (position <= 4) return "year";
+  if (position <= 7) return "month";
+  return "day";
+};
+
+const todayDate = () => formatDateUtc(Date.now());
+
+const scheduleValueType = (field: ScheduleField, value: string | undefined): ScheduleValueType => {
+  if (field === "start" && isAfterReference(value)) return "after";
+  if (field === "end" && parseDurationDays(value) !== null) return "duration";
+  return "date";
+};
 
 const firstExplicitDate = (items: GanttItem[]) => {
   for (const item of items) {
@@ -259,6 +288,7 @@ const GanttInteractivePreview = ({
     clientX: number;
     start: number;
     end: number;
+    originalStart?: string;
     originalEnd?: string;
   } | null>(null);
   const edgeDragRef = useRef<{
@@ -351,6 +381,7 @@ const GanttInteractivePreview = ({
       clientX: event.clientX,
       start: layout.start,
       end: layout.end,
+      originalStart: layout.task.start,
       originalEnd: layout.task.end,
     };
   };
@@ -471,10 +502,29 @@ const GanttInteractivePreview = ({
 
     if (drag.mode === "resize-start") {
       const nextStart = Math.min(addDays(drag.start, delta), addDays(drag.end, -1));
+      const nextDuration = diffDays(nextStart, drag.end);
+      const currentLayout = baseTimeline.tasks.find((task) => task.index === drag.index);
+      const previousId = parseAfterReference(currentLayout?.task.start);
+      const previousLayout = previousId
+        ? baseTimeline.tasks.find((task) => task.task.id === previousId)
+        : undefined;
+      if (currentLayout && previousLayout) {
+        onPatchTask(previousLayout.index, {
+          end: parseDurationDays(previousLayout.task.end) !== null
+            ? `${diffDays(previousLayout.start, nextStart)}d`
+            : formatDateUtc(nextStart),
+        });
+        onPatchTask(drag.index, {
+          end: parseDurationDays(drag.originalEnd) !== null
+            ? `${nextDuration}d`
+            : drag.originalEnd,
+        });
+        return;
+      }
       onPatchTask(drag.index, {
         start: formatDateUtc(nextStart),
         end: parseDurationDays(drag.originalEnd) !== null
-          ? `${diffDays(nextStart, drag.end)}d`
+          ? `${nextDuration}d`
           : formatDateUtc(drag.end),
       });
       return;
@@ -486,6 +536,17 @@ const GanttInteractivePreview = ({
         ? `${diffDays(drag.start, nextEnd)}d`
         : formatDateUtc(nextEnd),
     });
+    const currentLayout = baseTimeline.tasks.find((task) => task.index === drag.index);
+    if (currentLayout?.task.id) {
+      baseTimeline.tasks
+        .filter((task) => parseAfterReference(task.task.start) === currentLayout.task.id)
+        .forEach((successor) => {
+          if (parseDurationDays(successor.task.end) === null) return;
+          onPatchTask(successor.index, {
+            end: `${diffDays(nextEnd, successor.end)}d`,
+          });
+        });
+    }
   };
 
   const onBackgroundDoubleClick = (event: React.MouseEvent<SVGSVGElement>) => {
@@ -782,6 +843,13 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
   const cellRefs = useRef(new Map<string, CellElement>());
   const tableDragRef = useRef<{ pointerId: number; currentIndex: number } | null>(null);
   const [tableDraggingIndex, setTableDraggingIndex] = useState<number | null>(null);
+  const [schedulePicker, setSchedulePicker] = useState<{
+    row: number;
+    field: ScheduleField;
+    mode: SchedulePickerMode;
+    duration: number;
+    afterIndex: number;
+  } | null>(null);
 
   const patchItem = useCallback((idx: number, patch: Partial<GanttItem>) => {
     setIr((prev) => ({
@@ -986,28 +1054,41 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
     setIr((prev) => ({ ...prev, axisFormat: value.trim() ? value : undefined }));
   }, []);
 
-  const changeDateLikeCell = useCallback((row: number, column: GanttCellColumn, delta: number) => {
+  const taskIdOptions = useMemo(
+    () =>
+      ir.items
+        .filter((item): item is GanttTask => item.type === "task" && !!item.id)
+        .map((item) => item.id as string),
+    [ir.items],
+  );
+
+  const openSchedulePicker = useCallback((row: number, field: ScheduleField) => {
     const item = ir.items[row];
-    if (item?.type !== "task") return false;
-    const key = column === "start" ? "start" : column === "end" ? "end" : null;
-    if (!key) return false;
-    const current = item[key];
-    const date = parseDateUtc(current);
-    if (date !== null) {
-      patchTask(row, { [key]: formatDateUtc(addDays(date, delta)) } as Partial<GanttTask>);
-      return true;
-    }
-    const duration = parseDurationDays(current);
-    if (key === "end" && duration !== null) {
-      patchTask(row, { end: `${Math.max(1, duration + delta)}d` });
-      return true;
-    }
-    if (!current && key === "start") {
-      patchTask(row, { start: formatDateUtc(addDays(Date.now(), delta)) });
-      return true;
-    }
-    return false;
-  }, [ir.items, patchTask]);
+    if (item?.type !== "task") return;
+    const value = item[field];
+    const mode: SchedulePickerMode =
+      field === "start" ? "after" : "duration";
+    const afterId = parseAfterReference(value);
+    setSchedulePicker({
+      row,
+      field,
+      mode,
+      duration: parseDurationDays(value) ?? 1,
+      afterIndex: Math.max(0, taskIdOptions.findIndex((id) => id === afterId)),
+    });
+  }, [ir.items, taskIdOptions]);
+
+  useEffect(() => {
+    if (!schedulePicker) return;
+    const closePickerOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setSchedulePicker(null);
+    };
+    window.addEventListener("keydown", closePickerOnEscape, true);
+    return () => window.removeEventListener("keydown", closePickerOnEscape, true);
+  }, [schedulePicker]);
 
   // ---- table cell focus / navigation -----------------------------------
 
@@ -1036,6 +1117,20 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       event.preventDefault();
       focusCell(nextRow, nextCol);
     };
+    const column = COLUMNS[colIndex];
+
+    if (
+      schedulePicker &&
+      schedulePicker.row === row &&
+      (column === "start" || column === "end") &&
+      schedulePicker.field === column &&
+      (event.key === "Enter" || event.key === "Escape")
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      setSchedulePicker(null);
+      return;
+    }
 
     // F2 toggles navigation vs cell-edit mode (goal 7).
     if (event.key === "F2") {
@@ -1044,23 +1139,46 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       return;
     }
 
-    // Alt+↑/↓ opens the active cell's lightweight editor. For select cells the
-    // browser dropdown receives focus; for date-like cells we increment/decrement.
+    // Alt+↑/↓ opens/selects lightweight choices. `after` cycles dependencies here;
+    // duration intentionally stays edit-mode only.
     if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown") && item.type === "task") {
       event.preventDefault();
       const delta = event.key === "ArrowDown" ? 1 : -1;
-      const column = COLUMNS[colIndex];
       if (column === "modifiers") {
         const cur = primaryStatus(item.modifiers);
         const i = PRIMARY_STATUSES.indexOf(cur);
         const nextPrimary = PRIMARY_STATUSES[(i + delta + PRIMARY_STATUSES.length) % PRIMARY_STATUSES.length];
         patchTask(row, { modifiers: composeModifiers(nextPrimary, item.modifiers.includes("crit")) });
-      } else if (column === "start" || column === "end") {
-        changeDateLikeCell(row, column, delta);
+      } else if (column === "start" && scheduleValueType("start", item.start) === "after") {
+        cycleAfterReference(row, delta);
       } else {
         (event.currentTarget as HTMLInputElement | HTMLSelectElement).click();
       }
       return;
+    }
+
+    if (
+      editMode &&
+      item.type === "task" &&
+      (column === "start" || column === "end") &&
+      (event.key === "ArrowUp" || event.key === "ArrowDown")
+    ) {
+      const valueType = scheduleValueType(column, item[column]);
+      const delta = event.key === "ArrowUp" ? 1 : -1;
+      if (valueType === "date" && event.currentTarget instanceof HTMLInputElement) {
+        event.preventDefault();
+        const base = parseDateUtc(item[column]) ?? Date.now();
+        patchTask(row, {
+          [column]: formatDateUtc(addUtcDatePart(base, datePartFromCaret(event.currentTarget), delta)),
+        } as Partial<GanttTask>);
+        return;
+      }
+      if (column === "end" && valueType === "duration") {
+        event.preventDefault();
+        const next = Math.max(1, (parseDurationDays(item.end) ?? 1) + delta);
+        patchTask(row, { end: `${next}d` });
+        return;
+      }
     }
 
     // In edit mode, let ←/→ move the caret inside the input (do not navigate).
@@ -1135,6 +1253,199 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
         onKeyDown={onCellKeyDown(idx, 1, item)}
         onChange={(event) => patchTask(idx, { label: event.target.value })}
       />
+    );
+  };
+
+  const adjustPickerValue = (delta: number) => {
+    if (!schedulePicker) return;
+    const item = ir.items[schedulePicker.row];
+    if (item?.type !== "task") return;
+    const current = item[schedulePicker.field];
+    if (schedulePicker.mode === "duration") {
+      const next = Math.max(1, (parseDurationDays(current) ?? schedulePicker.duration) + delta);
+      setSchedulePicker((prev) => (prev ? { ...prev, duration: next } : prev));
+      patchTask(schedulePicker.row, { end: `${next}d` });
+      return;
+    }
+    if (schedulePicker.mode === "after") {
+      const options = taskIdOptions.filter((id) => id !== item.id);
+      if (options.length === 0) return;
+      const nextIndex = (schedulePicker.afterIndex + delta + options.length) % options.length;
+      setSchedulePicker((prev) => (prev ? { ...prev, afterIndex: nextIndex } : prev));
+      patchTask(schedulePicker.row, { start: `after ${options[nextIndex]}` });
+    }
+  };
+
+  const cycleAfterReference = (row: number, delta: number) => {
+    const item = ir.items[row];
+    if (item?.type !== "task") return;
+    const options = taskIdOptions.filter((id) => id !== item.id);
+    if (options.length === 0) return;
+    const currentId = parseAfterReference(item.start);
+    const currentIndex = Math.max(0, options.findIndex((id) => id === currentId));
+    const nextIndex = (currentIndex + delta + options.length) % options.length;
+    setSchedulePicker({
+      row,
+      field: "start",
+      mode: "after",
+      duration: parseDurationDays(item.end) ?? 1,
+      afterIndex: nextIndex,
+    });
+    patchTask(row, { start: `after ${options[nextIndex]}` });
+  };
+
+  const renderSchedulePicker = (task: GanttTask, idx: number, field: ScheduleField) => {
+    if (!schedulePicker || schedulePicker.row !== idx || schedulePicker.field !== field) return null;
+    const value = task[field] ?? "";
+    const afterOptions = taskIdOptions.filter((id) => id !== task.id);
+    return (
+      <div
+        className="mge-gantt-schedule-popover"
+        tabIndex={-1}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" || event.key === "Enter") {
+            event.preventDefault();
+            event.stopPropagation();
+            setSchedulePicker(null);
+          } else if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+            event.preventDefault();
+            event.stopPropagation();
+            if ((field === "start" && event.altKey) || (field === "end" && editMode)) {
+              adjustPickerValue(event.key === "ArrowUp" ? 1 : -1);
+            }
+          }
+        }}
+      >
+        {field === "start" ? (
+          <div className="mge-gantt-after-list">
+            {afterOptions.length === 0 ? (
+              <span className="mge-gantt-picker-empty">id 付きタスクなし</span>
+            ) : (
+              afterOptions.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={parseAfterReference(value) === id ? "active" : ""}
+                  onClick={() => patchTask(idx, { start: `after ${id}` })}
+                >
+                  after {id}
+                </button>
+              ))
+            )}
+          </div>
+        ) : (
+          <label className="mge-gantt-duration-stepper">
+            <input
+              className="mge-gantt-picker-field"
+              type="number"
+              min={1}
+              step={1}
+              value={parseDurationDays(value) ?? schedulePicker.duration}
+              autoFocus
+              onKeyDown={(event) => {
+                if (editMode || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              onChange={(event) => {
+                const next = Math.max(1, Number(event.target.value) || 1);
+                setSchedulePicker((prev) => (prev ? { ...prev, duration: next } : prev));
+                patchTask(idx, { end: `${next}d` });
+              }}
+            />
+            <span>d</span>
+          </label>
+        )}
+        <div className="mge-gantt-picker-hint">
+          {field === "start" ? "Alt+↑↓: select / Enter: close" : "Edit mode + ↑↓: adjust / Enter: close"}
+        </div>
+      </div>
+    );
+  };
+
+  const renderScheduleCell = (
+    task: GanttTask | null,
+    idx: number,
+    field: "start" | "end",
+    colIndex: number,
+    item: GanttItem,
+  ) => {
+    const value = task?.[field] ?? "";
+    if (!task) {
+      return (
+        <input
+          className="mge-gantt-cell-input"
+          value=""
+          readOnly
+          aria-disabled
+          tabIndex={-1}
+          placeholder={field === "start" ? "YYYY-MM-DD / after id" : "YYYY-MM-DD / 7d"}
+        />
+      );
+    }
+
+    const patch = (next: string) => patchTask(idx, { [field]: next || undefined } as Partial<GanttTask>);
+    const valueType = scheduleValueType(field, value);
+    const options = taskIdOptions.filter((id) => id !== task.id);
+    const setType = (nextType: ScheduleValueType) => {
+      setSchedulePicker(null);
+      if (nextType === "after") {
+        patchTask(idx, { start: options[0] ? `after ${options[0]}` : undefined });
+      } else if (nextType === "duration") {
+        patchTask(idx, { end: `${parseDurationDays(task.end) ?? 1}d` });
+      } else {
+        patchTask(idx, { [field]: isDateToken(value) ? value.slice(0, 10) : todayDate() } as Partial<GanttTask>);
+      }
+    };
+
+    return (
+      <div className="mge-gantt-schedule-cell">
+        <input
+          ref={registerCell(idx, field)}
+          className="mge-gantt-cell-input mge-gantt-schedule-input"
+          type="text"
+          value={value}
+          onFocus={() => setSelection({ type: "task", index: idx })}
+          onKeyDown={onCellKeyDown(idx, colIndex, item)}
+          onChange={(event) => patch(event.target.value)}
+          placeholder={field === "start" ? "YYYY-MM-DD / after id" : "YYYY-MM-DD / 7d"}
+        />
+        <select
+          className="mge-gantt-schedule-type"
+          aria-label={`${field} type`}
+          value={valueType}
+          onChange={(event) => setType(event.target.value as ScheduleValueType)}
+        >
+          <option value="date">date</option>
+          {field === "start" ? <option value="after">after</option> : <option value="duration">dur</option>}
+        </select>
+        {valueType === "date" ? (
+          <input
+            className="mge-gantt-date-trigger"
+            type="date"
+            aria-label={`${field} date picker`}
+            value={isDateToken(value) ? value.slice(0, 10) : ""}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") return;
+              event.preventDefault();
+              event.stopPropagation();
+              event.currentTarget.blur();
+            }}
+            onChange={(event) => patch(event.target.value)}
+          />
+        ) : (
+          <button
+            className="mge-gantt-schedule-open"
+            type="button"
+            aria-label={`${field} picker`}
+            title="ピッカーを開く"
+            onClick={() => openSchedulePicker(idx, field)}
+          >
+            ▾
+          </button>
+        )}
+        {valueType !== "date" ? renderSchedulePicker(task, idx, field) : null}
+      </div>
     );
   };
 
@@ -1314,30 +1625,8 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
                     tabIndex={-1}
                   />
                 )}
-                <input
-                  ref={registerCell(idx, "start")}
-                  className="mge-gantt-cell-input"
-                  type={task && isDateToken(task.start) ? "date" : "text"}
-                  value={task?.start ?? ""}
-                  readOnly={!task}
-                  aria-disabled={!task}
-                  onFocus={() => setSelection({ type: "task", index: idx })}
-                  onKeyDown={onCellKeyDown(idx, 4, item)}
-                  onChange={(event) => patchTask(idx, { start: event.target.value || undefined })}
-                  placeholder="YYYY-MM-DD / after id"
-                />
-                <input
-                  ref={registerCell(idx, "end")}
-                  className="mge-gantt-cell-input"
-                  type={task && isDateToken(task.end) ? "date" : "text"}
-                  value={task?.end ?? ""}
-                  readOnly={!task}
-                  aria-disabled={!task}
-                  onFocus={() => setSelection({ type: "task", index: idx })}
-                  onKeyDown={onCellKeyDown(idx, 5, item)}
-                  onChange={(event) => patchTask(idx, { end: event.target.value || undefined })}
-                  placeholder="YYYY-MM-DD / 7d"
-                />
+                {renderScheduleCell(task, idx, "start", 4, item)}
+                {renderScheduleCell(task, idx, "end", 5, item)}
                 <button
                   className="mge-gantt-delete"
                   aria-label="Delete item"
