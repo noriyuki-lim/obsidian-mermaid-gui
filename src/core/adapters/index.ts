@@ -18,6 +18,7 @@ import { vennAdapter } from "./venn";
 import { journeyAdapter } from "./journey";
 import { architectureAdapter } from "./architecture";
 import { blockAdapter } from "./block";
+import { kanbanAdapter } from "./kanban";
 
 export type { DiagramAdapter, ParseOutcome, ParseSuccess, ParseFailure } from "./types";
 
@@ -45,6 +46,7 @@ const registry = new Map<DiagramKind, DiagramAdapter>([
   ["journey", journeyAdapter as DiagramAdapter],
   ["architecture-beta", architectureAdapter as DiagramAdapter],
   ["block-beta", blockAdapter as DiagramAdapter],
+  ["kanban", kanbanAdapter as DiagramAdapter],
 ]);
 
 /** Returns the adapter for `kind`, or `null` if no adapter is registered. */

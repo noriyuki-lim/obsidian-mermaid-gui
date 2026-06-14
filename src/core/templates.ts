@@ -1,18 +1,62 @@
 import type { DiagramKind } from "./diagram-kind";
 
+/**
+ * Editor maturity, used to split the picker into "Available" and "Under
+ * Construction" sections. `available` = the editor offers graphical, direct-
+ * manipulation editing (a canvas or an interactive preview), not just forms.
+ * Distinct from `supportsGui`, which only flags whether a bespoke editor
+ * exists at all.
+ */
+export type EditorStage = "available" | "wip";
+
 export interface DiagramTemplate {
   kind: DiagramKind;
   /** Label shown in the picker UI. */
   label: string;
   /** One-line description of when this diagram type fits. */
   description: string;
-  /** Minimal Mermaid source that parses, renders, and is GUI-editable. */
-  source: string;
+  /**
+   * Minimal Mermaid source that parses, renders, and is GUI-editable. A
+   * function form lets a template inject runtime values (e.g. gantt seeds dates
+   * relative to today); call it via {@link templateSource}.
+   */
+  source: string | (() => string);
   /** Whether this template's kind currently has a bespoke GUI editor. */
   supportsGui: boolean;
+  /** Picker grouping: graphical editing available vs. work-in-progress. */
+  editorStage: EditorStage;
 }
 
+/** Resolve a template's source, evaluating the function form if present. */
+export const templateSource = (t: DiagramTemplate): string =>
+  typeof t.source === "function" ? t.source() : t.source;
+
 const dedent = (s: string): string => s.replace(/^\n/, "").replace(/\n[ \t]+$/, "");
+
+const pad2 = (n: number): string => String(n).padStart(2, "0");
+const isoDate = (d: Date): string => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+/**
+ * Gantt seed spanning roughly today → +3 months. Generated at pick time so the
+ * sample lands on the user's current dates. Every task carries an id and chains
+ * via `after <prev>`; the last item is a milestone. `axisFormat` is preserved as
+ * a raw line until the gantt editor formalises it into IR.
+ */
+const ganttTemplate = (): string =>
+  dedent(`
+gantt
+    title Project Plan
+    dateFormat YYYY-MM-DD
+    axisFormat %m/%d
+    section Planning
+        Requirements :t1, ${isoDate(new Date())}, 2w
+        Design :t2, after t1, 3w
+    section Build
+        Implementation :t3, after t2, 5w
+        Review :t4, after t3, 2w
+    section Release
+        Launch :milestone, m1, after t4, 0d
+`);
 
 /**
  * Seed templates for the blank-state diagram picker. Each template is the
@@ -22,17 +66,19 @@ const dedent = (s: string): string => s.replace(/^\n/, "").replace(/\n[ \t]+$/, 
 export const DIAGRAM_TEMPLATES: DiagramTemplate[] = [
   {
     kind: "flowchart",
+    editorStage: "available",
     label: "Flowchart",
     description: "ノード・矢印で手順や関係を表現。GUI で形状・配線を編集",
     supportsGui: true,
     source: dedent(`
 flowchart TD
-  A[Start] --> B[Step]
-  B --> C[End]
+  n1[Start] --> n2[Step]
+  n2 --> n3[End]
 `),
   },
   {
     kind: "sequenceDiagram",
+    editorStage: "wip",
     label: "Sequence",
     description: "参加者間のメッセージ往復・時系列を表現",
     supportsGui: true,
@@ -46,6 +92,7 @@ sequenceDiagram
   },
   {
     kind: "classDiagram",
+    editorStage: "wip",
     label: "Class",
     description: "クラス・属性・関係（継承/集約等）を表現",
     supportsGui: true,
@@ -61,6 +108,7 @@ classDiagram
   },
   {
     kind: "stateDiagram-v2",
+    editorStage: "wip",
     label: "State",
     description: "状態と遷移を表現（stateDiagram-v2 で出力）",
     supportsGui: true,
@@ -74,6 +122,7 @@ stateDiagram-v2
   },
   {
     kind: "pie",
+    editorStage: "wip",
     label: "Pie",
     description: "比率を扇形で表現。ラベル + 数値の素直なグラフ",
     supportsGui: true,
@@ -86,6 +135,7 @@ pie title Distribution
   },
   {
     kind: "sankey-beta",
+    editorStage: "wip",
     label: "Sankey",
     description: "ソース → ターゲット間のフロー量を帯幅で表現",
     supportsGui: true,
@@ -98,6 +148,7 @@ B,D,8
   },
   {
     kind: "quadrantChart",
+    editorStage: "available",
     label: "Quadrant",
     description: "2 軸 4 象限のポジショニング。プレビュー上で点をドラッグ編集",
     supportsGui: true,
@@ -116,6 +167,7 @@ quadrantChart
   },
   {
     kind: "xychart-beta",
+    editorStage: "wip",
     label: "XY Chart",
     description: "棒/折れ線の数値グラフ",
     supportsGui: true,
@@ -130,6 +182,7 @@ xychart-beta
   },
   {
     kind: "radar-beta",
+    editorStage: "wip",
     label: "Radar (beta)",
     description: "多軸のレーダーチャート（Obsidian 内蔵 Mermaid 非対応のためプレビュー不可）",
     supportsGui: true,
@@ -142,22 +195,15 @@ radar-beta
   },
   {
     kind: "gantt",
+    editorStage: "available",
     label: "Gantt",
     description: "タスクとスケジュールをバーで表現するプロジェクト管理図",
     supportsGui: true,
-    source: dedent(`
-gantt
-    title My Project
-    dateFormat YYYY-MM-DD
-    section Phase 1
-        Task A :done, 2024-01-01, 7d
-        Task B :active, after Task A, 5d
-    section Phase 2
-        Task C :crit, 2024-01-15, 3d
-`),
+    source: ganttTemplate,
   },
   {
     kind: "timeline",
+    editorStage: "wip",
     label: "Timeline",
     description: "時系列のイベントや出来事を年表形式で表現",
     supportsGui: true,
@@ -172,6 +218,7 @@ timeline
   },
   {
     kind: "erDiagram",
+    editorStage: "wip",
     label: "ER Diagram",
     description: "エンティティ・属性・リレーションシップを表現するER図",
     supportsGui: true,
@@ -190,6 +237,7 @@ erDiagram
   },
   {
     kind: "mindmap",
+    editorStage: "wip",
     label: "Mindmap",
     description: "階層的なアイデアや構造をツリーで表現するマインドマップ",
     supportsGui: true,
@@ -207,6 +255,7 @@ mindmap
     label: "Treemap (beta)",
     description: "階層データの面積比で可視化（Obsidian 内蔵 Mermaid 非対応のためプレビュー不可）",
     supportsGui: false,
+    editorStage: "wip",
     source: dedent(`
 treemap-beta
   title My Treemap
@@ -217,6 +266,7 @@ treemap-beta
   },
   {
     kind: "journey",
+    editorStage: "wip",
     label: "User Journey",
     description: "ユーザータスクと満足度スコア（1-7）を時系列で表現するUX分析図",
     supportsGui: true,
@@ -234,6 +284,7 @@ journey
   },
   {
     kind: "architecture-beta",
+    editorStage: "wip",
     label: "Architecture (beta)",
     description: "クラウド/インフラ構成図。group / service / edge の関係を表現",
     supportsGui: true,
@@ -247,6 +298,7 @@ architecture-beta
   },
   {
     kind: "block-beta",
+    editorStage: "available",
     label: "Block (beta)",
     description: "コンポーネント配置をブロックとカラム数で表現するシステム設計図",
     supportsGui: true,
@@ -263,12 +315,30 @@ block-beta
     label: "Venn (beta)",
     description: "集合の重なりを表現するベン図（Obsidian 内蔵 Mermaid 非対応のためプレビュー不可）",
     supportsGui: false,
+    editorStage: "wip",
     source: dedent(`
 venn-beta
   title Venn
   A "Set A"
   B "Set B"
   A,B "Intersection"
+`),
+  },
+  {
+    kind: "kanban",
+    editorStage: "available",
+    label: "Kanban",
+    description: "カラムとカードでワークフローを表現するカンバンボード（カードをドラッグで移動）",
+    supportsGui: true,
+    source: dedent(`
+kanban
+  todo[To Do]
+    t1[Draft spec]
+    t2[Review PR]
+  doing[In Progress]
+    t3[Build feature]
+  done[Done]
+    t4[Ship release]
 `),
   },
 ];

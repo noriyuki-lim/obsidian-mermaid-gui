@@ -88,9 +88,30 @@ describe("parseGantt", () => {
     expect(task.end).toBe("3d");
   });
 
-  it("preserves unknown lines as raw", () => {
+  it("parses axisFormat into IR (not raw)", () => {
     const src = `gantt
     axisFormat %m/%d
+    A task :2024-01-01, 5d`;
+    const r = parseGantt(src);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.ir.axisFormat).toBe("%m/%d");
+    expect(r.ir.items.some((i) => i.type === "raw")).toBe(false);
+  });
+
+  it("parses axisFormat with weekday token", () => {
+    const src = `gantt
+    axisFormat %m/%d(%a)
+    A task :2024-01-01, 5d`;
+    const r = parseGantt(src);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.ir.axisFormat).toBe("%m/%d(%a)");
+  });
+
+  it("preserves unknown lines as raw", () => {
+    const src = `gantt
+    excludes weekends
     A task :2024-01-01, 5d`;
     const r = parseGantt(src);
     expect(r.ok).toBe(true);

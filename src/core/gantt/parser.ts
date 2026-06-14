@@ -70,6 +70,7 @@ export function parseGantt(source: string): ParseOutcome<GanttIR> {
   let foundHeader = false;
   let title: string | undefined;
   let dateFormat: string | undefined;
+  let axisFormat: string | undefined;
   const items: GanttItem[] = [];
 
   for (let i = 0; i < lines.length; i++) {
@@ -99,6 +100,12 @@ export function parseGantt(source: string): ParseOutcome<GanttIR> {
       continue;
     }
 
+    const afMatch = line.match(/^axisFormat\s+(\S+)$/i);
+    if (afMatch) {
+      axisFormat = afMatch[1];
+      continue;
+    }
+
     const sectionMatch = line.match(/^section\s+(.+)$/i);
     if (sectionMatch) {
       items.push({ type: "section", title: sectionMatch[1].trim() });
@@ -120,5 +127,5 @@ export function parseGantt(source: string): ParseOutcome<GanttIR> {
     return { ok: false, message: "Missing gantt header" };
   }
 
-  return { ok: true, ir: { kind: "gantt", title, dateFormat, items }, warnings: [] };
+  return { ok: true, ir: { kind: "gantt", title, dateFormat, axisFormat, items }, warnings: [] };
 }

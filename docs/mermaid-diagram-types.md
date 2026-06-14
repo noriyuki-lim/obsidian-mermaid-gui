@@ -109,7 +109,7 @@ stateDiagram-v2
 
 ### 5. Entity Relationship Diagram — ER 図
 
-> **GUI対応予定:** 🔵 実装対象
+> **GUI対応:** ✅ 実装済み（Phase 8 完了）
 
 データエンティティ間の関係をクロウズフット記法で表現するデータモデル図。
 
@@ -137,7 +137,7 @@ erDiagram
 
 ### 6. User Journey — ユーザージャーニー
 
-> **GUI対応予定:** 🔵 実装対象
+> **GUI対応:** ✅ 実装済み（Phase 9 完了）
 
 ユーザーが特定タスクを完了するまでのステップと満足度スコアを可視化する。
 
@@ -157,10 +157,10 @@ journey
 
 ### 7. Gantt — ガントチャート
 
-> **GUI対応:** ✅ 実装済み（Phase 7 完了、表形式エディタ + 操作可能プレビュー）
+> **GUI対応:** ✅ 実装済み（表形式エディタ + 全幅の操作可能プレビュー）
 
 タスク・期間・依存関係・マイルストーンをバーで表示するプロジェクト管理図。
-GUI では Excel ライクな表でタスクを編集し、プレビュー上のバーをドラッグして開始日移動、左右端をドラッグして期間変更、ダブルクリックでタスク名編集、ボタンまたは空白ダブルクリックでタスク追加できる。
+GUI では Excel ライクな表（`Tab`/矢印キーでセル移動、`F2` で移動/編集モード切替、STATUS はドロップダウン + `crit` 併用チェック、日付/期間セルは `Alt+↑/↓` で増減）でタスクを編集する。プレビュー上ではバーをドラッグして開始日移動、左右端をドラッグして期間変更、ダブルクリックでタスク名編集、左端ハンドルで行並べ替え、右端の○から別バーへドラッグで依存（`after <id>`、id 未設定なら自動採番）、左右端のハンドルで表示範囲をセッション内ズーム（IR/ソース不変）、バーや依存線を選択して `Delete` で削除できる。左ガターはタスク名ではなく **section 名** を表示する。`axisFormat` は IR 化され、プレビュー上部で日付/週プリセット + 曜日 `%a` チェック + 自由入力を編集し、目盛りへ即時反映する。
 
 ```mermaid
 gantt
@@ -257,7 +257,7 @@ gitGraph
 
 ### 12. Mindmap — マインドマップ
 
-> **GUI対応予定:** 🔵 実装対象
+> **GUI対応:** ✅ 実装済み（Phase 8 完了）
 
 中心テーマから派生する情報を階層的に可視化する。インデントで階層を表現。
 
@@ -327,7 +327,9 @@ zenuml
 
 ### 15. Kanban — カンバン
 
-ワークフローのカラムとタスクカードを表示するカンバンボード。
+> **GUI対応:** ✅ 実装済み（DOM ドラッグボード：カードをカラム間移動、カラム / カード追加・削除・編集）
+
+ワークフローのカラムとタスクカードを表示するカンバンボード。Obsidian 内蔵 Mermaid が対応しているためプレビューも正常に描画される。
 
 ```mermaid
 kanban
@@ -444,9 +446,10 @@ Power,Industry,30.8
 
 ### 19. XY Chart — XY チャート `xychart-beta`
 
-> **GUI対応:** ✅ 実装済み（Phase 6 完了）
+> **GUI対応:** ✅ 実装済み（全幅の操作可能 SVG プレビュー + 縦向き Excel ライクテーブル）
 
 棒グラフ・折れ線グラフを X/Y 軸上にプロットするデータ可視化図。
+GUI ではカテゴリ名と系列値を表で編集し、プレビュー上ではカテゴリ名・棒・折れ線点をダブルクリックで直接編集できる。棒系列はバー上端のドラッグで値を変更でき、Y 軸タイトルは auto min/max の有無に関係なく常時編集できる。
 
 ```mermaid
 xychart-beta
@@ -461,7 +464,7 @@ xychart-beta
 
 ### 20. Block Diagram — ブロック図 `block-beta`
 
-> **GUI対応予定:** 🔵 実装対象
+> **GUI対応:** ✅ 実装済み（インタラクティブグリッドプレビュー：DnD で並び替え・ハンドルでスパン変更・Delete 削除）
 
 ブロック（コンポーネント）の配置とその関係を明示的に制御して表現するシステム設計図。
 
@@ -483,7 +486,7 @@ block-beta
 
 ### 21. Architecture Diagram — アーキテクチャ図 `architecture-beta`
 
-> **GUI対応予定:** 🔵 実装対象
+> **GUI対応:** ✅ 実装済み（Phase 10 完了）
 
 クラウド・CI/CD 環境のサービスとリソース間の関係を表現するインフラ設計図。
 
@@ -548,7 +551,7 @@ radar-beta
 
 ### 24. Venn Diagram — ベン図 `venn-beta`
 
-> **GUI対応予定:** 🔵 実装対象
+> **GUI対応:** ✅ Source-only（Phase 8 完了）
 
 > **Obsidian:** ❌ 非対応
 
@@ -594,7 +597,7 @@ wardley-beta
 
 ### 26. Treemap — ツリーマップ `treemap-beta`
 
-> **GUI対応予定:** 🔵 実装対象
+> **GUI対応:** ✅ Source-only（Phase 8 完了）
 
 階層構造を持つデータを、サイズに比例したネスト矩形で表現する。
 
@@ -745,13 +748,13 @@ C4Deployment
 
 | #  | 図種別                  | キーワード                 | ステータス | GUI対応                  |
 | -- | -------------------- | --------------------- | ----- | ----------------------- |
-| 1  | Flowchart            | `flowchart` / `graph` | 安定    | ✅ 実装済み                 |
+| 1  | Flowchart            | `flowchart` / `graph` | 安定    | ✅ 実装済み（サブグラフリサイズ・エッジ接続対応） |
 | 2  | Sequence Diagram     | `sequenceDiagram`     | 安定    | ✅ 実装済み（Phase 4）        |
 | 3  | Class Diagram        | `classDiagram`        | 安定    | ✅ 実装済み（Phase 5）        |
 | 4  | State Diagram        | `stateDiagram-v2`     | 安定    | ✅ 実装済み（Phase 5）        |
 | 5  | ER Diagram           | `erDiagram`           | 安定    | ✅ 実装済み（Phase 8）        |
 | 6  | User Journey         | `journey`             | 安定    | ✅ 実装済み（Phase 9）        |
-| 7  | Gantt                | `gantt`               | 安定    | ✅ 実装済み（表形式 + 操作可能プレビュー） |
+| 7  | Gantt                | `gantt`               | 安定    | ✅ 実装済み（表形式 + 全幅操作可能プレビュー） |
 | 8  | Pie Chart            | `pie`                 | 安定    | ✅ 実装済み（Phase 6）        |
 | 9  | Quadrant Chart       | `quadrantChart`       | 安定    | ✅ 実装済み（Phase 6）        |
 | 10 | Requirement Diagram  | `requirementDiagram`  | 安定    | —                       |
@@ -759,12 +762,12 @@ C4Deployment
 | 12 | Mindmap              | `mindmap`             | 安定    | ✅ 実装済み（Phase 8）        |
 | 13 | Timeline             | `timeline`            | 安定    | ✅ 実装済み（Phase 7）        |
 | 14 | ZenUML               | `zenuml`              | 安定    | ❌ Obs非対応              |
-| 15 | Kanban               | `kanban`              | 安定    | —                       |
+| 15 | Kanban               | `kanban`              | 安定    | ✅ 実装済み（全幅 DOM ドラッグボード） |
 | 16 | Ishikawa Diagram     | `ishikawa`            | 安定    | ❌ Obs非対応              |
 | 17 | Event Modeling       | `eventmodeling`       | 安定    | ❌ Obs非対応              |
 | 18 | Sankey Diagram       | `sankey-beta`         | Beta  | ✅ 実装済み（Phase 6）        |
-| 19 | XY Chart             | `xychart-beta`        | Beta  | ✅ 実装済み（Phase 6）        |
-| 20 | Block Diagram        | `block-beta`          | Beta  | ✅ 実装済み（Phase 10）       |
+| 19 | XY Chart             | `xychart-beta`        | Beta  | ✅ 実装済み（操作可能 SVG + 縦向き Excel ライクテーブル） |
+| 20 | Block Diagram        | `block-beta`          | Beta  | ✅ 実装済み（インタラクティブグリッド DnD） |
 | 21 | Architecture Diagram | `architecture-beta`   | Beta  | ✅ 実装済み（Phase 10）       |
 | 22 | Packet Diagram       | `packet-beta`         | Beta  | —                       |
 | 23 | Radar Chart          | `radar-beta`          | Beta  | ✅ 実装済み（Phase 6）❌ Obs描画不可 |
@@ -777,5 +780,4 @@ C4Deployment
 | 30 | C4 Component         | `C4Component`         | 実験的   | —                       |
 | 31 | C4 Dynamic           | `C4Dynamic`           | 実験的   | —                       |
 | 32 | C4 Deployment        | `C4Deployment`        | 実験的   | —                       |
-
 

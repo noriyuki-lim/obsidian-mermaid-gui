@@ -5,8 +5,12 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+import { EditorActions } from "./EditorActions";
+import { useEditorHost } from "./EditorHostContext";
+import { isEditableShortcutTarget } from "./keyboard";
 
 const SIDE_DEFAULT = 0.42;
+const HISTORY_LIMIT = 100;
 const SIDE_MIN = 0.22;
 const SIDE_MAX = 0.7;
 const PREVIEW_DEFAULT = 0.58;
@@ -95,6 +99,72 @@ export const EditorShell = ({
   const displaySource = draft ?? currentSource;
   const stacked = layout === "stacked";
 
+  const host = useEditorHost();
+
+  // Source-string undo/redo, shared by every EditorShell editor. We can't see
+  // each editor's IR mutations directly, so we treat `currentSource` (the IR's
+  // canonical serialisation) as the observable: whenever it changes from a
+  // non-undo cause we snapshot the previous value. Undo/redo replay a snapshot
+  // through `onSourceEdit`, which rehydrates the host editor's IR. The
+  // flowchart editor keeps its own store-level history and does not use this.
+  const pastRef = useRef<string[]>([]);
+  const futureRef = useRef<string[]>([]);
+  const lastSourceRef = useRef(currentSource);
+  const suppressRef = useRef(false);
+  const [, bump] = useState(0);
+  const rerender = () => bump((n) => n + 1);
+
+  useEffect(() => {
+    if (suppressRef.current) {
+      suppressRef.current = false;
+      lastSourceRef.current = currentSource;
+      return;
+    }
+    if (currentSource === lastSourceRef.current) return;
+    pastRef.current = [...pastRef.current, lastSourceRef.current].slice(-HISTORY_LIMIT);
+    futureRef.current = [];
+    lastSourceRef.current = currentSource;
+    rerender();
+  }, [currentSource]);
+
+  const replayHistory = (value: string) => {
+    suppressRef.current = true;
+    lastSourceRef.current = value;
+    setDraft(null);
+    setSourceError(null);
+    const r = onSourceEdit!(value);
+    if (!r.ok) suppressRef.current = false;
+    rerender();
+  };
+
+  const undo = () => {
+    if (!editable || pastRef.current.length === 0) return;
+    const prev = pastRef.current[pastRef.current.length - 1];
+    pastRef.current = pastRef.current.slice(0, -1);
+    futureRef.current = [...futureRef.current, lastSourceRef.current];
+    replayHistory(prev);
+  };
+
+  const redo = () => {
+    if (!editable || futureRef.current.length === 0) return;
+    const next = futureRef.current[futureRef.current.length - 1];
+    futureRef.current = futureRef.current.slice(0, -1);
+    pastRef.current = [...pastRef.current, lastSourceRef.current];
+    replayHistory(next);
+  };
+
+  const exportSvg = host.onExportSvg ? () => host.onExportSvg!(currentSource) : undefined;
+
+  const actions = (
+    <EditorActions
+      onUndo={undo}
+      onRedo={redo}
+      canUndo={editable && pastRef.current.length > 0}
+      canRedo={editable && futureRef.current.length > 0}
+      onExport={exportSvg}
+    />
+  );
+
   const shellRef = useRef<HTMLDivElement>(null);
   const sideDrag = useRef<{ startX: number; startRatio: number } | null>(null);
   const previewDrag = useRef<{ startY: number; startRatio: number } | null>(null);
@@ -133,6 +203,29 @@ export const EditorShell = ({
     };
   }, [currentSource, renderMermaid, previewOverride]);
 
+  // Ctrl/Cmd+Z / Ctrl+Y / Ctrl+Shift+Z drive the source-string history. We skip
+  // when focus is inside an input/textarea so the browser's native text undo
+  // keeps working while the user types.
+  useEffect(() => {
+    const root = shellRef.current;
+    if (!root || !editable) return;
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod || isEditableShortcutTarget(e.target)) return;
+      if (e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (e.key === "y" || (e.key === "z" && e.shiftKey)) {
+        e.preventDefault();
+        redo();
+      }
+    };
+    root.addEventListener("keydown", onKey);
+    return () => root.removeEventListener("keydown", onKey);
+    // undo/redo read mutable refs, so the first-render closures stay correct.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editable]);
+
   const startSideDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 || !shellRef.current) return;
     const width = shellRef.current.getBoundingClientRect().width;
@@ -169,9 +262,11 @@ export const EditorShell = ({
 
   const startPreviewDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 || !shellRef.current) return;
-    const side = shellRef.current.querySelector<HTMLElement>(".mge-editor-side");
-    if (!side) return;
-    const height = side.getBoundingClientRect().height;
+    const target = stacked
+      ? shellRef.current
+      : shellRef.current.querySelector<HTMLElement>(".mge-editor-side");
+    if (!target) return;
+    const height = target.getBoundingClientRect().height;
     if (height <= 0) return;
     const ratio = parseFloat(
       shellRef.current.style.getPropertyValue("--mge-preview-ratio") || `${PREVIEW_DEFAULT}`,
@@ -188,9 +283,9 @@ export const EditorShell = ({
     const drag = previewDrag.current;
     const shell = shellRef.current;
     if (!drag || !shell) return;
-    const side = shell.querySelector<HTMLElement>(".mge-editor-side");
-    if (!side) return;
-    const height = side.getBoundingClientRect().height;
+    const target = stacked ? shell : shell.querySelector<HTMLElement>(".mge-editor-side");
+    if (!target) return;
+    const height = target.getBoundingClientRect().height;
     if (height <= 0) return;
     const dy = e.clientY - drag.startY;
     const next = clamp(drag.startRatio + dy / height, PREVIEW_MIN, PREVIEW_MAX);
@@ -299,6 +394,7 @@ export const EditorShell = ({
         <header className="mge-toolbar mge-editor-toolbar">
           <span className="mge-brand">{title}</span>
           {toolbarExtras ? <div className="mge-editor-toolbar-extras">{toolbarExtras}</div> : null}
+          {actions}
           <div className="mge-group" style={{ marginLeft: "auto" }}>
             <button
               className="mge-btn-secondary"
@@ -326,6 +422,17 @@ export const EditorShell = ({
 
         {previewPane}
 
+        <div
+          className="mge-preview-resizer"
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label="Resize preview and table"
+          onPointerDown={startPreviewDrag}
+          onPointerMove={movePreviewDrag}
+          onPointerUp={endPreviewDrag}
+          onPointerCancel={endPreviewDrag}
+        />
+
         <section className="mge-editor-body">
           <div className="mge-editor-main-content">{children}</div>
           {sourceOpen ? <aside className="mge-editor-source-drawer">{sourcePane}</aside> : null}
@@ -346,6 +453,7 @@ export const EditorShell = ({
       <header className="mge-toolbar mge-editor-toolbar">
         <span className="mge-brand">{title}</span>
         {toolbarExtras ? <div className="mge-editor-toolbar-extras">{toolbarExtras}</div> : null}
+        {actions}
         <div className="mge-group" style={{ marginLeft: "auto" }}>
           <button
             className="mge-btn-secondary"

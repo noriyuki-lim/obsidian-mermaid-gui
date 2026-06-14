@@ -82,6 +82,47 @@ describe("subgraph editing store commands", () => {
     expect(state.selection.edgeIds).toEqual([]);
   });
 
+  it("adds an edge whose endpoint is a subgraph id", () => {
+    const store = createEditorStore();
+    store.getState().applyIR(groupedIR(), { recordHistory: false });
+
+    // B (node) → S1 (subgraph) — Mermaid allows edges onto a subgraph boundary.
+    store.getState().addEdge("B", "S1");
+
+    const edges = store.getState().ir.edges;
+    expect(edges).toHaveLength(2);
+    const added = edges.find((e) => e.source === "B" && e.target === "S1");
+    expect(added, "edge with a subgraph endpoint should be created").toBeTruthy();
+    // And it must survive serialisation (generator emits `B -...-> S1`).
+    expect(store.getState().text).toMatch(/B\s*-+>\s*S1/);
+  });
+
+  it("rejects an edge whose endpoint matches neither a node nor a subgraph", () => {
+    const store = createEditorStore();
+    store.getState().applyIR(groupedIR(), { recordHistory: false });
+
+    store.getState().addEdge("A", "ghost");
+
+    expect(store.getState().ir.edges).toHaveLength(1);
+  });
+
+  it("resizes a subgraph frame without moving its nodes", () => {
+    const store = createEditorStore();
+    store.getState().applyIR(groupedIR(), { recordHistory: false });
+    const before = { ...store.getState().ir.positions.A };
+
+    store.getState().resizeSubgraph(
+      "S1",
+      { x: 5, y: 5, width: 300, height: 240 },
+      { recordHistory: false },
+    );
+
+    const state = store.getState();
+    expect(state.ir.subgraphFrames.S1).toEqual({ x: 5, y: 5, width: 300, height: 240 });
+    // Contained node keeps its position — resize only reframes the box.
+    expect(state.ir.positions.A).toEqual(before);
+  });
+
   it("clears manually saved subgraph frames when auto-layout runs", () => {
     const store = createEditorStore();
     store.getState().applyIR(groupedIR(), { recordHistory: false });

@@ -73,10 +73,44 @@ describe("generateGantt", () => {
   });
 
   it("preserves raw lines through round-trip", () => {
-    const src = `gantt\n    axisFormat %m/%d\n    A task :2024-01-01, 5d\n`;
+    const src = `gantt\n    excludes weekends\n    A task :2024-01-01, 5d\n`;
     const { ir1, ir2 } = roundtrip(src);
     const raw1 = ir1.items.filter((i) => i.type === "raw");
     const raw2 = ir2.items.filter((i) => i.type === "raw");
     expect(raw2.length).toBe(raw1.length);
+  });
+
+  it("emits axisFormat after dateFormat", () => {
+    const out = generateGantt({
+      kind: "gantt",
+      dateFormat: "YYYY-MM-DD",
+      axisFormat: "%m/%d",
+      items: [],
+    });
+    expect(out).toContain("axisFormat %m/%d");
+    expect(out.indexOf("dateFormat")).toBeLessThan(out.indexOf("axisFormat"));
+  });
+
+  it("round-trips axisFormat (incl. weekday token)", () => {
+    const src = `gantt\n    dateFormat YYYY-MM-DD\n    axisFormat %m/%d(%a)\n    A task :2024-01-01, 5d\n`;
+    const { ir1, ir2 } = roundtrip(src);
+    expect(ir1.axisFormat).toBe("%m/%d(%a)");
+    expect(ir2.axisFormat).toBe("%m/%d(%a)");
+  });
+
+  it("round-trips after-reference and milestone tasks", () => {
+    const src = `gantt\n    section S\n    Design :t2, after t1, 3w\n    Launch :milestone, m1, after t2, 0d\n`;
+    const { ir1, ir2 } = roundtrip(src);
+    const a1 = ir1.items.find((i) => i.type === "task" && i.id === "t2");
+    const a2 = ir2.items.find((i) => i.type === "task" && i.id === "t2");
+    if (a1?.type !== "task" || a2?.type !== "task") throw new Error("expected tasks");
+    expect(a2.start).toBe("after t1");
+    expect(a2.end).toBe("3w");
+    const m1 = ir1.items.find((i) => i.type === "task" && i.id === "m1");
+    const m2 = ir2.items.find((i) => i.type === "task" && i.id === "m1");
+    if (m1?.type !== "task" || m2?.type !== "task") throw new Error("expected milestone");
+    expect(m2.modifiers).toEqual(["milestone"]);
+    expect(m2.start).toBe("after t2");
+    expect(m2.end).toBe("0d");
   });
 });

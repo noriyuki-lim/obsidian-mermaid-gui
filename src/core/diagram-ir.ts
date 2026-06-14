@@ -16,6 +16,7 @@ import type { VennIR } from "./venn/ir-types";
 import type { JourneyIR } from "./journey/ir-types";
 import type { ArchitectureIR } from "./architecture/ir-types";
 import type { BlockIR } from "./block/ir-types";
+import type { KanbanIR } from "./kanban/ir-types";
 
 /**
  * Discriminated union of all per-kind intermediate representations.
@@ -44,4 +45,5 @@ export type DiagramIR =
   | { kind: "journey"; ir: JourneyIR }
   | { kind: "architecture-beta"; ir: ArchitectureIR }
   | { kind: "block-beta"; ir: BlockIR }
+  | { kind: "kanban"; ir: KanbanIR }
   | { kind: "unknown"; source: string };

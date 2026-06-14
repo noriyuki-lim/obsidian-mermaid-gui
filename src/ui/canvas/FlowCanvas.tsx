@@ -122,10 +122,27 @@ export const FlowCanvas = () => {
         }
         return best?.id ?? null;
       };
+      // While a subgraph is being resized, React Flow emits the box's new x/y as
+      // a position change alongside the dimensions change. The NodeResizer
+      // callbacks (SubgraphNode) already persist the full frame, so we must NOT
+      // also treat that x/y as a move — moveSubgraph would drag the contained
+      // nodes. Collect the in-flight resize ids and skip their position changes.
+      const resizingSubgraphIds = new Set<string>();
+      for (const c of changes) {
+        if (
+          c.type === "dimensions" &&
+          (c as { resizing?: boolean }).resizing &&
+          "id" in c
+        ) {
+          const sgId = subgraphIdFromFlowId(c.id);
+          if (sgId) resizingSubgraphIds.add(sgId);
+        }
+      }
       for (const c of changes) {
         const changeId = "id" in c ? c.id : null;
         const subgraphId = changeId ? subgraphIdFromFlowId(changeId) : null;
         if (subgraphId) {
+          if (resizingSubgraphIds.has(subgraphId)) continue;
           if (c.type === "position" && c.position) {
             const current = subgraphFlowById.get(c.id);
             if (!current) continue;

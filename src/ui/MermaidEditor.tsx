@@ -18,7 +18,10 @@ import { MindmapEditor } from "./mindmap/MindmapEditor";
 import { JourneyEditor } from "./journey/JourneyEditor";
 import { ArchitectureEditor } from "./architecture/ArchitectureEditor";
 import { BlockEditor } from "./block/BlockEditor";
+import { KanbanEditor } from "./kanban/KanbanEditor";
 import { DiagramKindPicker } from "./DiagramKindPicker";
+import { EditorHostProvider } from "./EditorHostContext";
+import { templateSource } from "../core/templates";
 
 export interface Props {
   /** Raw text from inside ```mermaid fences (without the fences themselves).
@@ -66,7 +69,7 @@ export const MermaidEditor = (props: Props) => {
   if (isBlank(effectiveSource)) {
     return (
       <DiagramKindPicker
-        onPick={(template) => setSeeded(template.source)}
+        onPick={(template) => setSeeded(templateSource(template))}
         onCancel={props.onCancel}
         renderMermaid={props.renderMermaid}
       />
@@ -76,10 +79,6 @@ export const MermaidEditor = (props: Props) => {
   const kind = detectDiagramKind(effectiveSource);
   const dispatchProps = { ...props, initialSource: effectiveSource };
 
-  if (isFlowchart(kind)) {
-    return <FlowchartEditor {...dispatchProps} />;
-  }
-
   const stripped = stripGuiComments(effectiveSource);
   const passthrough = {
     initialSource: stripped,
@@ -88,21 +87,32 @@ export const MermaidEditor = (props: Props) => {
     renderMermaid: props.renderMermaid,
   };
 
-  if (kind === "sequenceDiagram") return <SequenceEditor {...passthrough} />;
-  if (kind === "classDiagram") return <ClassEditor {...passthrough} />;
-  if (kind === "stateDiagram-v2" || kind === "stateDiagram") return <StateEditor {...passthrough} />;
-  if (kind === "pie") return <PieEditor {...passthrough} />;
-  if (kind === "sankey-beta") return <SankeyEditor {...passthrough} />;
-  if (kind === "quadrantChart") return <QuadrantEditor {...passthrough} />;
-  if (kind === "xychart-beta") return <XYChartEditor {...passthrough} />;
-  if (kind === "radar-beta") return <RadarEditor {...passthrough} />;
-  if (kind === "gantt") return <GanttEditor {...passthrough} />;
-  if (kind === "timeline") return <TimelineEditor {...passthrough} />;
-  if (kind === "erDiagram") return <ERDiagramEditor {...passthrough} />;
-  if (kind === "mindmap") return <MindmapEditor {...passthrough} />;
-  if (kind === "journey") return <JourneyEditor {...passthrough} />;
-  if (kind === "architecture-beta") return <ArchitectureEditor {...passthrough} />;
-  if (kind === "block-beta") return <BlockEditor {...passthrough} />;
+  // flowchart takes onExportSvg as a direct prop (it does not use EditorShell);
+  // every other editor reads it from EditorHostContext via EditorShell.
+  const content = (() => {
+    if (isFlowchart(kind)) return <FlowchartEditor {...dispatchProps} />;
+    if (kind === "sequenceDiagram") return <SequenceEditor {...passthrough} />;
+    if (kind === "classDiagram") return <ClassEditor {...passthrough} />;
+    if (kind === "stateDiagram-v2" || kind === "stateDiagram") return <StateEditor {...passthrough} />;
+    if (kind === "pie") return <PieEditor {...passthrough} />;
+    if (kind === "sankey-beta") return <SankeyEditor {...passthrough} />;
+    if (kind === "quadrantChart") return <QuadrantEditor {...passthrough} />;
+    if (kind === "xychart-beta") return <XYChartEditor {...passthrough} />;
+    if (kind === "radar-beta") return <RadarEditor {...passthrough} />;
+    if (kind === "gantt") return <GanttEditor {...passthrough} />;
+    if (kind === "timeline") return <TimelineEditor {...passthrough} />;
+    if (kind === "erDiagram") return <ERDiagramEditor {...passthrough} />;
+    if (kind === "mindmap") return <MindmapEditor {...passthrough} />;
+    if (kind === "journey") return <JourneyEditor {...passthrough} />;
+    if (kind === "architecture-beta") return <ArchitectureEditor {...passthrough} />;
+    if (kind === "block-beta") return <BlockEditor {...passthrough} />;
+    if (kind === "kanban") return <KanbanEditor {...passthrough} />;
+    return <SourceOnlyEditor {...passthrough} />;
+  })();
 
-  return <SourceOnlyEditor {...passthrough} />;
+  return (
+    <EditorHostProvider value={{ onExportSvg: props.onExportSvg }}>
+      {content}
+    </EditorHostProvider>
+  );
 };

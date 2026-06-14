@@ -156,6 +156,25 @@ body.mge-dragging .mge-toolbar { cursor: grabbing !important; }
 .mge-palette-item svg { width: 36px; height: 24px; flex-shrink: 0; }
 .mge-palette-item span { font-size: 12px; }
 
+/* Flowchart-specific controls relocated from the top toolbar. */
+.mge-palette-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--mge-border);
+}
+.mge-palette-controls label {
+  font-size: 11px;
+  color: var(--mge-text-muted);
+}
+.mge-palette-controls select,
+.mge-palette-controls button {
+  font-size: 12px;
+}
+
 /* ---------- Canvas ---------- */
 .mge-canvas {
   grid-area: canvas;
@@ -769,11 +788,12 @@ body.mge-preview-resizing * {
 }
 
 .mge-editor-shell-stacked {
-  grid-template-rows: 44px minmax(260px, 52%) minmax(0, 1fr);
+  grid-template-rows: 44px minmax(220px, calc(var(--mge-preview-ratio, 0.58) * 100%)) 6px minmax(160px, 1fr);
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
     "toolbar"
     "preview"
+    "preview-resizer"
     "body";
 }
 
@@ -1114,13 +1134,56 @@ body.theme-dark .mge-seq-badge-raw {
   max-width: 100%;
   overflow-wrap: anywhere;
   word-break: break-word;
-  /* Clamp the description to 3 lines so very long copy can't blow the tile up.
-     Falls back gracefully on engines without -webkit-line-clamp. */
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  /* Wrap freely and reserve room for at least two lines so the copy is never
+     clipped to a single line. The tile grows to fit instead of truncating. */
+  white-space: normal;
+  min-height: calc(1.35em * 2);
 }
+
+/* Section grouping (Favorites / Available / Under Construction). */
+.mge-kind-picker-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mge-kind-picker-section {
+  margin: 4px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, #6b6b7b);
+}
+
+/* Favorite star, pinned to the tile's top-right corner. */
+.mge-kind-picker-item { position: relative; }
+.mge-kind-picker-item-label { padding-right: 22px; }
+.mge-kind-picker-star {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--text-muted, #b5b5b5);
+  border-radius: 4px;
+}
+.mge-kind-picker-star[aria-pressed="true"] { color: var(--mge-accent, #04aed6); }
+.mge-kind-picker-star:hover { background: var(--background-modifier-hover, rgba(0,0,0,0.06)); }
+
+/* Side panel: the picker has no preview/source splitter, so collapse the
+   EditorShell 3-row grid (preview / 6px resizer / code) to two rows and let the
+   template source fill the rest of the popup height. */
+.mge-editor-shell .mge-kind-picker-side {
+  grid-template-rows: minmax(120px, 0.55fr) minmax(120px, 1fr);
+}
+.mge-kind-picker-source { min-height: 0; }
+.mge-kind-picker-source textarea { height: 100%; }
 
 /* ---------- Quadrant interactive preview ---------- */
 .mge-quad-preview {
@@ -1307,9 +1370,9 @@ body.theme-dark .mge-seq-badge-raw {
 .mge-gantt-grid-header,
 .mge-gantt-grid-row {
   display: grid;
-  grid-template-columns: 88px minmax(190px, 1.35fr) minmax(78px, 0.55fr) minmax(118px, 0.75fr) minmax(142px, 0.9fr) minmax(112px, 0.7fr) 34px;
+  grid-template-columns: 36px 88px minmax(190px, 1.35fr) minmax(78px, 0.55fr) minmax(118px, 0.75fr) minmax(142px, 0.9fr) minmax(112px, 0.7fr) 34px;
   align-items: center;
-  min-width: 860px;
+  min-width: 896px;
 }
 
 .mge-gantt-grid-header {
@@ -1338,15 +1401,16 @@ body.theme-dark .mge-seq-badge-raw {
 .mge-gantt-grid-row {
   border-bottom: 1px solid var(--background-modifier-border, #d6d6df);
   background: var(--background-secondary, #fff);
+  transition: transform 0.08s ease, box-shadow 0.08s ease, opacity 0.08s ease;
+}
+
+.mge-gantt-grid-row.dragging {
+  opacity: 0.86;
+  box-shadow: 0 0 0 1px var(--interactive-accent, #5b6ee1) inset;
 }
 
 .mge-gantt-grid-row:nth-child(even) {
   background: color-mix(in srgb, var(--background-secondary, #fff) 88%, var(--background-primary, #f7f7fa) 12%);
-}
-
-.mge-gantt-grid-row.selected {
-  box-shadow: 3px 0 0 var(--mge-accent, #04aed6) inset;
-  background: color-mix(in srgb, var(--background-secondary, #fff) 86%, var(--mge-accent, #04aed6) 14%);
 }
 
 .mge-gantt-grid-row.section {
@@ -1438,15 +1502,74 @@ body:not(.theme-dark) .mge-gantt-preview {
   justify-content: space-between;
   gap: 8px;
   width: 100%;
+  min-height: 34px;
   flex-shrink: 0;
   font-size: 12px;
   font-weight: 650;
   color: var(--text-normal, #1f1f2e);
 }
 
+.mge-gantt-table-row-handle {
+  width: 100%;
+  height: 32px;
+  border: none;
+  border-right: 1px solid var(--background-modifier-border, #d6d6df);
+  background: transparent;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.mge-gantt-table-row-handle:active {
+  cursor: grabbing;
+}
+
+.mge-gantt-table-grip {
+  width: 14px;
+  height: 18px;
+  border-radius: 4px;
+  background:
+    radial-gradient(circle, var(--text-muted, #888) 1.2px, transparent 1.3px) 0 0 / 6px 6px;
+  opacity: 0.75;
+}
+
+.mge-gantt-table-row-handle:hover .mge-gantt-table-grip {
+  opacity: 1;
+}
+
+.mge-editor-shell-stacked > .mge-preview-resizer {
+  grid-area: preview-resizer;
+  cursor: row-resize;
+  background: var(--background-primary, #f7f7fa);
+  border-bottom: 1px solid var(--background-modifier-border, #d6d6df);
+  position: relative;
+}
+
+.mge-editor-shell-stacked > .mge-preview-resizer::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  width: 44px;
+  height: 2px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: var(--background-modifier-border, #d6d6df);
+}
+
+.mge-editor-shell-stacked > .mge-preview-resizer:hover::after,
+body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::after {
+  background: var(--mge-accent, #04aed6);
+}
+
 .mge-gantt-preview-btn {
-  padding: 3px 8px;
-  font-size: 11px;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+  line-height: 1;
+  box-sizing: border-box;
 }
 
 .mge-gantt-preview-svg {
@@ -1586,3 +1709,738 @@ body:not(.theme-dark) .mge-gantt-preview {
   background: color-mix(in srgb, var(--color-green, #2a9d8f) 15%, transparent);
   color: var(--color-green, #2a9d8f);
 }
+
+/* ─── XYChart editor (table-based input) ─────────────────────── */
+.mge-xy-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  overflow: auto;
+  height: 100%;
+  box-sizing: border-box;
+}
+.mge-xy-preview {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  gap: 6px;
+}
+.mge-xy-preview-svg {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  border: 1px solid var(--background-modifier-border, #d6d6df);
+  border-radius: 4px;
+  background: var(--background-primary, #fff);
+  touch-action: none;
+}
+.mge-xy-preview-bg {
+  fill: var(--background-primary, #fff);
+}
+.mge-xy-preview-title {
+  fill: var(--text-normal, #1f1f2e);
+  font-size: 14px;
+  font-weight: 650;
+}
+.mge-xy-axis,
+.mge-xy-grid {
+  stroke: var(--background-modifier-border, #d6d6df);
+  stroke-width: 1;
+}
+.mge-xy-grid {
+  opacity: 0.7;
+}
+.mge-xy-axis-label {
+  fill: var(--text-muted, #6b6b7b);
+  font-size: 11px;
+  user-select: none;
+}
+.mge-xy-category-label {
+  cursor: text;
+}
+.mge-xy-bar {
+  fill: var(--interactive-accent, #5b6ee1);
+  opacity: 0.86;
+  cursor: ns-resize;
+}
+.mge-xy-bar:hover {
+  opacity: 1;
+}
+.mge-xy-line {
+  fill: none;
+  stroke: var(--color-orange, #d97706);
+  stroke-width: 2;
+}
+.mge-xy-line-series.series-1 .mge-xy-line { stroke: var(--color-green, #059669); }
+.mge-xy-line-series.series-2 .mge-xy-line { stroke: var(--color-purple, #7c3aed); }
+.mge-xy-line-series.series-3 .mge-xy-line { stroke: var(--color-cyan, #0891b2); }
+.mge-xy-point {
+  fill: var(--background-primary, #fff);
+  stroke: var(--color-orange, #d97706);
+  stroke-width: 2;
+  cursor: text;
+}
+.mge-xy-line-series.series-1 .mge-xy-point { stroke: var(--color-green, #059669); }
+.mge-xy-line-series.series-2 .mge-xy-point { stroke: var(--color-purple, #7c3aed); }
+.mge-xy-line-series.series-3 .mge-xy-point { stroke: var(--color-cyan, #0891b2); }
+.mge-xy-inline-input {
+  width: 100%;
+  height: 24px;
+  padding: 2px 5px;
+  font-size: 12px;
+  color: var(--text-normal);
+  background: var(--background-modifier-form-field, var(--background-primary));
+  border: 1px solid var(--interactive-accent);
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+.mge-xy-preview-help {
+  margin: 0;
+  flex: 0 0 auto;
+  color: var(--text-muted, #6b6b7b);
+  font-size: 11px;
+  text-align: center;
+}
+.mge-xy-header-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.mge-xy-field-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.mge-xy-field-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  min-width: 4.5rem;
+  flex-shrink: 0;
+}
+.mge-xy-yaxis-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.mge-xy-yaxis-auto {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.mge-xy-input {
+  background: var(--background-modifier-form-field, var(--background-secondary));
+  border: 1px solid var(--background-modifier-border, #555);
+  border-radius: 3px;
+  color: var(--text-normal);
+  padding: 2px 5px;
+  font-size: 0.8rem;
+  box-sizing: border-box;
+}
+.mge-xy-input:focus {
+  outline: 1px solid var(--interactive-accent);
+}
+.mge-xy-edit-mode .mge-xy-input:focus {
+  background: var(--background-modifier-form-field-highlighted, rgba(91,110,225,0.08));
+}
+.mge-xy-input-wide {
+  flex: 1;
+  min-width: 10rem;
+}
+.mge-xy-input-num {
+  width: 5.5rem;
+  text-align: right;
+}
+.mge-xy-input-cat {
+  width: 7rem;
+  flex-shrink: 0;
+}
+.mge-xy-select,
+.mge-xy-kind-select {
+  background: var(--background-modifier-form-field, var(--background-secondary));
+  border: 1px solid var(--background-modifier-border, #555);
+  border-radius: 3px;
+  color: var(--text-normal);
+  padding: 2px 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.mge-xy-table-wrap {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+.mge-xy-table {
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  width: 100%;
+}
+.mge-xy-th,
+.mge-xy-td {
+  border: 1px solid var(--background-modifier-border, #555);
+  padding: 3px 5px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.mge-xy-th {
+  background: var(--background-secondary-alt, var(--background-secondary));
+  font-weight: 500;
+  font-size: 0.75rem;
+}
+.mge-xy-th-cat {
+  min-width: 8rem;
+  text-align: left;
+}
+.mge-xy-th-series {
+  min-width: 7rem;
+}
+.mge-xy-th-add {
+  width: 2rem;
+  border: none;
+  background: transparent;
+}
+.mge-xy-th-series-inner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: space-between;
+}
+.mge-xy-col-label {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.mge-xy-th-label {
+  color: var(--text-muted);
+}
+.mge-xy-td-cat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.mge-xy-td-val {
+  text-align: right;
+}
+.mge-xy-td-add {
+  border: none;
+}
+.mge-xy-row:hover {
+  background: var(--background-modifier-hover);
+}
+.mge-xy-add-btn,
+.mge-xy-del-btn,
+.mge-xy-del-row-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 1px 4px;
+  font-size: 0.85rem;
+  line-height: 1;
+  border-radius: 3px;
+  color: var(--text-muted);
+}
+.mge-xy-add-btn:hover {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent, #fff);
+}
+.mge-xy-del-btn:hover,
+.mge-xy-del-row-btn:hover {
+  background: var(--text-error, #c0392b);
+  color: #fff;
+}
+.mge-xy-add-row-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-accent, var(--interactive-accent));
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.mge-xy-add-row-btn:hover {
+  background: var(--background-modifier-hover);
+}
+.mge-xy-paste-hint {
+  margin-top: 0.4rem;
+  font-size: 0.7rem;
+  color: var(--text-faint, var(--text-muted));
+}
+.mge-xy-raw-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 0.5rem;
+}
+.mge-xy-raw-label {
+  font-size: 0.7rem;
+  color: var(--text-faint, var(--text-muted));
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.mge-xy-raw-line {
+  font-family: var(--font-monospace);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+/* ─── Block (beta) interactive grid preview ──────────────────── */
+.mge-block-preview {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+  background: var(--background-primary, #1e1e1e);
+}
+.mge-block-preview-svg {
+  flex: 1 1 auto;
+  width: 100%;
+  height: auto;
+  min-height: 120px;
+  overflow: visible;
+  display: block;
+}
+.mge-block-preview-bg {
+  fill: var(--background-primary, #1e1e1e);
+  cursor: default;
+}
+.mge-block-grid-guide {
+  stroke: var(--background-modifier-border, #3a3a3a);
+  stroke-width: 0.5;
+  stroke-dasharray: 3 4;
+  opacity: 0.4;
+  pointer-events: none;
+}
+.mge-block-cell-rect {
+  fill: var(--interactive-normal, #2a2a2a);
+  stroke: var(--interactive-accent, #7c5cfc);
+  stroke-width: 1.5;
+  transition: fill 0.1s;
+}
+.mge-block-cell:hover .mge-block-cell-rect {
+  fill: var(--interactive-hover, #383838);
+  cursor: grab;
+}
+.mge-block-cell-selected .mge-block-cell-rect {
+  fill: var(--interactive-accent-hover, #6a4fdc);
+  stroke: var(--text-accent, #a78bfa);
+  stroke-width: 2;
+}
+.mge-block-cell-dragging {
+  opacity: 0.45;
+}
+.mge-block-cell-selection-ring {
+  fill: none;
+  stroke: var(--text-accent, #a78bfa);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
+.mge-block-cell-label {
+  font-size: 11px;
+  fill: var(--text-normal, #ddd);
+  pointer-events: none;
+  user-select: none;
+}
+.mge-block-cell-cylinder-cap {
+  fill: var(--interactive-accent, #7c5cfc);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.mge-block-cell-ribbon-arrow {
+  stroke: var(--interactive-accent, #7c5cfc);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+.mge-block-space-rect {
+  fill: var(--background-secondary, #252525);
+  stroke: var(--background-modifier-border, #3a3a3a);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  cursor: grab;
+}
+.mge-block-space-label {
+  font-size: 10px;
+  fill: var(--text-muted, #888);
+  pointer-events: none;
+  user-select: none;
+}
+.mge-block-resize-handle {
+  fill: var(--text-accent, #a78bfa);
+  opacity: 0.3;
+  cursor: ew-resize;
+}
+.mge-block-resize-handle:hover {
+  opacity: 0.8;
+}
+.mge-block-drop-indicator {
+  fill: none;
+  stroke: var(--text-accent, #a78bfa);
+  stroke-width: 2;
+  stroke-dasharray: 5 3;
+  opacity: 0.9;
+}
+.mge-block-preview-help {
+  font-size: 11px;
+  color: var(--text-muted, #888);
+  text-align: center;
+  padding: 4px 8px;
+  margin: 0;
+  flex-shrink: 0;
+}
+.mge-block-detail-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: var(--background-secondary, #252525);
+  border: 1px solid var(--interactive-accent, #7c5cfc);
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.mge-block-detail-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-accent, #a78bfa);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.mge-block-select-hint {
+  font-size: 12px;
+  color: var(--text-muted, #888);
+  text-align: center;
+  padding: 12px 0;
+  margin: 0;
+}
+.mge-block-list-row {
+  border-radius: 4px;
+}
+.mge-block-list-row:hover {
+  background: var(--background-modifier-hover, #2e2e2e);
+}
+.mge-block-list-row-selected {
+  background: var(--interactive-accent, #7c5cfc22) !important;
+  outline: 1px solid var(--interactive-accent, #7c5cfc);
+}
+
+/* ─── Gantt: section gutter, viewport zoom, dependency links ──── */
+.mge-gantt-preview-wrap {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  outline: none;
+}
+.mge-gantt-preview-wrap:focus { outline: none; }
+.mge-gantt-preview-tool-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mge-gantt-preview-field {
+  min-width: 86px;
+  height: 32px;
+  border: 1px solid var(--background-modifier-border, #d6d6df);
+  border-radius: 4px;
+  background: var(--background-primary, #fff);
+  color: var(--text-normal, #1f1f2e);
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+.mge-gantt-preview-axis-input {
+  width: 104px;
+}
+.mge-gantt-preview-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--background-modifier-border, #d6d6df);
+  border-radius: 4px;
+  background: var(--background-primary, #fff);
+  color: var(--text-muted, #6b6b7b);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+.mge-gantt-preview-check input {
+  margin: 0;
+}
+.mge-gantt-section-rule {
+  stroke: var(--text-muted, #888);
+  stroke-width: 1;
+  opacity: 0.5;
+}
+.mge-gantt-section-label {
+  fill: var(--text-normal, #222);
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+  user-select: none;
+}
+.mge-gantt-edge-handle {
+  fill: var(--interactive-accent, #5b6ee1);
+  opacity: 0.08;
+  cursor: ew-resize;
+}
+.mge-gantt-edge-handle:hover { opacity: 0.25; }
+.mge-gantt-dep {
+  stroke: var(--text-accent, #5b6ee1);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  fill: none;
+  cursor: pointer;
+}
+.mge-gantt-dep.selected {
+  stroke: var(--text-error, #e05252);
+  stroke-width: 2.5;
+  stroke-dasharray: none;
+}
+.mge-gantt-dep.dragging {
+  stroke: var(--interactive-accent, #5b6ee1);
+  stroke-width: 2;
+  pointer-events: none;
+}
+.mge-gantt-link-handle {
+  fill: var(--background-primary, #fff);
+  stroke: var(--text-accent, #5b6ee1);
+  stroke-width: 1.5;
+  cursor: crosshair;
+  opacity: 0;
+}
+.mge-gantt-task:hover .mge-gantt-link-handle,
+.mge-gantt-task.selected .mge-gantt-link-handle { opacity: 1; }
+.mge-gantt-row-handle-group {
+  cursor: grab;
+}
+.mge-gantt-row-handle-group:active {
+  cursor: grabbing;
+}
+.mge-gantt-task.dragging {
+  opacity: 0.86;
+}
+.mge-gantt-row-handle {
+  fill: color-mix(in srgb, var(--background-secondary, #252525) 82%, var(--interactive-accent, #5b6ee1) 18%);
+  stroke: var(--background-modifier-border, #3a3a3a);
+  stroke-width: 1;
+}
+.mge-gantt-row-handle-group:hover .mge-gantt-row-handle {
+  fill: color-mix(in srgb, var(--background-secondary, #252525) 68%, var(--interactive-accent, #5b6ee1) 32%);
+  stroke: var(--interactive-accent, #5b6ee1);
+}
+.mge-gantt-row-grip-dot {
+  fill: var(--text-muted, #888);
+  pointer-events: none;
+}
+.mge-gantt-row-handle-label {
+  fill: var(--text-normal, #ddd);
+  font-size: 8.5px;
+  font-weight: 650;
+  pointer-events: none;
+  user-select: none;
+}
+.mge-gantt-status-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  border-left: 1px solid var(--background-modifier-border, #d6d6df);
+  border-right: 1px solid var(--background-modifier-border, #d6d6df);
+  padding: 0 6px;
+}
+.mge-gantt-status-cell .mge-gantt-cell-select { flex: 1 1 auto; min-width: 0; }
+.mge-gantt-crit-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-muted, #888);
+  white-space: nowrap;
+}
+.mge-gantt-checkbox {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 6px;
+}
+.mge-gantt-checkbox input { margin: 0; }
+.mge-gantt-grid-row .mge-gantt-cell-input:focus,
+.mge-gantt-grid-row .mge-gantt-cell-select:focus {
+  outline: 2px solid var(--interactive-accent, #5b6ee1);
+  outline-offset: -2px;
+  border-radius: 3px;
+}
+.mge-gantt-edit-mode .mge-gantt-cell-input:focus {
+  background: var(--background-modifier-form-field-highlighted, rgba(91,110,225,0.08));
+}
+.mge-gantt-action.active {
+  background: var(--interactive-accent, #5b6ee1);
+  color: var(--text-on-accent, #fff);
+}
+
+/* ─── Kanban interactive board (previewOverride) ─────────────── */
+.mge-kanban-board-wrap {
+  height: 100%;
+  width: 100%;
+  outline: none;
+  overflow-x: auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.mge-kanban-preview-note {
+  flex: 0 0 auto;
+  padding: 6px 12px 0;
+  color: var(--text-muted, #6b6b7b);
+  font-size: 11px;
+}
+.mge-kanban-board {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  padding: 12px;
+  min-height: 0;
+  box-sizing: border-box;
+}
+.mge-kanban-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  color: var(--text-muted, #6b6b7b);
+  font-size: 12px;
+}
+.mge-kanban-column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+  max-width: 240px;
+  flex: 0 0 auto;
+  background: var(--background-secondary, #252525);
+  border: 1px solid var(--background-modifier-border, #3a3a3a);
+  border-radius: 8px;
+  padding: 8px;
+}
+.mge-kanban-col-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.mge-kanban-col-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 0.85rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text-normal);
+  padding: 2px 4px;
+}
+.mge-kanban-col-title:hover,
+.mge-kanban-col-title:focus {
+  border-color: var(--background-modifier-border, #3a3a3a);
+  background: var(--background-modifier-form-field, var(--background-primary));
+  outline: none;
+}
+.mge-kanban-col-del {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+.mge-kanban-col-del:hover { background: var(--text-error, #c0392b); color: #fff; }
+.mge-kanban-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 24px;
+}
+.mge-kanban-card {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--background-primary, #1e1e1e);
+  border: 1px solid var(--background-modifier-border, #3a3a3a);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.8rem;
+  color: var(--text-normal);
+  cursor: grab;
+}
+.mge-kanban-card:active { cursor: grabbing; }
+.mge-kanban-card.selected {
+  border-color: var(--interactive-accent, #7c5cfc);
+  box-shadow: 0 0 0 1px var(--interactive-accent, #7c5cfc) inset;
+}
+.mge-kanban-card.drop-before {
+  box-shadow: 0 -2px 0 var(--interactive-accent, #7c5cfc);
+}
+.mge-kanban-card-text { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.mge-kanban-card-meta { flex: 0 0 auto; color: var(--text-muted); cursor: help; }
+.mge-kanban-card-del {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  opacity: 0;
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.mge-kanban-card:hover .mge-kanban-card-del { opacity: 1; }
+.mge-kanban-card-del:hover { background: var(--text-error, #c0392b); color: #fff; }
+.mge-kanban-card-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.8rem;
+  background: var(--background-modifier-form-field, var(--background-primary));
+  border: 1px solid var(--interactive-accent, #7c5cfc);
+  border-radius: 4px;
+  color: var(--text-normal);
+  padding: 3px 5px;
+}
+.mge-kanban-add-card {
+  border: 1px dashed var(--background-modifier-border, #3a3a3a);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 4px;
+  font-size: 0.75rem;
+}
+.mge-kanban-add-card:hover { color: var(--text-normal); border-color: var(--interactive-accent, #7c5cfc); }
+.mge-kanban-add-col {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  min-width: 120px;
+  border: 1px dashed var(--background-modifier-border, #3a3a3a);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 0.8rem;
+}
+.mge-kanban-add-col:hover { color: var(--text-normal); border-color: var(--interactive-accent, #7c5cfc); }

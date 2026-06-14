@@ -6,7 +6,7 @@
 
 ## 一行要約
 
-`registerMarkdownCodeBlockProcessor("mermaid", ...)` で Reading view の mermaid ブロックに Edit ボタンを差し込み、Modal で React + ReactFlow + Zustand の GUI を立ち上げる。flowchart / sequenceDiagram / classDiagram / stateDiagram(-v2) / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta は専用エディタを持つ（radar-beta は Obsidian 内蔵 Mermaid 非対応のためプレビュー不可）。それ以外の図種は `SourceOnlyEditor` でソースのみ表示。保存時に**当該フェンスの中身だけ**を `vault.modify` で書き戻す。ノード座標はセッション内のみ保持し、ファイルには書き出さない（標準 Mermaid 準拠）。
+`registerMarkdownCodeBlockProcessor("mermaid", ...)` で Reading view の mermaid ブロックに Edit ボタンを差し込み、Modal で React + ReactFlow + Zustand の GUI を立ち上げる。flowchart / sequenceDiagram / classDiagram / stateDiagram(-v2) / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta / gantt / timeline / erDiagram / mindmap / journey / architecture-beta / block-beta / kanban は専用エディタを持つ（radar-beta は Obsidian 内蔵 Mermaid 非対応のためプレビュー不可）。全エディタ共通で Undo/Redo + SVG エクスポートボタンを持つ。それ以外の図種は `SourceOnlyEditor` でソースのみ表示。保存時に**当該フェンスの中身だけ**を `vault.modify` で書き戻す。ノード座標はセッション内のみ保持し、ファイルには書き出さない（標準 Mermaid 準拠）。
 
 ---
 
@@ -61,7 +61,8 @@ mermaid-gui-obsidian/
 │   │   │   ├── venn.ts
 │   │   │   ├── journey.ts
 │   │   │   ├── architecture.ts
-│   │   │   └── block.ts
+│   │   │   ├── block.ts
+│   │   │   └── kanban.ts
 │   │   ├── sequence/
 │   │   │   ├── ir-types.ts
 │   │   │   ├── parser.ts
@@ -126,14 +127,20 @@ mermaid-gui-obsidian/
 │   │   │   ├── ir-types.ts
 │   │   │   ├── parser.ts
 │   │   │   └── generator.ts
-│   │   └── block/
+│   │   ├── block/
+│   │   │   ├── ir-types.ts
+│   │   │   ├── parser.ts
+│   │   │   └── generator.ts
+│   │   └── kanban/
 │   │       ├── ir-types.ts
 │   │       ├── parser.ts
 │   │       └── generator.ts
 │   ├── ui/                        ← React コンポーネント（obsidian 非依存）
 │   │   ├── MermaidEditor.tsx      ← 図種に応じてエディタを切り替えるルート（空ソース時は DiagramKindPicker）
-│   │   ├── EditorShell.tsx        ← 非 flowchart 全エディタ共通の外殻（ドラッグ可能 toolbar + プレビュー + コードペイン）
-│   │   ├── DiagramKindPicker.tsx  ← 新規作成時の図種選択 UI（テンプレートのプレビュー付き）
+│   │   ├── EditorShell.tsx        ← 非 flowchart 全エディタ共通の外殻（ドラッグ可能 toolbar + プレビュー + コードペイン + Undo/Redo 履歴）
+│   │   ├── EditorActions.tsx      ← Undo / Redo / SVG エクスポートボタン共通コンポーネント（flowchart Toolbar と EditorShell が共用）
+│   │   ├── EditorHostContext.tsx  ← ホスト能力（onExportSvg 等）を React context で全エディタに供給。MermaidEditor が EditorHostProvider でラップ
+│   │   ├── DiagramKindPicker.tsx  ← 新規作成時の図種選択 UI（Favorites ★ / Available / Under Construction グループ、テンプレートプレビュー付き）
 │   │   ├── FlowchartEditor.tsx
 │   │   ├── SourceOnlyEditor.tsx   ← GUI 未対応図種のフォールバック
 │   │   ├── EditorContext.tsx
@@ -142,14 +149,14 @@ mermaid-gui-obsidian/
 │   │   ├── canvas/
 │   │   │   ├── FlowCanvas.tsx
 │   │   │   ├── ShapeNode.tsx
-│   │   │   ├── SubgraphNode.tsx
+│   │   │   ├── SubgraphNode.tsx   ← NodeResizer でリサイズ可能。セッション内 subgraphFrames に座標を保持
 │   │   │   └── edgeActions.ts
 │   │   ├── panels/
-│   │   │   ├── Palette.tsx
+│   │   │   ├── Palette.tsx        ← flowchart 用。Direction / Subgraph / Auto-layout ボタンを上部に配置
 │   │   │   ├── TextPane.tsx
 │   │   │   └── PropertyPanel.tsx
 │   │   ├── toolbar/
-│   │   │   └── Toolbar.tsx
+│   │   │   └── Toolbar.tsx        ← flowchart 用トップバー。Undo/Redo/Export/Save/Cancel のみ（Direction 等は Palette へ移動）
 │   │   ├── sequence/
 │   │   │   └── SequenceEditor.tsx
 │   │   ├── class/
@@ -164,11 +171,11 @@ mermaid-gui-obsidian/
 │   │   │   ├── QuadrantEditor.tsx
 │   │   │   └── QuadrantInteractivePreview.tsx   ← プレビュー上でポイントを直接ドラッグできる SVG エディタ
 │   │   ├── xychart/
-│   │   │   └── XYChartEditor.tsx
+│   │   │   └── XYChartEditor.tsx  ← 全幅の操作可能 SVG プレビュー + 縦向き Excel ライクテーブル（カテゴリ/値の直接編集、棒ドラッグ、TSV ペースト対応）
 │   │   ├── radar/
 │   │   │   └── RadarEditor.tsx
 │   │   ├── gantt/
-│   │   │   └── GanttEditor.tsx        ← 表形式エディタ + 操作可能 SVG ガントプレビュー
+│   │   │   └── GanttEditor.tsx        ← 表形式エディタ + 操作可能 SVG ガントプレビュー（axisFormat、依存線 DnD、Delete、Excel 風キーナビ）
 │   │   ├── timeline/
 │   │   │   └── TimelineEditor.tsx
 │   │   ├── er/
@@ -179,8 +186,12 @@ mermaid-gui-obsidian/
 │   │   │   └── JourneyEditor.tsx
 │   │   ├── architecture/
 │   │   │   └── ArchitectureEditor.tsx
-│   │   └── block/
-│   │       └── BlockEditor.tsx
+│   │   ├── block/
+│   │   │   ├── BlockEditor.tsx
+│   │   │   └── BlockInteractivePreview.tsx  ← ブロックを DnD で並び替え・ハンドルでスパン変更・Delete 削除できるグリッドプレビュー
+│   │   └── kanban/
+│   │       ├── KanbanEditor.tsx             ← kanban 専用エディタ（EditorShell + previewOverride）
+│   │       └── KanbanInteractivePreview.tsx ← DOM ベースドラッグボード（カードをカラム間移動、カラム / カード追加・削除・編集）
 │   └── obsidian/                  ← Obsidian API 固有レイヤ
 │       ├── EditorModal.ts         ← Modal の生成・toolbar ドラッグ・四隅リサイズハンドル
 │       ├── ReactHost.tsx          ← createRoot / unmount ライフサイクル管理
@@ -216,6 +227,8 @@ mermaid-gui-obsidian/
 │   │   ├── gantt-generator.test.ts
 │   │   ├── timeline-parser.test.ts
 │   │   ├── timeline-generator.test.ts
+│   │   ├── kanban-parser.test.ts
+│   │   ├── kanban-generator.test.ts
 │   │   └── adapters.test.ts
 │   └── ui/
 │       ├── adapter.test.ts
@@ -274,7 +287,7 @@ src/obsidian/  →  src/ui/  →  src/core/
 | `src/core/adapters/index.ts` | `getAdapter(kind)` レジストリ |
 | `src/core/diagram-ir.ts` | `DiagramIR` 判別 union |
 
-**登録済み図種（Phase 1–10 完了）**：flowchart / sequenceDiagram / classDiagram / stateDiagram-v2 / stateDiagram / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta / gantt / timeline / erDiagram / mindmap / treemap-beta / venn-beta / journey / architecture-beta / block-beta の 19 種。`supportsGui: false` のアダプタ（treemap-beta / venn-beta）または未登録の図種は `src/ui/SourceOnlyEditor.tsx` にフォールバックする。radar-beta / venn-beta は Obsidian 内蔵 Mermaid が非対応のため GUI 編集は可能だがプレビューは描画されない。treemap-beta は Obsidian 内蔵 Mermaid 非対応のため Source-only 提供。
+**登録済み図種（Phase 1–10 + kanban 完了）**：flowchart / sequenceDiagram / classDiagram / stateDiagram-v2 / stateDiagram / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta / gantt / timeline / erDiagram / mindmap / treemap-beta / venn-beta / journey / architecture-beta / block-beta / kanban の **20 種**。`supportsGui: false` のアダプタ（treemap-beta / venn-beta）または未登録の図種は `src/ui/SourceOnlyEditor.tsx` にフォールバックする。radar-beta / venn-beta は Obsidian 内蔵 Mermaid が非対応のため GUI 編集は可能だがプレビューは描画されない。treemap-beta は Obsidian 内蔵 Mermaid 非対応のため Source-only 提供。kanban は Obsidian 内蔵 Mermaid が対応しているため完全なプレビュー付き GUI 編集が可能。
 
 ### 新図種の追加手順
 
@@ -289,11 +302,12 @@ src/obsidian/  →  src/ui/  →  src/core/
 
 ## 共通エディタシェル（EditorShell）
 
-flowchart を除く全ての専用エディタは `src/ui/EditorShell.tsx` を root として使う。シェルは 3 つの責務を一手に引き受ける：
+flowchart を除く全ての専用エディタは `src/ui/EditorShell.tsx` を root として使う。シェルは 4 つの責務を一手に引き受ける：
 
-1. **ドラッグ可能な toolbar** — `.mge-toolbar` クラスを付けたヘッダを描画する。`EditorModal` の delegated mousedown handler がこれを検知し、modal を移動させる。専用 toolbar をエディタ側で再実装してはいけない（drag 対象が外れる）。
-2. **ライブ Mermaid プレビュー** — 親から渡された `renderMermaid(source)` を使い、IR の更新ごとに最新の Mermaid SVG を再描画する。`EditorModal` からは `src/obsidian/mermaidRender.ts` の `renderMermaidThemed` が注入される。同 helper は Obsidian の `theme-dark` クラスを見て `mermaid.initialize({ theme })` を切り替えるため、ライト/ダーク両方で文字色が追従する。Reading view の `postProcessor.ts` も同じ helper を経由するので、プレビューの見た目はモーダルと一致する（#37）。
-3. **コードペイン** — 生成中のソースを textarea に同期表示する。`onSourceEdit` を渡すと編集可能になり、ユーザーのキーストロークごとに `parse<Kind>(next)` を呼んで IR を差し替える。draft state がユーザーの正確な入力を保持し続け、blur で IR から再生成された canonical 形に戻る。parse 失敗時はインラインの error バッジ（赤）が出るだけで IR は据え置く。
+1. **ドラッグ可能な toolbar** — `.mge-toolbar` クラスを付けたヘッダを描画する。`EditorModal` の delegated mousedown handler がこれを検知し、modal を移動させる。専用 toolbar をエディタ側で再実装してはいけない（drag 対象が外れる）。toolbar には `src/ui/EditorActions.tsx` の Undo / Redo / SVG エクスポートボタンが組み込まれており、`src/ui/toolbar/Toolbar.tsx`（flowchart 用）と同じコンポーネントを共用する。
+2. **Mermaid ソース文字列の Undo/Redo 履歴** — EditorShell 内部でソース文字列のスタックを管理し、`Ctrl+Z` / `Ctrl+Y` / `Ctrl+Shift+Z` で操作を取り消し・やり直せる。flowchart の store-backed undo とは別個に実装されている。
+3. **ライブ Mermaid プレビュー** — 親から渡された `renderMermaid(source)` を使い、IR の更新ごとに最新の Mermaid SVG を再描画する。`EditorModal` からは `src/obsidian/mermaidRender.ts` の `renderMermaidThemed` が注入される。同 helper は Obsidian の `theme-dark` クラスを見て `mermaid.initialize({ theme })` を切り替えるため、ライト/ダーク両方で文字色が追従する。Reading view の `postProcessor.ts` も同じ helper を経由するので、プレビューの見た目はモーダルと一致する（#37）。
+4. **コードペイン** — 生成中のソースを textarea に同期表示する。`onSourceEdit` を渡すと編集可能になり、ユーザーのキーストロークごとに `parse<Kind>(next)` を呼んで IR を差し替える。draft state がユーザーの正確な入力を保持し続け、blur で IR から再生成された canonical 形に戻る。parse 失敗時はインラインの error バッジ（赤）が出るだけで IR は据え置く。
 
 各 `<Kind>Editor` は次のシグネチャを満たす：
 
@@ -320,7 +334,8 @@ flowchart を除く全ての専用エディタは `src/ui/EditorShell.tsx` を r
 - **数値入力欄のみで構成しない**。プレビュー上でグラフィカルに操作できるなら `previewOverride` で SVG エディタを差し込み、ドラッグやハンドルで直接編集する経路を提供する（例: `QuadrantInteractivePreview`、Gantt のバー移動/リサイズ/ラベル編集）。フォームは補助。
 - **`onSourceEdit` は再 parse を伴う**ため、未対応構文を `rawLines` / `rawItems` 経由で round-trip させているエディタ（class / state）は当該配列も `useState` で管理し、再 parse の結果で必ず置き換える。closure-captured な const のままだとコードペイン経由の編集で raw 行が消えてしまう。
 - 共通シェルの toolbar の見た目を変えたければ `toolbarExtras` slot を使う。`<header>` の DOM 構造には触れない。
-- flowchart は React Flow canvas そのものがグラフィカルプレビューなので `EditorShell` を使わず `mge-app-shell` の独自レイアウトを維持する。例外として扱う。コード編集は既存の `src/ui/panels/TextPane.tsx`（store の `setText` / `commitText` 経由、debounce ありの blur commit）に集約。
+- flowchart は React Flow canvas そのものがグラフィカルプレビューなので `EditorShell` を使わず `mge-app-shell` の独自レイアウトを維持する。例外として扱う。コード編集は既存の `src/ui/panels/TextPane.tsx`（store の `setText` / `commitText` 経由、debounce ありの blur commit）に集約。Direction / Subgraph / Auto-layout ボタンは `src/ui/panels/Palette.tsx` の上部に配置し、`src/ui/toolbar/Toolbar.tsx` は Undo/Redo/Export/Save/Cancel のみ保持する。
+- **ホスト能力の注入** — `src/ui/EditorHostContext.tsx` の `EditorHostProvider` が `onExportSvg` 等のホスト能力を React context 経由で全エディタに供給する。`MermaidEditor` が最上位で `EditorHostProvider` をラップするため、各エディタは prop drilling なしに能力を取得できる。
 
 ---
 
@@ -338,8 +353,9 @@ flowchart を除く全ての専用エディタは `src/ui/EditorShell.tsx` を r
 `src/core/templates.ts` の `DIAGRAM_TEMPLATES` 配列にエントリを追加する：
 
 - `kind` は `DiagramKind` の値
-- `source` は **最小だが parser が通る** Mermaid テキスト（テストで保証）
+- `source` は **最小だが parser が通る** Mermaid テキスト（テストで保証）。動的に日付を生成する場合は `source` の代わりに `templateSource()` ヘルパ関数として定義できる。gantt テンプレートはこの形式を採用し、今日の日付から約 3 ヶ月先のタスク・依存・マイルストーン・`axisFormat %m/%d` を動的に生成する。
 - `supportsGui: true` を立てるのは bespoke エディタがある図種だけ。`false` だと `SourceOnlyEditor` 経由になるが、テンプレートピッカーには出てよい
+- `editorStage: "available" | "wip"` を付与する。`"available"` はグラフィカルな直接操作エディタが完成している図種（flowchart / quadrantChart / xychart-beta / gantt / block-beta / kanban）。`"wip"` はそれ以外。`DiagramKindPicker` はこのフラグで **Favorites ★**（localStorage 永続）/ **Available** / **Under Construction** の 3 グループに分類して表示する。
 
 テンプレートは `tests/core/templates.test.ts` が次の不変条件を検証する：
 

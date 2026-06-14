@@ -3,6 +3,24 @@ import { stripGuiComments } from "../core";
 
 const sanitize = (s: string): string => s.replace(/[\\/:*?"<>|]/g, "_");
 
+/** `YYYY-MM-DDTHH-mm-ss` in Tokyo time, for filename stamps. */
+const tokyoStamp = (date: Date): string => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
+  // en-CA renders midnight as "24"; normalise to "00".
+  const hour = get("hour") === "24" ? "00" : get("hour");
+  return `${get("year")}-${get("month")}-${get("day")}T${hour}-${get("minute")}-${get("second")}`;
+};
+
 /**
  * Render the given Mermaid source to SVG using Obsidian's bundled mermaid
  * runtime, then write the file next to the source note as a vault attachment.
@@ -33,7 +51,7 @@ export const exportSvgToVault = async (
     return;
   }
   const folder = note.parent?.path ?? "";
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const stamp = tokyoStamp(new Date());
   const fileName = sanitize(`${note.basename}-mermaid-${stamp}.svg`);
   const filePath = normalizePath(folder ? `${folder}/${fileName}` : fileName);
   await app.vault.adapter.write(filePath, svg);

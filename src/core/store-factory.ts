@@ -401,8 +401,12 @@ export const createEditorStore = (): EditorStoreApi =>
       addEdge: (source, target, handles) => {
         if (!ensureTextCommitted()) return;
         const cur = cloneIR(get().ir);
-        if (!cur.nodes.some((n) => n.id === source) || !cur.nodes.some((n) => n.id === target))
-          return;
+        // Endpoints may be a node OR a subgraph id — Mermaid allows edges that
+        // attach to a subgraph boundary (generator/parser already round-trip
+        // `A --> sg_1`). Only reject endpoints that match neither.
+        const exists = (id: string) =>
+          cur.nodes.some((n) => n.id === id) || cur.subgraphs.some((s) => s.id === id);
+        if (!exists(source) || !exists(target)) return;
         const id = newEdgeId(cur.edges.map((e) => e.id));
         cur.edges.push({
           id,

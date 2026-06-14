@@ -19,6 +19,7 @@ export type DiagramKind =
   | "journey"
   | "architecture-beta"
   | "block-beta"
+  | "kanban"
   | "unknown";
 
 const GUI_COMMENT_RE = /^\s*%%\s+gui:/;
@@ -46,6 +47,7 @@ const KIND_PATTERNS: Array<[RegExp, DiagramKind]> = [
   [/^journey(?=\s|$)/, "journey"],
   [/^architecture-beta(?=\s|$)/, "architecture-beta"],
   [/^block-beta(?=\s|$)/, "block-beta"],
+  [/^kanban(?=\s|$)/, "kanban"],
 ];
 
 /**

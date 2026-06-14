@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -8,6 +9,7 @@ import {
 } from "react";
 import { parseGantt } from "../../core/gantt/parser";
 import { generateGantt } from "../../core/gantt/generator";
+import { formatGanttAxisTick } from "../../core/gantt/axis-format";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import type { GanttIR, GanttItem, GanttTask, GanttTaskStatus } from "../../core/gantt/ir-types";
 
@@ -21,32 +23,39 @@ interface Props {
 type GanttCellColumn = "kind" | "label" | "id" | "modifiers" | "start" | "end";
 type CellElement = HTMLInputElement | HTMLSelectElement;
 
-const STATUSES: GanttTaskStatus[] = ["done", "active", "crit", "milestone"];
+type PrimaryStatus = GanttTaskStatus | "";
+/** Statuses selectable as the single "primary" status in the table dropdown. */
+const PRIMARY_STATUSES: PrimaryStatus[] = ["", "done", "active", "milestone"];
 const COLUMNS: GanttCellColumn[] = ["kind", "label", "id", "modifiers", "start", "end"];
 const DAY_MS = 24 * 60 * 60 * 1000;
-const VIEWBOX_WIDTH = 920;
 const CHART_LEFT = 154;
-const CHART_RIGHT = 884;
 const CHART_TOP = 56;
 const ROW_HEIGHT = 38;
 const BAR_HEIGHT = 16;
+const EDGE_HANDLE_W = 10;
+const MIN_VIEWBOX_WIDTH = 920;
+const CHART_RIGHT_PAD = 36;
 
 const seed = (src: string): GanttIR => {
   const r = parseGantt(src);
   return r.ok ? r.ir : { kind: "gantt", items: [] };
 };
 
-const uniqueStatuses = (mods: GanttTaskStatus[]) =>
-  STATUSES.filter((status) => mods.includes(status));
+/** Primary status = the first non-crit status; crit is an orthogonal flag. */
+const primaryStatus = (mods: GanttTaskStatus[]): PrimaryStatus => {
+  const found = mods.find((m) => m !== "crit");
+  return found ?? "";
+};
 
-const parseStatusInput = (value: string): GanttTaskStatus[] => {
-  const tokens = value
-    .split(/[,\s]+/)
-    .map((token) => token.trim())
-    .filter(Boolean);
-  return uniqueStatuses(tokens.filter((token): token is GanttTaskStatus =>
-    STATUSES.includes(token as GanttTaskStatus),
-  ));
+/**
+ * Recompose modifiers from a primary selection + crit flag, preserving the
+ * `:crit, active` round-trip order (crit first when combined).
+ */
+const composeModifiers = (primary: PrimaryStatus, crit: boolean): GanttTaskStatus[] => {
+  const out: GanttTaskStatus[] = [];
+  if (crit) out.push("crit");
+  if (primary) out.push(primary);
+  return out;
 };
 
 const isDateToken = (value: string | undefined): value is string =>
@@ -101,6 +110,27 @@ const firstExplicitDate = (items: GanttItem[]) => {
   return Date.UTC(2024, 0, 1);
 };
 
+// ---- axisFormat presets (goals 1 & 2) ----------------------------------
+
+const AXIS_PRESETS: { value: string; label: string }[] = [
+  { value: "%m/%d", label: "日付 (%m/%d)" },
+  { value: "%W", label: "週 (%W)" },
+];
+
+/** Strip a trailing weekday token like `(%a)` or `%a`, returning base + flag. */
+const splitWeekday = (fmt: string): { base: string; weekday: boolean } => {
+  const m = fmt.match(/^(.*?)(\(%a\)|%a)\s*$/);
+  if (m) return { base: m[1], weekday: true };
+  return { base: fmt, weekday: false };
+};
+
+const composeAxisFormat = (base: string, weekday: boolean): string => {
+  const trimmed = base.trim();
+  if (!weekday) return trimmed;
+  if (!trimmed) return "%a";
+  return `${trimmed}(%a)`;
+};
+
 interface TaskLayout {
   index: number;
   task: GanttTask;
@@ -111,6 +141,7 @@ interface TaskLayout {
 
 interface GanttTimeline {
   tasks: TaskLayout[];
+  sectionSpans: { title: string; fromRow: number; toRow: number }[];
   min: number;
   max: number;
   ticks: number[];
@@ -120,9 +151,16 @@ const buildTimeline = (ir: GanttIR): GanttTimeline => {
   const fallbackStart = firstExplicitDate(ir.items);
   const endById = new Map<string, number>();
   const tasks: TaskLayout[] = [];
+  const sectionSpans: { title: string; fromRow: number; toRow: number }[] = [];
   let previousEnd = fallbackStart;
+  let currentSection: { title: string; fromRow: number; toRow: number } | null = null;
 
   ir.items.forEach((item, index) => {
+    if (item.type === "section") {
+      if (currentSection) sectionSpans.push(currentSection);
+      currentSection = { title: item.title, fromRow: tasks.length, toRow: tasks.length - 1 };
+      return;
+    }
     if (item.type !== "task") return;
 
     const explicitStart = parseDateUtc(item.start);
@@ -146,10 +184,13 @@ const buildTimeline = (ir: GanttIR): GanttTimeline => {
 
     if (end <= start) end = addDays(start, 1);
 
-    tasks.push({ index, task: item, row: tasks.length, start, end });
+    const row = tasks.length;
+    tasks.push({ index, task: item, row, start, end });
+    if (currentSection) currentSection.toRow = row;
     previousEnd = end;
     if (item.id) endById.set(item.id, end);
   });
+  if (currentSection) sectionSpans.push(currentSection);
 
   const rawMin = tasks.length ? Math.min(...tasks.map((task) => task.start)) : fallbackStart;
   const rawMax = tasks.length ? Math.max(...tasks.map((task) => task.end)) : addDays(fallbackStart, 14);
@@ -160,7 +201,7 @@ const buildTimeline = (ir: GanttIR): GanttTimeline => {
   const ticks: number[] = [];
   for (let t = min; t <= max; t = addDays(t, step)) ticks.push(t);
   if (!ticks.includes(max)) ticks.push(max);
-  return { tasks, min, max, ticks };
+  return { tasks, sectionSpans, min, max, ticks };
 };
 
 const taskColorClass = (task: GanttTask) => {
@@ -171,23 +212,46 @@ const taskColorClass = (task: GanttTask) => {
   return "default";
 };
 
+type Selection =
+  | { type: "task"; index: number }
+  | { type: "dep"; index: number }
+  | null;
+
 interface GanttPreviewProps {
   ir: GanttIR;
-  selectedIndex: number | null;
-  onSelect: (index: number) => void;
+  axisPreset: string;
+  axisWeekday: boolean;
+  selection: Selection;
+  onSelect: (sel: Selection) => void;
   onPatchTask: (index: number, patch: Partial<GanttTask>) => void;
   onAddTask: (start?: string) => void;
+  onLinkAfter: (sourceIndex: number, targetIndex: number) => void;
+  onAxisPresetChange: (value: string) => void;
+  onAxisWeekdayChange: (value: boolean) => void;
+  onAxisFormatChange: (value: string) => void;
+  onReorderItem: (from: number, to: number) => void;
 }
 
 const GanttInteractivePreview = ({
   ir,
-  selectedIndex,
+  axisPreset,
+  axisWeekday,
+  selection,
   onSelect,
   onPatchTask,
   onAddTask,
+  onLinkAfter,
+  onAxisPresetChange,
+  onAxisWeekdayChange,
+  onAxisFormatChange,
+  onReorderItem,
 }: GanttPreviewProps) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [viewBoxWidth, setViewBoxWidth] = useState(MIN_VIEWBOX_WIDTH);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  // Viewport zoom (goal 4): SESSION-ONLY. Never flows into IR / source.
+  const [viewport, setViewport] = useState<{ min: number; max: number } | null>(null);
   const dragRef = useRef<{
     index: number;
     pointerId: number;
@@ -197,24 +261,69 @@ const GanttInteractivePreview = ({
     end: number;
     originalEnd?: string;
   } | null>(null);
+  const edgeDragRef = useRef<{
+    pointerId: number;
+    side: "left" | "right";
+    clientX: number;
+    min: number;
+    max: number;
+  } | null>(null);
+  const linkDragRef = useRef<{
+    sourceIndex: number;
+    pointerId: number;
+  } | null>(null);
+  const [linkCursor, setLinkCursor] = useState<{ x: number; y: number; fromX: number; fromY: number } | null>(null);
+  const rowDragRef = useRef<{ pointerId: number; currentIndex: number } | null>(null);
+  const [previewDraggingIndex, setPreviewDraggingIndex] = useState<number | null>(null);
 
-  const timeline = useMemo(() => buildTimeline(ir), [ir]);
-  const spanDays = Math.max(1, (timeline.max - timeline.min) / DAY_MS);
-  const chartWidth = CHART_RIGHT - CHART_LEFT;
-  const height = Math.max(220, CHART_TOP + Math.max(timeline.tasks.length, 1) * ROW_HEIGHT + 52);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      setViewBoxWidth(Math.max(MIN_VIEWBOX_WIDTH, Math.round(rect.width)));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
-  const xForDate = (time: number) =>
-    CHART_LEFT + ((time - timeline.min) / (timeline.max - timeline.min)) * chartWidth;
+  const baseTimeline = useMemo(() => buildTimeline(ir), [ir]);
+  const min = viewport?.min ?? baseTimeline.min;
+  const max = viewport?.max ?? baseTimeline.max;
+  const spanDays = Math.max(1, (max - min) / DAY_MS);
+  const chartRight = Math.max(CHART_LEFT + 240, viewBoxWidth - CHART_RIGHT_PAD);
+  const chartWidth = chartRight - CHART_LEFT;
+  const height = Math.max(220, CHART_TOP + Math.max(baseTimeline.tasks.length, 1) * ROW_HEIGHT + 52);
 
-  const dateForClientX = (clientX: number) => {
+  // Recompute ticks for the (possibly zoomed) viewport.
+  const ticks = useMemo(() => {
+    const totalDays = diffDays(min, max);
+    const step = totalDays > 90 ? 14 : totalDays > 45 ? 7 : 3;
+    const out: number[] = [];
+    for (let t = min; t <= max; t = addDays(t, step)) out.push(t);
+    if (!out.includes(max)) out.push(max);
+    return out;
+  }, [min, max]);
+
+  const xForDate = (time: number) => CHART_LEFT + ((time - min) / (max - min)) * chartWidth;
+  const yForRow = (row: number) => CHART_TOP + row * ROW_HEIGHT;
+
+  const clientToViewbox = (clientX: number, clientY: number) => {
     const svg = svgRef.current;
     if (!svg) return null;
     const rect = svg.getBoundingClientRect();
     if (rect.width <= 0) return null;
-    const scaledChartLeft = (CHART_LEFT / VIEWBOX_WIDTH) * rect.width;
-    const scaledChartWidth = (chartWidth / VIEWBOX_WIDTH) * rect.width;
-    const ratio = Math.min(Math.max((clientX - rect.left - scaledChartLeft) / scaledChartWidth, 0), 1);
-    return addDays(timeline.min, Math.round(ratio * spanDays));
+    const scale = viewBoxWidth / rect.width;
+    return { x: (clientX - rect.left) * scale, y: (clientY - rect.top) * scale };
+  };
+
+  const dateForClientX = (clientX: number) => {
+    const vb = clientToViewbox(clientX, 0);
+    if (!vb) return null;
+    const ratio = Math.min(Math.max((vb.x - CHART_LEFT) / chartWidth, 0), 1);
+    return addDays(min, Math.round(ratio * spanDays));
   };
 
   const daysDeltaForClient = (clientX: number, startClientX: number) => {
@@ -222,7 +331,7 @@ const GanttInteractivePreview = ({
     if (!svg) return 0;
     const rect = svg.getBoundingClientRect();
     if (rect.width <= 0) return 0;
-    const scaledChartWidth = (chartWidth / VIEWBOX_WIDTH) * rect.width;
+    const scaledChartWidth = (chartWidth / viewBoxWidth) * rect.width;
     return Math.round(((clientX - startClientX) / scaledChartWidth) * spanDays);
   };
 
@@ -234,7 +343,7 @@ const GanttInteractivePreview = ({
     event.preventDefault();
     event.stopPropagation();
     (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
-    onSelect(layout.index);
+    onSelect({ type: "task", index: layout.index });
     dragRef.current = {
       index: layout.index,
       pointerId: event.pointerId,
@@ -246,18 +355,103 @@ const GanttInteractivePreview = ({
     };
   };
 
+  // Dependency link drag (goal 5): grab the link handle on a bar's right edge.
+  const startLinkDrag = (layout: TaskLayout) => (event: ReactPointerEvent<SVGElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
+    linkDragRef.current = { sourceIndex: layout.index, pointerId: event.pointerId };
+    const fromX = xForDate(layout.end);
+    const fromY = yForRow(layout.row) + 4 + BAR_HEIGHT / 2;
+    setLinkCursor({ x: fromX, y: fromY, fromX, fromY });
+  };
+
+  // Viewport edge zoom drag (goal 4): SESSION-ONLY.
+  const startEdgeDrag = (side: "left" | "right") => (event: ReactPointerEvent<SVGElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
+    edgeDragRef.current = { pointerId: event.pointerId, side, clientX: event.clientX, min, max };
+  };
+
   const finishDrag = (event: ReactPointerEvent<SVGSVGElement>) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (rowDragRef.current && rowDragRef.current.pointerId === event.pointerId) {
+      rowDragRef.current = null;
+      setPreviewDraggingIndex(null);
+    }
+    if (linkDragRef.current && linkDragRef.current.pointerId === event.pointerId) {
+      // Resolve drop target: a bar under the pointer.
+      const vb = clientToViewbox(event.clientX, event.clientY);
+      const source = linkDragRef.current.sourceIndex;
+      if (vb) {
+        const target = baseTimeline.tasks.find((t) => {
+          const y = yForRow(t.row);
+          return vb.y >= y && vb.y <= y + ROW_HEIGHT && t.index !== source;
+        });
+        if (target) onLinkAfter(source, target.index);
+      }
+      linkDragRef.current = null;
+      setLinkCursor(null);
+    }
+    if (dragRef.current && dragRef.current.pointerId === event.pointerId) dragRef.current = null;
+    if (edgeDragRef.current && edgeDragRef.current.pointerId === event.pointerId) edgeDragRef.current = null;
     try {
       (event.currentTarget as Element).releasePointerCapture?.(event.pointerId);
     } catch {
-      // Already released by the browser.
+      // already released
     }
-    dragRef.current = null;
+  };
+
+  const startRowDrag = (layout: TaskLayout) => (event: ReactPointerEvent<SVGElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
+    rowDragRef.current = { pointerId: event.pointerId, currentIndex: layout.index };
+    setPreviewDraggingIndex(layout.index);
+    onSelect({ type: "task", index: layout.index });
   };
 
   const onPointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const rowDrag = rowDragRef.current;
+    if (rowDrag && rowDrag.pointerId === event.pointerId) {
+      const vb = clientToViewbox(event.clientX, event.clientY);
+      if (!vb) return;
+      const target = baseTimeline.tasks.find((t) => {
+        const y = yForRow(t.row);
+        return vb.y >= y && vb.y <= y + ROW_HEIGHT;
+      });
+      if (target && target.index !== rowDrag.currentIndex) {
+        onReorderItem(rowDrag.currentIndex, target.index);
+        rowDrag.currentIndex = target.index;
+        setPreviewDraggingIndex(target.index);
+      }
+      return;
+    }
+
+    const link = linkDragRef.current;
+    if (link && link.pointerId === event.pointerId) {
+      const vb = clientToViewbox(event.clientX, event.clientY);
+      if (vb) setLinkCursor((prev) => (prev ? { ...prev, x: vb.x, y: vb.y } : prev));
+      return;
+    }
+
+    const edge = edgeDragRef.current;
+    if (edge && edge.pointerId === event.pointerId) {
+      const delta = daysDeltaForClient(event.clientX, edge.clientX);
+      if (delta === 0) return;
+      if (edge.side === "left") {
+        const nextMin = Math.min(addDays(edge.min, delta), addDays(edge.max, -2));
+        setViewport({ min: nextMin, max: edge.max });
+      } else {
+        const nextMax = Math.max(addDays(edge.max, delta), addDays(edge.min, 2));
+        setViewport({ min: edge.min, max: nextMax });
+      }
+      return;
+    }
+
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const delta = daysDeltaForClient(event.clientX, drag.clientX);
@@ -301,49 +495,173 @@ const GanttInteractivePreview = ({
     onAddTask(date ? formatDateUtc(date) : undefined);
   };
 
+  // Dependency lines (goal 5): each task whose start is `after <id>` draws a
+  // connector from the source task's end to this task's start.
+  const indexById = useMemo(() => {
+    const m = new Map<string, TaskLayout>();
+    baseTimeline.tasks.forEach((t) => {
+      if (t.task.id) m.set(t.task.id, t);
+    });
+    return m;
+  }, [baseTimeline.tasks]);
+
+  const deps = useMemo(() => {
+    const out: { fromX: number; fromY: number; toX: number; toY: number; targetIndex: number }[] = [];
+    baseTimeline.tasks.forEach((t) => {
+      const afterId = parseAfterReference(t.task.start);
+      if (!afterId) return;
+      const src = indexById.get(afterId);
+      if (!src) return;
+      out.push({
+        fromX: xForDate(src.end),
+        fromY: yForRow(src.row) + 4 + BAR_HEIGHT / 2,
+        toX: xForDate(t.start),
+        toY: yForRow(t.row) + 4 + BAR_HEIGHT / 2,
+        targetIndex: t.index,
+      });
+    });
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseTimeline.tasks, indexById, min, max, chartWidth]);
+
   return (
-    <div className="mge-gantt-preview">
+    <div className="mge-gantt-preview" ref={wrapRef}>
       <div className="mge-gantt-preview-tools">
         <span>{ir.title || "Gantt chart"}</span>
-        <button className="mge-gantt-preview-btn" onClick={() => onAddTask()}>
-          + task
-        </button>
+        <div className="mge-gantt-preview-tool-group">
+          <select
+            className="mge-gantt-preview-field"
+            value={axisPreset}
+            onChange={(event) => onAxisPresetChange(event.target.value)}
+            title="axis"
+          >
+            {AXIS_PRESETS.map((p) => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
+            <option value="custom">カスタム</option>
+          </select>
+          <label className="mge-gantt-preview-check">
+            <input
+              type="checkbox"
+              checked={axisWeekday}
+              onChange={(event) => onAxisWeekdayChange(event.target.checked)}
+            />
+            曜日
+          </label>
+          <input
+            className="mge-gantt-preview-field mge-gantt-preview-axis-input"
+            value={ir.axisFormat ?? ""}
+            onChange={(event) => onAxisFormatChange(event.target.value)}
+            placeholder="%m/%d"
+            title="axisFormat"
+          />
+          {viewport ? (
+            <button className="mge-gantt-preview-btn" onClick={() => setViewport(null)}>
+              ズーム解除
+            </button>
+          ) : null}
+          <button className="mge-gantt-preview-btn" onClick={() => onAddTask()}>
+            + task
+          </button>
+        </div>
       </div>
       <svg
         ref={svgRef}
         className="mge-gantt-preview-svg"
-        viewBox={`0 0 ${VIEWBOX_WIDTH} ${height}`}
+        viewBox={`0 0 ${viewBoxWidth} ${height}`}
         preserveAspectRatio="xMinYMin meet"
         onPointerMove={onPointerMove}
         onPointerUp={finishDrag}
         onPointerCancel={finishDrag}
         onDoubleClick={onBackgroundDoubleClick}
       >
-        <rect x={0} y={0} width={VIEWBOX_WIDTH} height={height} className="mge-gantt-bg" />
-        <line x1={CHART_LEFT} y1={CHART_TOP - 14} x2={CHART_RIGHT} y2={CHART_TOP - 14} className="mge-gantt-axis" />
-        {timeline.ticks.map((tick) => {
+        <rect x={0} y={0} width={viewBoxWidth} height={height} className="mge-gantt-bg" />
+        <line x1={CHART_LEFT} y1={CHART_TOP - 14} x2={chartRight} y2={CHART_TOP - 14} className="mge-gantt-axis" />
+        {ticks.map((tick) => {
           const x = xForDate(tick);
           return (
             <g key={tick}>
               <line x1={x} y1={CHART_TOP - 16} x2={x} y2={height - 28} className="mge-gantt-grid-line" />
               <text x={x} y={CHART_TOP - 24} className="mge-gantt-tick" textAnchor="middle">
-                {formatDateUtc(tick).slice(5)}
+                {formatGanttAxisTick(tick, ir.axisFormat ?? "%m/%d")}
               </text>
             </g>
           );
         })}
 
-        {timeline.tasks.length === 0 ? (
-          <text x={VIEWBOX_WIDTH / 2} y={height / 2} className="mge-gantt-empty-preview" textAnchor="middle">
+        {/* Section name gutter (goal 3) */}
+        {baseTimeline.sectionSpans.map((span, i) => {
+          if (span.toRow < span.fromRow) return null;
+          const yTop = yForRow(span.fromRow);
+          const yMid = yForRow(span.fromRow) + ((span.toRow - span.fromRow + 1) * ROW_HEIGHT) / 2;
+          const yBot = yForRow(span.toRow) + ROW_HEIGHT;
+          return (
+            <g key={`sec-${i}`} className="mge-gantt-section-gutter">
+              <line x1={CHART_LEFT - 4} y1={yTop} x2={CHART_LEFT - 4} y2={yBot} className="mge-gantt-section-rule" />
+              <text x={16} y={yMid} className="mge-gantt-section-label" dominantBaseline="middle">
+                {span.title}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Viewport zoom edge handles (goal 4) */}
+        <rect
+          x={CHART_LEFT - EDGE_HANDLE_W}
+          y={CHART_TOP - 16}
+          width={EDGE_HANDLE_W}
+          height={height - CHART_TOP - 12}
+          className="mge-gantt-edge-handle"
+          onPointerDown={startEdgeDrag("left")}
+        />
+        <rect
+          x={chartRight}
+          y={CHART_TOP - 16}
+          width={EDGE_HANDLE_W}
+          height={height - CHART_TOP - 12}
+          className="mge-gantt-edge-handle"
+          onPointerDown={startEdgeDrag("right")}
+        />
+
+        {/* Dependency connectors (goal 5) */}
+        {deps.map((dep, i) => {
+          const isSel = selection?.type === "dep" && selection.index === dep.targetIndex;
+          return (
+            <line
+              key={`dep-${i}`}
+              x1={dep.fromX}
+              y1={dep.fromY}
+              x2={dep.toX}
+              y2={dep.toY}
+              className={`mge-gantt-dep ${isSel ? "selected" : ""}`}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                onSelect({ type: "dep", index: dep.targetIndex });
+              }}
+            />
+          );
+        })}
+        {linkCursor ? (
+          <line
+            x1={linkCursor.fromX}
+            y1={linkCursor.fromY}
+            x2={linkCursor.x}
+            y2={linkCursor.y}
+            className="mge-gantt-dep dragging"
+          />
+        ) : null}
+
+        {baseTimeline.tasks.length === 0 ? (
+          <text x={viewBoxWidth / 2} y={height / 2} className="mge-gantt-empty-preview" textAnchor="middle">
             + task で追加、または空白をダブルクリック
           </text>
         ) : null}
 
-        {timeline.tasks.map((layout) => {
+        {baseTimeline.tasks.map((layout) => {
           const x = xForDate(layout.start);
           const w = Math.max(8, xForDate(layout.end) - x);
-          const y = CHART_TOP + layout.row * ROW_HEIGHT;
-          const selected = selectedIndex === layout.index;
+          const y = yForRow(layout.row);
+          const selected = selection?.type === "task" && selection.index === layout.index;
           const editing = editingIndex === layout.index;
           const colorClass = taskColorClass(layout.task);
           const isMilestone = layout.task.modifiers.includes("milestone");
@@ -351,17 +669,33 @@ const GanttInteractivePreview = ({
           return (
             <g
               key={layout.index}
-              className={`mge-gantt-task ${selected ? "selected" : ""} ${colorClass}`}
+              className={`mge-gantt-task ${selected ? "selected" : ""} ${previewDraggingIndex === layout.index ? "dragging" : ""} ${colorClass}`}
               onPointerDown={startDrag(layout, "move")}
               onDoubleClick={(event) => {
                 event.stopPropagation();
                 setEditingIndex(layout.index);
-                onSelect(layout.index);
+                onSelect({ type: "task", index: layout.index });
               }}
             >
-              <text x={10} y={y + 15} className="mge-gantt-row-label">
-                {layout.task.label || "(untitled)"}
-              </text>
+              <g className="mge-gantt-row-handle-group" onPointerDown={startRowDrag(layout)}>
+                <rect
+                  x={CHART_LEFT - 44}
+                  y={y + 1}
+                  width={34}
+                  height={BAR_HEIGHT + 8}
+                  rx={6}
+                  className="mge-gantt-row-handle"
+                />
+                {[0, 1, 2].map((dot) => (
+                  <g key={dot}>
+                    <circle cx={CHART_LEFT - 38} cy={y + 7 + dot * 5} r={1.1} className="mge-gantt-row-grip-dot" />
+                    <circle cx={CHART_LEFT - 34} cy={y + 7 + dot * 5} r={1.1} className="mge-gantt-row-grip-dot" />
+                  </g>
+                ))}
+                <text x={CHART_LEFT - 20} y={y + 17} className="mge-gantt-row-handle-label" textAnchor="middle">
+                  {layout.task.id || "id"}
+                </text>
+              </g>
               {isMilestone ? (
                 <rect
                   x={x}
@@ -398,8 +732,16 @@ const GanttInteractivePreview = ({
                 className="mge-gantt-resize-hit"
                 onPointerDown={startDrag(layout, "resize-end")}
               />
+              {/* Link handle (goal 5): drag to another bar to set `after`. */}
+              <circle
+                cx={x + w + 6}
+                cy={y + 4 + BAR_HEIGHT / 2}
+                r={4}
+                className="mge-gantt-link-handle"
+                onPointerDown={startLinkDrag(layout)}
+              />
               {editing ? (
-                <foreignObject x={Math.min(x + 8, CHART_RIGHT - 210)} y={y - 1} width={206} height={28}>
+                <foreignObject x={Math.min(x + 8, chartRight - 210)} y={y - 1} width={206} height={28}>
                   <input
                     className="mge-gantt-inline-input"
                     value={layout.task.label}
@@ -416,7 +758,7 @@ const GanttInteractivePreview = ({
                   />
                 </foreignObject>
               ) : (
-                <text x={x + w + 8} y={y + 17} className="mge-gantt-bar-label">
+                <text x={x + w + 14} y={y + 17} className="mge-gantt-bar-label">
                   {layout.task.id ? `${layout.task.label} (${layout.task.id})` : layout.task.label}
                 </text>
               )}
@@ -425,7 +767,7 @@ const GanttInteractivePreview = ({
         })}
       </svg>
       <p className="mge-gantt-preview-help">
-        バーをドラッグして移動。左右端で期間変更。ダブルクリックでタスク名編集。
+        バーをドラッグして移動・左右端で期間変更・右端の○から別バーへドラッグで依存。端のハンドルで表示範囲をズーム。選択して Delete で削除。
       </p>
     </div>
   );
@@ -434,9 +776,12 @@ const GanttInteractivePreview = ({
 export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
   const [ir, setIr] = useState<GanttIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [statusDrafts, setStatusDrafts] = useState<Record<number, string>>({});
+  const [selection, setSelection] = useState<Selection>(null);
+  // Table interaction mode (goal 7): navigation vs cell-edit, Excel-like.
+  const [editMode, setEditMode] = useState(false);
   const cellRefs = useRef(new Map<string, CellElement>());
+  const tableDragRef = useRef<{ pointerId: number; currentIndex: number } | null>(null);
+  const [tableDraggingIndex, setTableDraggingIndex] = useState<number | null>(null);
 
   const patchItem = useCallback((idx: number, patch: Partial<GanttItem>) => {
     setIr((prev) => ({
@@ -454,18 +799,62 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
     }));
   }, []);
 
-  const deleteItem = (idx: number) => {
+  const deleteItem = useCallback((idx: number) => {
     setIr((prev) => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }));
-    setStatusDrafts((prev) => {
-      const next: Record<number, string> = {};
-      Object.entries(prev).forEach(([key, value]) => {
-        const row = Number(key);
-        if (row < idx) next[row] = value;
-        else if (row > idx) next[row - 1] = value;
-      });
-      return next;
+    setSelection((prev) => {
+      if (prev === null) return null;
+      if (prev.index === idx) return null;
+      return prev.index > idx ? { ...prev, index: prev.index - 1 } : prev;
     });
-    setSelectedIndex((prev) => (prev === idx ? null : prev !== null && prev > idx ? prev - 1 : prev));
+  }, []);
+
+  const reorderItem = useCallback((from: number, to: number) => {
+    setIr((prev) => {
+      if (from === to || from < 0 || to < 0 || from >= prev.items.length || to >= prev.items.length) return prev;
+      const items = prev.items.slice();
+      const [item] = items.splice(from, 1);
+      items.splice(to, 0, item);
+      return { ...prev, items };
+    });
+    setSelection({ type: "task", index: to });
+  }, []);
+
+  const targetRowFromPoint = (clientX: number, clientY: number) => {
+    const el = document.elementFromPoint(clientX, clientY);
+    const row = el?.closest<HTMLElement>("[data-gantt-row]");
+    const index = row ? Number(row.dataset.ganttRow) : NaN;
+    return Number.isFinite(index) ? index : null;
+  };
+
+  const startTableRowDrag = (idx: number) => (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    tableDragRef.current = { pointerId: event.pointerId, currentIndex: idx };
+    setTableDraggingIndex(idx);
+    setSelection({ type: "task", index: idx });
+  };
+
+  const moveTableRowDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = tableDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const target = targetRowFromPoint(event.clientX, event.clientY);
+    if (target === null || target === drag.currentIndex) return;
+    reorderItem(drag.currentIndex, target);
+    drag.currentIndex = target;
+    setTableDraggingIndex(target);
+  };
+
+  const endTableRowDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!tableDragRef.current || tableDragRef.current.pointerId !== event.pointerId) return;
+    tableDragRef.current = null;
+    setTableDraggingIndex(null);
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // pointer capture may already be released
+    }
   };
 
   const addSection = () =>
@@ -477,7 +866,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
   const addTask = useCallback((start?: string) => {
     setIr((prev) => {
       const nextIndex = prev.items.length;
-      setSelectedIndex(nextIndex);
+      setSelection({ type: "task", index: nextIndex });
       return {
         ...prev,
         items: [
@@ -486,6 +875,50 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
         ],
       };
     });
+  }, []);
+
+  /** Ensure a task has an id; auto-assign t1/t2/… (goal 5). Returns the id. */
+  const ensureTaskId = useCallback((items: GanttItem[], idx: number): { items: GanttItem[]; id: string } => {
+    const item = items[idx];
+    if (item?.type !== "task") return { items, id: "" };
+    if (item.id) return { items, id: item.id };
+    const used = new Set(
+      items.filter((i): i is GanttTask => i.type === "task" && !!i.id).map((i) => i.id as string),
+    );
+    let n = 1;
+    while (used.has(`t${n}`)) n++;
+    const id = `t${n}`;
+    const next = items.map((it, i) => (i === idx ? { ...it, id } : it));
+    return { items: next, id };
+  }, []);
+
+  // Drag-link source bar onto target bar → set target.start = `after <srcId>`.
+  const linkAfter = useCallback(
+    (sourceIndex: number, targetIndex: number) => {
+      setIr((prev) => {
+        const { items: withSrcId, id } = ensureTaskId(prev.items, sourceIndex);
+        if (!id) return prev;
+        const items = withSrcId.map((it, i) =>
+          i === targetIndex && it.type === "task"
+            ? { ...it, start: `after ${id}` }
+            : it,
+        );
+        return { ...prev, items };
+      });
+      setSelection({ type: "task", index: targetIndex });
+    },
+    [ensureTaskId],
+  );
+
+  const clearDependency = useCallback((targetIndex: number) => {
+    setIr((prev) => ({
+      ...prev,
+      items: prev.items.map((it, i) =>
+        i === targetIndex && it.type === "task" && parseAfterReference(it.start)
+          ? { ...it, start: undefined }
+          : it,
+      ),
+    }));
   }, []);
 
   const setItemKind = (idx: number, kind: GanttItem["type"]) => {
@@ -530,8 +963,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
     const r = parseGantt(next);
     if (!r.ok) return { ok: false, error: r.message };
     setIr(r.ir);
-    setStatusDrafts({});
-    setSelectedIndex(null);
+    setSelection(null);
     return { ok: true };
   }, []);
 
@@ -544,6 +976,40 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       setSaving(false);
     }
   }, [saving, currentSource, onSave]);
+
+  // axisFormat decomposition for the settings UI (goals 1 & 2).
+  const axisFormat = ir.axisFormat ?? "%m/%d";
+  const { base: axisBase, weekday: axisWeekday } = splitWeekday(axisFormat);
+  const axisPreset = AXIS_PRESETS.find((p) => p.value === axisBase)?.value ?? "custom";
+
+  const setAxisFormat = useCallback((value: string) => {
+    setIr((prev) => ({ ...prev, axisFormat: value.trim() ? value : undefined }));
+  }, []);
+
+  const changeDateLikeCell = useCallback((row: number, column: GanttCellColumn, delta: number) => {
+    const item = ir.items[row];
+    if (item?.type !== "task") return false;
+    const key = column === "start" ? "start" : column === "end" ? "end" : null;
+    if (!key) return false;
+    const current = item[key];
+    const date = parseDateUtc(current);
+    if (date !== null) {
+      patchTask(row, { [key]: formatDateUtc(addDays(date, delta)) } as Partial<GanttTask>);
+      return true;
+    }
+    const duration = parseDurationDays(current);
+    if (key === "end" && duration !== null) {
+      patchTask(row, { end: `${Math.max(1, duration + delta)}d` });
+      return true;
+    }
+    if (!current && key === "start") {
+      patchTask(row, { start: formatDateUtc(addDays(Date.now(), delta)) });
+      return true;
+    }
+    return false;
+  }, [ir.items, patchTask]);
+
+  // ---- table cell focus / navigation -----------------------------------
 
   const cellKey = (row: number, column: GanttCellColumn) => `${row}:${column}`;
 
@@ -565,11 +1031,40 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
     }, 0);
   };
 
-  const onCellKeyDown = (row: number, colIndex: number) => (event: KeyboardEvent<CellElement>) => {
+  const onCellKeyDown = (row: number, colIndex: number, item: GanttItem) => (event: KeyboardEvent<CellElement>) => {
     const move = (nextRow: number, nextCol: number) => {
       event.preventDefault();
       focusCell(nextRow, nextCol);
     };
+
+    // F2 toggles navigation vs cell-edit mode (goal 7).
+    if (event.key === "F2") {
+      event.preventDefault();
+      setEditMode((m) => !m);
+      return;
+    }
+
+    // Alt+↑/↓ opens the active cell's lightweight editor. For select cells the
+    // browser dropdown receives focus; for date-like cells we increment/decrement.
+    if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown") && item.type === "task") {
+      event.preventDefault();
+      const delta = event.key === "ArrowDown" ? 1 : -1;
+      const column = COLUMNS[colIndex];
+      if (column === "modifiers") {
+        const cur = primaryStatus(item.modifiers);
+        const i = PRIMARY_STATUSES.indexOf(cur);
+        const nextPrimary = PRIMARY_STATUSES[(i + delta + PRIMARY_STATUSES.length) % PRIMARY_STATUSES.length];
+        patchTask(row, { modifiers: composeModifiers(nextPrimary, item.modifiers.includes("crit")) });
+      } else if (column === "start" || column === "end") {
+        changeDateLikeCell(row, column, delta);
+      } else {
+        (event.currentTarget as HTMLInputElement | HTMLSelectElement).click();
+      }
+      return;
+    }
+
+    // In edit mode, let ←/→ move the caret inside the input (do not navigate).
+    if (editMode && (event.key === "ArrowLeft" || event.key === "ArrowRight")) return;
 
     if (event.key === "Tab") {
       const delta = event.shiftKey ? -1 : 1;
@@ -590,6 +1085,22 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
     }
   };
 
+  // Delete/Backspace on a selected bar or dependency (goals 5 & 6). Bound at the
+  // shell root level; skipped while focus is in a text input/select.
+  const onPreviewKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== "Delete" && event.key !== "Backspace") return;
+      const target = event.target as HTMLElement;
+      const tag = target.tagName;
+      if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || target.isContentEditable) return;
+      if (!selection) return;
+      event.preventDefault();
+      if (selection.type === "task") deleteItem(selection.index);
+      else clearDependency(selection.index);
+    },
+    [selection, deleteItem, clearDependency],
+  );
+
   const renderTextCell = (item: GanttItem, idx: number) => {
     if (item.type === "section") {
       return (
@@ -597,8 +1108,8 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
           ref={registerCell(idx, "label")}
           className="mge-gantt-cell-input"
           value={item.title}
-          onFocus={() => setSelectedIndex(idx)}
-          onKeyDown={onCellKeyDown(idx, 1)}
+          onFocus={() => setSelection({ type: "task", index: idx })}
+          onKeyDown={onCellKeyDown(idx, 1, item)}
           onChange={(event) => patchItem(idx, { title: event.target.value })}
         />
       );
@@ -609,8 +1120,8 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
           ref={registerCell(idx, "label")}
           className="mge-gantt-cell-input mge-gantt-cell-mono"
           value={item.line}
-          onFocus={() => setSelectedIndex(idx)}
-          onKeyDown={onCellKeyDown(idx, 1)}
+          onFocus={() => setSelection({ type: "task", index: idx })}
+          onKeyDown={onCellKeyDown(idx, 1, item)}
           onChange={(event) => patchItem(idx, { line: event.target.value })}
         />
       );
@@ -620,8 +1131,8 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
         ref={registerCell(idx, "label")}
         className="mge-gantt-cell-input"
         value={item.label}
-        onFocus={() => setSelectedIndex(idx)}
-        onKeyDown={onCellKeyDown(idx, 1)}
+        onFocus={() => setSelection({ type: "task", index: idx })}
+        onKeyDown={onCellKeyDown(idx, 1, item)}
         onChange={(event) => patchTask(idx, { label: event.target.value })}
       />
     );
@@ -638,16 +1149,28 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       layout="stacked"
       sourceToggleLabel="ソースを表示"
       previewOverride={
-        <GanttInteractivePreview
-          ir={ir}
-          selectedIndex={selectedIndex}
-          onSelect={setSelectedIndex}
-          onPatchTask={patchTask}
-          onAddTask={addTask}
-        />
+        <div className="mge-gantt-preview-wrap" tabIndex={0} onKeyDown={onPreviewKeyDown}>
+          <GanttInteractivePreview
+            ir={ir}
+            axisPreset={axisPreset}
+            axisWeekday={axisWeekday}
+            selection={selection}
+            onSelect={setSelection}
+            onPatchTask={patchTask}
+            onAddTask={addTask}
+            onLinkAfter={linkAfter}
+            onAxisPresetChange={(value) => {
+              if (value === "custom") return;
+              setAxisFormat(composeAxisFormat(value, axisWeekday));
+            }}
+            onAxisWeekdayChange={(value) => setAxisFormat(composeAxisFormat(axisBase, value))}
+            onAxisFormatChange={setAxisFormat}
+            onReorderItem={reorderItem}
+          />
+        </div>
       }
     >
-      <div className="mge-gantt-editor">
+      <div className={`mge-gantt-editor ${editMode ? "mge-gantt-edit-mode" : ""}`}>
         <section className="mge-gantt-settings">
           <label>
             <span>title</span>
@@ -668,6 +1191,13 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
             />
           </label>
           <div className="mge-gantt-table-actions">
+            <button
+              className={`mge-gantt-action ${editMode ? "active" : ""}`}
+              onClick={() => setEditMode((m) => !m)}
+              title="F2 でも切替"
+            >
+              {editMode ? "編集モード" : "移動モード"}
+            </button>
             <button className="mge-gantt-action" onClick={addSection}>+ section</button>
             <button className="mge-gantt-action" onClick={() => addTask()}>+ task</button>
           </div>
@@ -675,6 +1205,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
 
         <section className="mge-gantt-grid-shell" aria-label="Gantt task table">
           <div className="mge-gantt-grid-header">
+            <span />
             <span>type</span>
             <span>label / section / raw</span>
             <span>id</span>
@@ -692,17 +1223,32 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
               "mge-gantt-grid-row",
               item.type === "section" ? "section" : "",
               item.type === "raw" ? "raw" : "",
-              selectedIndex === idx ? "selected" : "",
             ].filter(Boolean).join(" ");
 
             return (
-              <div key={idx} className={rowClass}>
+              <div
+                key={idx}
+                className={`${rowClass} ${tableDraggingIndex === idx ? "dragging" : ""}`}
+                data-gantt-row={idx}
+              >
+                <button
+                  className="mge-gantt-table-row-handle"
+                  type="button"
+                  aria-label="Reorder row"
+                  onPointerDown={startTableRowDrag(idx)}
+                  onPointerMove={moveTableRowDrag}
+                  onPointerUp={endTableRowDrag}
+                  onPointerCancel={endTableRowDrag}
+                  title="ドラッグして行を並べ替え"
+                >
+                  <span className="mge-gantt-table-grip" aria-hidden="true" />
+                </button>
                 <select
                   ref={registerCell(idx, "kind")}
                   className="mge-gantt-cell-select"
                   value={item.type}
-                  onFocus={() => setSelectedIndex(idx)}
-                  onKeyDown={onCellKeyDown(idx, 0)}
+                  onFocus={() => setSelection({ type: "task", index: idx })}
+                  onKeyDown={onCellKeyDown(idx, 0, item)}
                   onChange={(event) => setItemKind(idx, event.target.value as GanttItem["type"])}
                 >
                   <option value="task">task</option>
@@ -718,54 +1264,77 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
                   value={task?.id ?? ""}
                   readOnly={!task}
                   aria-disabled={!task}
-                  onFocus={() => setSelectedIndex(idx)}
-                  onKeyDown={onCellKeyDown(idx, 2)}
+                  onFocus={() => setSelection({ type: "task", index: idx })}
+                  onKeyDown={onCellKeyDown(idx, 2, item)}
                   onChange={(event) => patchTask(idx, { id: event.target.value || undefined })}
                   placeholder="id"
                 />
-                <input
-                  ref={registerCell(idx, "modifiers")}
-                  className="mge-gantt-cell-input"
-                  value={task ? statusDrafts[idx] ?? task.modifiers.join(", ") : ""}
-                  readOnly={!task}
-                  aria-disabled={!task}
-                  onFocus={() => setSelectedIndex(idx)}
-                  onKeyDown={onCellKeyDown(idx, 3)}
-                  onBlur={(event) => {
-                    if (!task) return;
-                    patchTask(idx, { modifiers: parseStatusInput(event.target.value) });
-                    setStatusDrafts((prev) => {
-                      const next = { ...prev };
-                      delete next[idx];
-                      return next;
-                    });
-                  }}
-                  onChange={(event) => {
-                    const next = event.target.value;
-                    setStatusDrafts((prev) => ({ ...prev, [idx]: next }));
-                    patchTask(idx, { modifiers: parseStatusInput(next) });
-                  }}
-                  placeholder="done, active"
-                />
+                {/* STATUS dropdown (goal 9): single primary + crit checkbox. */}
+                {task ? (
+                  <div className="mge-gantt-status-cell">
+                    <select
+                      ref={registerCell(idx, "modifiers")}
+                      className="mge-gantt-cell-select"
+                      value={primaryStatus(task.modifiers)}
+                      onFocus={() => setSelection({ type: "task", index: idx })}
+                      onKeyDown={onCellKeyDown(idx, 3, item)}
+                      onChange={(event) =>
+                        patchTask(idx, {
+                          modifiers: composeModifiers(
+                            event.target.value as PrimaryStatus,
+                            task.modifiers.includes("crit"),
+                          ),
+                        })
+                      }
+                    >
+                      <option value="">—</option>
+                      <option value="done">done</option>
+                      <option value="active">active</option>
+                      <option value="milestone">milestone</option>
+                    </select>
+                    <label className="mge-gantt-crit-toggle" title="crit と組み合わせ">
+                      <input
+                        type="checkbox"
+                        checked={task.modifiers.includes("crit")}
+                        onChange={(event) =>
+                          patchTask(idx, {
+                            modifiers: composeModifiers(primaryStatus(task.modifiers), event.target.checked),
+                          })
+                        }
+                      />
+                      crit
+                    </label>
+                  </div>
+                ) : (
+                  <input
+                    className="mge-gantt-cell-input"
+                    value=""
+                    readOnly
+                    aria-disabled
+                    tabIndex={-1}
+                  />
+                )}
                 <input
                   ref={registerCell(idx, "start")}
                   className="mge-gantt-cell-input"
+                  type={task && isDateToken(task.start) ? "date" : "text"}
                   value={task?.start ?? ""}
                   readOnly={!task}
                   aria-disabled={!task}
-                  onFocus={() => setSelectedIndex(idx)}
-                  onKeyDown={onCellKeyDown(idx, 4)}
+                  onFocus={() => setSelection({ type: "task", index: idx })}
+                  onKeyDown={onCellKeyDown(idx, 4, item)}
                   onChange={(event) => patchTask(idx, { start: event.target.value || undefined })}
                   placeholder="YYYY-MM-DD / after id"
                 />
                 <input
                   ref={registerCell(idx, "end")}
                   className="mge-gantt-cell-input"
+                  type={task && isDateToken(task.end) ? "date" : "text"}
                   value={task?.end ?? ""}
                   readOnly={!task}
                   aria-disabled={!task}
-                  onFocus={() => setSelectedIndex(idx)}
-                  onKeyDown={onCellKeyDown(idx, 5)}
+                  onFocus={() => setSelection({ type: "task", index: idx })}
+                  onKeyDown={onCellKeyDown(idx, 5, item)}
                   onChange={(event) => patchTask(idx, { end: event.target.value || undefined })}
                   placeholder="YYYY-MM-DD / 7d"
                 />

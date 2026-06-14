@@ -25,7 +25,7 @@
 - 既存 Web 版の IR・パーサ・ジェネレータ・Dagre レイアウトを共通ソースで再利用する。
 
 ### 非ゴール（初版）
-- Mermaid 全図種 GUI 対応（現在 flowchart / sequenceDiagram / classDiagram / stateDiagram / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta / gantt などが GUI 実装済み。Gantt は表形式エディタと操作可能 SVG プレビューを持つ。それ以外は `SourceOnlyEditor` でソース表示のみ。radar-beta は Obsidian 内蔵 Mermaid 非対応のためプレビュー描画なし）。
+- Mermaid 全図種 GUI 対応（現在 flowchart / sequenceDiagram / classDiagram / stateDiagram / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta / gantt / timeline / erDiagram / mindmap / journey / architecture-beta / block-beta / kanban が GUI 実装済み（20 種）。gantt は表形式エディタ + 操作可能 SVG プレビュー + axisFormat 編集。xychart は全幅の操作可能 SVG プレビュー + 縦向き Excel ライクテーブル。block-beta はインタラクティブグリッドプレビュー。kanban は全幅 DOM ドラッグボード。それ以外は `SourceOnlyEditor` でソース表示のみ。radar-beta は Obsidian 内蔵 Mermaid 非対応のためプレビュー描画なし）。
 - モバイル（Obsidian Mobile）対応。
 - Vault 横断検索や Dataview 連携。
 - 共同編集・コンフリクト解決（個人利用前提）。
@@ -153,7 +153,17 @@ mermaid-gui-obsidian/
 │   │   │   ├── sankey.ts
 │   │   │   ├── quadrant.ts
 │   │   │   ├── xychart.ts
-│   │   │   └── radar.ts
+│   │   │   ├── radar.ts
+│   │   │   ├── gantt.ts
+│   │   │   ├── timeline.ts
+│   │   │   ├── er.ts
+│   │   │   ├── mindmap.ts
+│   │   │   ├── treemap.ts
+│   │   │   ├── venn.ts
+│   │   │   ├── journey.ts
+│   │   │   ├── architecture.ts
+│   │   │   ├── block.ts
+│   │   │   └── kanban.ts
 │   │   ├── sequence/          # sequenceDiagram 固有ロジック
 │   │   │   ├── ir-types.ts
 │   │   │   ├── parser.ts
@@ -170,27 +180,47 @@ mermaid-gui-obsidian/
 │   │   ├── sankey/            # sankey-beta 固有ロジック
 │   │   ├── quadrant/          # quadrantChart 固有ロジック
 │   │   ├── xychart/           # xychart-beta 固有ロジック
-│   │   └── radar/             # radar-beta 固有ロジック
+│   │   ├── radar/             # radar-beta 固有ロジック
+│   │   ├── gantt/             # gantt 固有ロジック（GanttIR に axisFormat フィールドを含む）
+│   │   ├── timeline/          # timeline 固有ロジック
+│   │   ├── er/                # erDiagram 固有ロジック
+│   │   ├── mindmap/           # mindmap 固有ロジック
+│   │   ├── treemap/           # treemap-beta 固有ロジック
+│   │   ├── venn/              # venn-beta 固有ロジック
+│   │   ├── journey/           # journey 固有ロジック
+│   │   ├── architecture/      # architecture-beta 固有ロジック
+│   │   ├── block/             # block-beta 固有ロジック
+│   │   └── kanban/            # kanban 固有ロジック
 │   ├── ui/                    # React コンポーネント
 │   │   ├── MermaidEditor.tsx  # 図種に応じてエディタを切り替えるルートコンポーネント（空ソース時は DiagramKindPicker）
-│   │   ├── EditorShell.tsx    # 非 flowchart エディタ共通のシェル（toolbar / preview / code pane）
-│   │   ├── DiagramKindPicker.tsx  # 新規作成フローの図種選択 UI
+│   │   ├── EditorShell.tsx    # 非 flowchart エディタ共通のシェル（toolbar / Undo/Redo 履歴 / preview / code pane）
+│   │   ├── EditorActions.tsx  # Undo / Redo / SVG エクスポートボタン共通コンポーネント（Toolbar と EditorShell が共用）
+│   │   ├── EditorHostContext.tsx  # onExportSvg 等ホスト能力を context 経由で供給。MermaidEditor が EditorHostProvider でラップ
+│   │   ├── DiagramKindPicker.tsx  # 新規作成フローの図種選択 UI（Favorites / Available / Under Construction グループ）
 │   │   ├── FlowchartEditor.tsx
 │   │   ├── SourceOnlyEditor.tsx  # GUI 未対応図種のフォールバック
 │   │   ├── EditorContext.tsx
 │   │   ├── adapter.ts         # IR ↔ ReactFlow ブリッジ（flowchart 用）
 │   │   ├── keyboard.ts
 │   │   ├── canvas/
-│   │   ├── panels/
-│   │   ├── toolbar/
+│   │   ├── panels/            # Palette.tsx（Direction / Subgraph / Auto-layout を上部に配置）
+│   │   ├── toolbar/           # Toolbar.tsx（flowchart 用、Undo/Redo/Export/Save/Cancel のみ）
 │   │   ├── sequence/          # SequenceEditor.tsx
 │   │   ├── class/             # ClassEditor.tsx
 │   │   ├── state/             # StateEditor.tsx
 │   │   ├── pie/               # PieEditor.tsx
 │   │   ├── sankey/            # SankeyEditor.tsx
 │   │   ├── quadrant/          # QuadrantEditor.tsx + QuadrantInteractivePreview.tsx
-│   │   ├── xychart/           # XYChartEditor.tsx
-│   │   └── radar/             # RadarEditor.tsx
+│   │   ├── xychart/           # XYChartEditor.tsx（操作可能 SVG プレビュー、縦向き Excel ライクテーブル、TSV ペースト対応）
+│   │   ├── radar/             # RadarEditor.tsx
+│   │   ├── gantt/             # GanttEditor.tsx（axisFormat、依存線 DnD、Delete、Excel 風キーナビ）
+│   │   ├── timeline/          # TimelineEditor.tsx
+│   │   ├── er/                # ERDiagramEditor.tsx
+│   │   ├── mindmap/           # MindmapEditor.tsx
+│   │   ├── journey/           # JourneyEditor.tsx
+│   │   ├── architecture/      # ArchitectureEditor.tsx
+│   │   ├── block/             # BlockEditor.tsx + BlockInteractivePreview.tsx（DnD グリッド）
+│   │   └── kanban/            # KanbanEditor.tsx + KanbanInteractivePreview.tsx（DOM ドラッグボード）
 │   └── obsidian/              # Obsidian 固有レイヤ
 │       ├── EditorModal.ts        # Modal 生成 + toolbar ドラッグ + 四隅リサイズハンドル
 │       ├── ReactHost.tsx        # createRoot / unmount ライフサイクル管理
@@ -225,7 +255,10 @@ mermaid-gui-obsidian/
 - 同一ノート内のブロック間でショートカット・選択状態が混線しないよう、キーボードイベントは**フォーカスのある root に閉じ込める**（document-level listener を避ける）。
 - Modal 起動中はその Modal の store のみ active。背後の Reading view 上の他ブロックは静的プレビューのまま。
 - Modal は toolbar ドラッグで移動、四隅のカスタムハンドル（`mge-resize-handle-{nw,ne,sw,se}`）で拡縮できる。左/上辺ドラッグ時は `left`/`top` も同時更新し反対側を基準に固定する。クランプは最小 540×360、最大 98vw×96vh。CSS の `resize: both` は撤去し、grippers は `EditorModal.onOpen` で生成し `onClose` で破棄する。
-- `EditorShell` の右ペインに同居する Mermaid ソースは `onSourceEdit` callback の有無で編集可否が決まる。非 flowchart の各エディタは callback を渡し、毎キーストロークで `parse<Kind>` を再実行 → IR に反映 → 失敗時はインライン error バッジで通知（IR は据え置き）。ユーザー入力中は draft を保持し、blur で IR から再生成された canonical 形へスナップする。class / state など `rawItems` 経由で round-trip しているエディタは当該配列を `useState` 管理して再 parse 結果を反映する。Gantt は `previewOverride` で操作可能 SVG を表示し、バー移動・リサイズ・ラベル編集・タスク追加を IR に直接反映する。flowchart は `src/ui/panels/TextPane.tsx` 経由（store の `setText` / `commitText` を blur or debounce で commit）。
+- `EditorShell` の右ペインに同居する Mermaid ソースは `onSourceEdit` callback の有無で編集可否が決まる。非 flowchart の各エディタは callback を渡し、毎キーストロークで `parse<Kind>` を再実行 → IR に反映 → 失敗時はインライン error バッジで通知（IR は据え置き）。ユーザー入力中は draft を保持し、blur で IR から再生成された canonical 形へスナップする。class / state など `rawItems` 経由で round-trip しているエディタは当該配列を `useState` 管理して再 parse 結果を反映する。Gantt は `previewOverride` で操作可能 SVG を全幅表示し、バー移動・リサイズ・ラベル編集・行並べ替え・タスク追加・依存線 DnD・axisFormat 編集を IR に直接反映する。xychart は `previewOverride` で全幅の操作可能 SVG を表示し、カテゴリ名・系列値の直接編集、棒ドラッグ、縦向き Excel ライクテーブル、TSV ペーストに対応する。block-beta は `BlockInteractivePreview` でブロックを DnD 並び替え・スパン変更・Delete 削除できるグリッドプレビューを `previewOverride` で差し込む。kanban は `KanbanInteractivePreview` で全幅 DOM ドラッグボード（カードをカラム間移動、カラム/カード追加・削除・編集）を提供する。flowchart は `src/ui/panels/TextPane.tsx` 経由（store の `setText` / `commitText` を blur or debounce で commit）。Direction / Subgraph / Auto-layout ボタンは `Palette` の上部へ移動し、`Toolbar` は Undo/Redo/Export/Save/Cancel のみ保持する。
+- **共通 Undo/Redo/Export**: `src/ui/EditorActions.tsx` が Undo / Redo / SVG エクスポートボタンを提供し、`Toolbar`（flowchart、store-backed undo）と `EditorShell`（Mermaid ソース文字列スタック、`Ctrl+Z` / `Ctrl+Y` / `Ctrl+Shift+Z`）の両方が共用する。全エディタで統一した Undo/Redo + SVG エクスポート操作が使える。
+- **ホスト能力の注入**: `src/ui/EditorHostContext.tsx` の `EditorHostProvider` が `onExportSvg` 等のホスト能力を React context 経由で全エディタに供給する。`MermaidEditor` が最上位でラップするため、prop drilling が不要になる。
+- **SVG エクスポートのファイル名タイムスタンプ**は `Asia/Tokyo`（JST）で生成される（`src/obsidian/svgExport.ts`）。
 
 ### 6.4 IO レイヤ
 
@@ -306,6 +339,11 @@ mermaid-gui-obsidian/
 | v0.1 (MVP) | §7.1 全項目（flowchart GUI 実装済み） | 完了 |
 | v0.1.x | sequenceDiagram / classDiagram / stateDiagram GUI（Phase 4–5） | 完了 |
 | v0.1.x | pie / sankey-beta / quadrantChart / xychart-beta / radar-beta GUI（Phase 6） | 完了 |
+| v0.1.x | gantt / timeline GUI（Phase 7） | 完了 |
+| v0.1.x | erDiagram / mindmap / treemap-beta / venn-beta GUI（Phase 8） | 完了 |
+| v0.1.x | journey GUI（Phase 9） | 完了 |
+| v0.1.x | architecture-beta / block-beta GUI（Phase 10） | 完了 |
+| v0.1.x | kanban GUI・共通 Undo/Redo/Export・EditorHostContext・xychart テーブル・block DnD・gantt axisFormat・flowchart サブグラフリサイズ | 完了 |
 | v0.2 | §7.2（専用ビュー・wikilink・選択→図化） | 未着手 |
 | v0.3 | テーマ／i18n／パフォーマンス調整 | 未着手 |
 | v1.0 | Live Preview インライン GUI | 別企画 |
