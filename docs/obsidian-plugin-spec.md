@@ -219,7 +219,7 @@ mermaid-gui-obsidian/
 │   │   ├── mindmap/           # MindmapEditor.tsx
 │   │   ├── journey/           # JourneyEditor.tsx
 │   │   ├── architecture/      # ArchitectureEditor.tsx
-│   │   ├── block/             # BlockEditor.tsx + BlockInteractivePreview.tsx（DnD グリッド）
+│   │   ├── block/             # BlockEditor.tsx
 │   │   └── kanban/            # KanbanEditor.tsx + KanbanInteractivePreview.tsx（DOM ドラッグボード）
 │   └── obsidian/              # Obsidian 固有レイヤ
 │       ├── EditorModal.ts        # Modal 生成 + toolbar ドラッグ + 四隅リサイズハンドル
@@ -255,7 +255,7 @@ mermaid-gui-obsidian/
 - 同一ノート内のブロック間でショートカット・選択状態が混線しないよう、キーボードイベントは**フォーカスのある root に閉じ込める**（document-level listener を避ける）。
 - Modal 起動中はその Modal の store のみ active。背後の Reading view 上の他ブロックは静的プレビューのまま。
 - Modal は toolbar ドラッグで移動、四隅のカスタムハンドル（`mge-resize-handle-{nw,ne,sw,se}`）で拡縮できる。左/上辺ドラッグ時は `left`/`top` も同時更新し反対側を基準に固定する。クランプは最小 540×360、最大 98vw×96vh。CSS の `resize: both` は撤去し、grippers は `EditorModal.onOpen` で生成し `onClose` で破棄する。
-- `EditorShell` の右ペインに同居する Mermaid ソースは `onSourceEdit` callback の有無で編集可否が決まる。非 flowchart の各エディタは callback を渡し、毎キーストロークで `parse<Kind>` を再実行 → IR に反映 → 失敗時はインライン error バッジで通知（IR は据え置き）。ユーザー入力中は draft を保持し、blur で IR から再生成された canonical 形へスナップする。class / state など `rawItems` 経由で round-trip しているエディタは当該配列を `useState` 管理して再 parse 結果を反映する。Gantt は `previewOverride` で操作可能 SVG を全幅表示し、バー移動・リサイズ・ラベル編集・行並べ替え・タスク追加・依存線 DnD・axisFormat 編集を IR に直接反映する。xychart は `previewOverride` で全幅の操作可能 SVG を表示し、カテゴリ名・系列値の直接編集、棒ドラッグ、縦向き Excel ライクテーブル、TSV ペーストに対応する。block-beta は `BlockInteractivePreview` でブロックを DnD 並び替え・スパン変更・Delete 削除できるグリッドプレビューを `previewOverride` で差し込む。kanban は `KanbanInteractivePreview` で全幅 DOM ドラッグボード（カードをカラム間移動、カラム/カード追加・削除・編集）を提供する。flowchart は `src/ui/panels/TextPane.tsx` 経由（store の `setText` / `commitText` を blur or debounce で commit）。Direction / Subgraph / Auto-layout ボタンは `Palette` の上部へ移動し、`Toolbar` は Undo/Redo/Export/Save/Cancel のみ保持する。
+- `EditorShell` の右ペインに同居する Mermaid ソースは `onSourceEdit` callback の有無で編集可否が決まる。非 flowchart の各エディタは callback を渡し、毎キーストロークで `parse<Kind>` を再実行 → IR に反映 → 失敗時はインライン error バッジで通知（IR は据え置き）。ユーザー入力中は draft を保持し、blur で IR から再生成された canonical 形へスナップする。class / state など `rawItems` 経由で round-trip しているエディタは当該配列を `useState` 管理して再 parse 結果を反映する。Gantt は `previewOverride` で操作可能 SVG を全幅表示し、バー移動・リサイズ・ラベル編集・行並べ替え・タスク追加・依存線 DnD・axisFormat 編集を IR に直接反映する。xychart は `previewOverride` で全幅の操作可能 SVG を表示し、カテゴリ名・系列値の直接編集、棒ドラッグ、縦向き Excel ライクテーブル、TSV ペーストに対応する。block-beta はフォーム中心の `BlockEditor` で items を編集する。kanban は `KanbanInteractivePreview` で全幅 DOM ドラッグボード（カードをカラム間移動、カラム/カード追加・削除・編集）を提供する。flowchart は `src/ui/panels/TextPane.tsx` 経由（store の `setText` / `commitText` を blur or debounce で commit）。Direction / Subgraph / Auto-layout ボタンは `Palette` の上部へ移動し、`Toolbar` は Undo/Redo/Export/Save/Cancel のみ保持する。
 - **共通 Undo/Redo/Export**: `src/ui/EditorActions.tsx` が Undo / Redo / SVG エクスポートボタンを提供し、`Toolbar`（flowchart、store-backed undo）と `EditorShell`（Mermaid ソース文字列スタック、`Ctrl+Z` / `Ctrl+Y` / `Ctrl+Shift+Z`）の両方が共用する。全エディタで統一した Undo/Redo + SVG エクスポート操作が使える。
 - **ホスト能力の注入**: `src/ui/EditorHostContext.tsx` の `EditorHostProvider` が `onExportSvg` 等のホスト能力を React context 経由で全エディタに供給する。`MermaidEditor` が最上位でラップするため、prop drilling が不要になる。
 - **SVG エクスポートのファイル名タイムスタンプ**は `Asia/Tokyo`（JST）で生成される（`src/obsidian/svgExport.ts`）。

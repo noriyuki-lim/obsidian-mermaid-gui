@@ -187,8 +187,7 @@ mermaid-gui-obsidian/
 │   │   ├── architecture/
 │   │   │   └── ArchitectureEditor.tsx
 │   │   ├── block/
-│   │   │   ├── BlockEditor.tsx
-│   │   │   └── BlockInteractivePreview.tsx  ← ブロックを DnD で並び替え・ハンドルでスパン変更・Delete 削除できるグリッドプレビュー
+│   │   │   └── BlockEditor.tsx
 │   │   └── kanban/
 │   │       ├── KanbanEditor.tsx             ← kanban 専用エディタ（EditorShell + previewOverride）
 │   │       └── KanbanInteractivePreview.tsx ← DOM ベースドラッグボード（カードをカラム間移動、カラム / カード追加・削除・編集）
