@@ -17,6 +17,7 @@ import "@xyflow/react/dist/style.css";
 import { useEditorStore, useEditorStoreApi } from "../EditorContext";
 import { ShapeNode } from "./ShapeNode";
 import { SubgraphNode } from "./SubgraphNode";
+import { FlowchartCanvasControls } from "./FlowchartCanvasControls";
 import type { NodeShape } from "../../core/ir-types";
 import {
   irToFlow,
@@ -395,6 +396,7 @@ export const FlowCanvas = () => {
         snapGrid={[10, 10]}
         deleteKeyCode={null}
       >
+        <FlowchartCanvasControls />
         <Background gap={16} />
         <MiniMap pannable zoomable />
         <Controls />

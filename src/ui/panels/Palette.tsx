@@ -1,5 +1,5 @@
 import { PALETTE_SHAPES, SHAPE_BY_KEY } from "../../core/shapes";
-import type { Direction, NodeShape } from "../../core/ir-types";
+import type { NodeShape } from "../../core/ir-types";
 import { useEditorStore } from "../EditorContext";
 
 const PreviewIcon = ({ shape }: { shape: NodeShape }) => {
@@ -89,10 +89,6 @@ const PreviewIcon = ({ shape }: { shape: NodeShape }) => {
 
 export const Palette = () => {
   const addNode = useEditorStore((s) => s.addNode);
-  const direction = useEditorStore((s) => s.ir.direction);
-  const setDirection = useEditorStore((s) => s.setDirection);
-  const autoLayout = useEditorStore((s) => s.autoLayout);
-  const addSubgraph = useEditorStore((s) => s.addSubgraph);
 
   const onDragStart = (shape: NodeShape) => (e: React.DragEvent) => {
     e.dataTransfer.setData("application/x-mermaid-shape", shape);
@@ -101,26 +97,6 @@ export const Palette = () => {
 
   return (
     <aside className="mge-palette">
-      <div className="mge-palette-controls">
-        <label htmlFor="mge-dir">Direction</label>
-        <select
-          id="mge-dir"
-          value={direction}
-          onChange={(e) => setDirection(e.target.value as Direction)}
-        >
-          <option value="TD">Top-Down</option>
-          <option value="LR">Left-Right</option>
-          <option value="BT">Bottom-Top</option>
-          <option value="RL">Right-Left</option>
-        </select>
-        <button onClick={() => addSubgraph()} title="Wrap selected nodes in a new subgraph">
-          Subgraph
-        </button>
-        <button onClick={autoLayout} title="Auto-layout via Dagre">
-          Auto-layout
-        </button>
-      </div>
-
       <h3>Shapes</h3>
       {PALETTE_SHAPES.map((s) => (
         <div
