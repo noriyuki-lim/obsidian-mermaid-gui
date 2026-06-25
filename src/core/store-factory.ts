@@ -25,6 +25,8 @@ export interface Selection {
   subgraphIds: string[];
 }
 
+export type EditorEdgeType = "smoothstep" | "bezier";
+
 /* IR projections — kept as plain shapes here; UI wraps them into ReactFlow nodes. */
 export interface FlowProjection {
   nodes: MermaidIR["nodes"];
@@ -43,6 +45,7 @@ export interface EditorState {
   isTextDirty: boolean;
   /* selection */
   selection: Selection;
+  editorEdgeType: EditorEdgeType;
   /* history */
   past: MermaidIR[];
   future: MermaidIR[];
@@ -52,6 +55,7 @@ export interface EditorState {
   commitText: () => void;
   applyIR: (ir: MermaidIR, opts?: { layout?: boolean; recordHistory?: boolean }) => void;
   setDirection: (d: Direction) => void;
+  setEditorEdgeType: (edgeType: EditorEdgeType) => void;
   addNode: (shape: NodeShape, label?: string) => string;
   updateNode: (id: string, patch: Partial<IRNode>, opts?: { recordHistory?: boolean }) => void;
   updateSubgraph: (
@@ -237,6 +241,7 @@ export const createEditorStore = (): EditorStoreApi =>
       warnings: [],
       isTextDirty: false,
       selection: { nodeIds: [], edgeIds: [], subgraphIds: [] },
+      editorEdgeType: "bezier",
       past: [],
       future: [],
 
@@ -262,6 +267,8 @@ export const createEditorStore = (): EditorStoreApi =>
         const cur = get().ir;
         commit({ ...cloneIR(cur), direction: d }, { layout: true });
       },
+
+      setEditorEdgeType: (edgeType) => set({ editorEdgeType: edgeType }),
 
       addNode: (shape, label) => {
         if (!ensureTextCommitted()) return "";

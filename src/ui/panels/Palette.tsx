@@ -1,5 +1,5 @@
 import { PALETTE_SHAPES, SHAPE_BY_KEY } from "../../core/shapes";
-import type { NodeShape } from "../../core/ir-types";
+import type { Direction, NodeShape } from "../../core/ir-types";
 import { useEditorStore } from "../EditorContext";
 
 const PreviewIcon = ({ shape }: { shape: NodeShape }) => {
@@ -89,6 +89,9 @@ const PreviewIcon = ({ shape }: { shape: NodeShape }) => {
 
 export const Palette = () => {
   const addNode = useEditorStore((s) => s.addNode);
+  const direction = useEditorStore((s) => s.ir.direction);
+  const setDirection = useEditorStore((s) => s.setDirection);
+  const addSubgraph = useEditorStore((s) => s.addSubgraph);
 
   const onDragStart = (shape: NodeShape) => (e: React.DragEvent) => {
     e.dataTransfer.setData("application/x-mermaid-shape", shape);
@@ -97,6 +100,36 @@ export const Palette = () => {
 
   return (
     <aside className="mge-palette">
+      <section className="mge-palette-controls" aria-label="Flowchart structure controls">
+        <div className="mge-palette-control">
+          <h3>Direction</h3>
+          <select
+            id="mge-flow-dir"
+            className="mge-palette-select"
+            aria-label="Flowchart direction"
+            value={direction}
+            onChange={(e) => setDirection(e.target.value as Direction)}
+          >
+            <option value="TD">Top-Down</option>
+            <option value="LR">Left-Right</option>
+            <option value="BT">Bottom-Top</option>
+            <option value="RL">Right-Left</option>
+          </select>
+        </div>
+
+        <div className="mge-palette-control">
+          <h3>Subgraph</h3>
+          <button
+            type="button"
+            className="mge-palette-action"
+            onClick={() => addSubgraph()}
+            title="Wrap selected nodes in a new subgraph"
+          >
+            + Subgraph
+          </button>
+        </div>
+      </section>
+
       <h3>Shapes</h3>
       {PALETTE_SHAPES.map((s) => (
         <div

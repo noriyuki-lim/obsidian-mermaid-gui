@@ -11,8 +11,8 @@ interface Props {
 /**
  * Toolbar for the Modal-hosted flowchart editor. Only diagram-agnostic actions
  * live here — Undo / Redo / Export (shared `EditorActions`, matching every
- * other editor's common bar) plus Save / Cancel. Flowchart-specific controls
- * (Direction / Subgraph / Auto-layout) live in the canvas overlay.
+ * other editor's common bar) plus Save / Cancel. Flowchart structure controls
+ * (Direction / Subgraph) live in the palette; Auto-layout stays on the canvas.
  */
 export const Toolbar = ({ onSave, onCancel, onExportSvg, saving }: Props) => {
   const undo = useEditorStore((s) => s.undo);

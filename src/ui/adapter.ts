@@ -10,6 +10,7 @@ import type {
   SubgraphFrames,
 } from "../core/ir-types";
 import { NODE_SIZE } from "../core/dagre";
+import type { EditorEdgeType } from "../core/store-factory";
 
 /* Bridge between IR and ReactFlow's node/edge model. */
 
@@ -157,6 +158,7 @@ const computeSubgraphBboxes = (
 export const irToFlow = (
   ir: MermaidIR,
   positions: Positions,
+  edgeType: EditorEdgeType = "bezier",
 ): { nodes: FlowNode[]; edges: FlowEdge[] } => {
   const bboxes = computeSubgraphBboxes(ir.nodes, ir.subgraphs, positions, ir.subgraphFrames);
 
@@ -208,7 +210,7 @@ export const irToFlow = (
     sourceHandle: e.sourceHandle ?? handlePairForDirection(ir.direction).sourceHandle,
     targetHandle: e.targetHandle ?? handlePairForDirection(ir.direction).targetHandle,
     label: e.label,
-    type: "smoothstep",
+    type: edgeType,
     animated: e.style === "dotted",
     style: {
       strokeWidth: e.style === "thick" ? 3 : 1.5,

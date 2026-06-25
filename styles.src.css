@@ -135,6 +135,34 @@ body.mge-dragging .mge-toolbar { cursor: grabbing !important; }
   color: var(--mge-text-muted);
   margin: 0 0 8px;
 }
+.mge-palette-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--mge-border);
+}
+.mge-palette-control {
+  display: flex;
+  flex-direction: column;
+}
+.mge-palette-select,
+.mge-palette-action {
+  width: 100%;
+  min-height: 30px;
+  border: 1px solid var(--mge-border);
+  border-radius: 4px;
+  background: var(--mge-surface);
+  color: var(--mge-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+.mge-palette-select:hover,
+.mge-palette-action:hover {
+  border-color: var(--mge-border-strong);
+  background: var(--mge-surface-alt);
+}
 .mge-palette-item {
   display: flex;
   align-items: center;
@@ -168,35 +196,56 @@ body.mge-dragging .mge-toolbar { cursor: grabbing !important; }
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 136px;
   margin: 12px;
-  padding: 8px;
-  border: 1px solid var(--mge-border);
-  border-radius: var(--mge-radius);
-  background: color-mix(in srgb, var(--mge-surface) 94%, transparent);
-  box-shadow: var(--mge-shadow-sm);
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
   pointer-events: auto;
 }
-.mge-canvas .mge-flow-canvas-controls label {
-  font-size: 11px;
-  line-height: 1;
-  color: var(--mge-text-muted);
+.mge-canvas .react-flow__controls-button {
+  background: var(--mge-surface-alt);
+  color: var(--mge-text);
 }
-.mge-canvas .mge-flow-canvas-controls select,
-.mge-canvas .mge-flow-canvas-controls button {
-  width: 100%;
-  min-height: 30px;
-  border: 1px solid var(--mge-border);
-  border-radius: 4px;
-  background: var(--mge-surface);
+.mge-canvas .react-flow__controls-button:hover {
+  background: color-mix(in srgb, var(--mge-surface-alt) 86%, var(--mge-text) 14%);
+  color: var(--mge-text);
+}
+.mge-canvas .mge-flow-canvas-controls .mge-editor-edge-select,
+.mge-canvas .mge-flow-canvas-controls .mge-auto-layout-button {
+  --mge-canvas-control-bg: var(--mge-surface-alt);
+  --mge-canvas-control-bg-hover: color-mix(in srgb, var(--mge-canvas-control-bg) 88%, var(--mge-text) 12%);
+  --mge-canvas-control-border: color-mix(in srgb, var(--mge-border) 72%, var(--mge-text) 28%);
+  --mge-canvas-control-shadow: 0 0 2px 1px rgba(0, 0, 0, 0.12);
+  min-width: 112px;
+  width: auto;
+  height: 26px;
+  padding: 4px 10px;
+  border: 1px solid var(--mge-canvas-control-border);
+  background: var(--mge-canvas-control-bg);
   color: var(--mge-text);
   font-size: 12px;
-  cursor: pointer;
+  box-shadow: var(--mge-canvas-control-shadow);
 }
-.mge-canvas .mge-flow-canvas-controls button:hover,
-.mge-canvas .mge-flow-canvas-controls select:hover {
-  border-color: var(--mge-border-strong);
-  background: var(--mge-surface-alt);
+.mge-canvas .mge-flow-canvas-controls .mge-auto-layout-button:hover {
+  background: var(--mge-canvas-control-bg-hover);
+  color: var(--mge-text);
+}
+.mge-canvas .mge-flow-canvas-controls .mge-editor-edge-select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: var(--mge-canvas-control-bg);
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%) calc(100% - 12px) 11px / 5px 5px no-repeat,
+    linear-gradient(135deg, currentColor 50%, transparent 50%) calc(100% - 7px) 11px / 5px 5px no-repeat;
+  color: var(--mge-text);
+  padding-right: 22px;
+}
+.mge-canvas .mge-flow-canvas-controls .mge-editor-edge-select:hover {
+  background-color: var(--mge-canvas-control-bg-hover);
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%) calc(100% - 12px) 11px / 5px 5px no-repeat,
+    linear-gradient(135deg, currentColor 50%, transparent 50%) calc(100% - 7px) 11px / 5px 5px no-repeat;
+  color: var(--mge-text);
 }
 .mge-canvas .react-flow__panel { background: transparent; }
 .mge-canvas .react-flow__edge-path {

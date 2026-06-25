@@ -42,6 +42,7 @@ const edgeHandleOrUndefined = (handle: string | null | undefined): EdgeHandleId 
 
 export const FlowCanvas = () => {
   const ir = useEditorStore((s) => s.ir);
+  const editorEdgeType = useEditorStore((s) => s.editorEdgeType);
   const selection = useEditorStore((s) => s.selection);
   const setNodePositions = useEditorStore((s) => s.setNodePositions);
   const removeSelection = useEditorStore((s) => s.removeSelection);
@@ -59,7 +60,7 @@ export const FlowCanvas = () => {
   const connectStart = useRef<ConnectStart | null>(null);
   const reconnectMovingSide = useRef<ReconnectMovingSide | null>(null);
 
-  const projection = useMemo(() => irToFlow(ir, ir.positions), [ir]);
+  const projection = useMemo(() => irToFlow(ir, ir.positions, editorEdgeType), [ir, editorEdgeType]);
   const subgraphFlowById = useMemo(
     () => new Map(projection.nodes.filter((n) => isSubgraphFlowId(n.id)).map((n) => [n.id, n])),
     [projection.nodes],

@@ -16,6 +16,17 @@ const groupedIR = (): MermaidIR => ({
 });
 
 describe("subgraph editing store commands", () => {
+  it("changes editor edge display without changing Mermaid text", () => {
+    const store = createEditorStore();
+    const before = store.getState().text;
+
+    store.getState().setEditorEdgeType("smoothstep");
+
+    expect(store.getState().editorEdgeType).toBe("smoothstep");
+    expect(store.getState().text).toBe(before);
+    expect(store.getState().past).toEqual([]);
+  });
+
   it("updates subgraph labels without changing grouped nodes", () => {
     const store = createEditorStore();
     store.getState().applyIR(groupedIR(), { recordHistory: false });

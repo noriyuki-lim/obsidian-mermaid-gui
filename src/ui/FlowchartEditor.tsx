@@ -7,7 +7,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
-import { createEditorStore } from "../core/store-factory";
+import { createEditorStore, type EditorEdgeType } from "../core/store-factory";
 import { parseMermaid, generateMermaid, stripGuiComments } from "../core";
 import { Toolbar } from "./toolbar/Toolbar";
 import { Palette } from "./panels/Palette";
@@ -16,6 +16,20 @@ import { TextPane } from "./panels/TextPane";
 import { FlowCanvas } from "./canvas/FlowCanvas";
 import { EditorStoreProvider } from "./EditorContext";
 import { isEditableShortcutTarget, shouldRemoveSelectionFromKey } from "./keyboard";
+
+const EDGE_TYPE_STORAGE_KEY = "mge:flowchart:editor-edge-type";
+const isEditorEdgeType = (value: string | null): value is EditorEdgeType =>
+  value === "bezier" || value === "smoothstep";
+
+const loadEditorEdgeTypePreference = (): EditorEdgeType | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const value = window.localStorage.getItem(EDGE_TYPE_STORAGE_KEY);
+    return isEditorEdgeType(value) ? value : null;
+  } catch {
+    return null;
+  }
+};
 
 export interface FlowchartEditorProps {
   /** Raw text from inside ```mermaid fences (without the fences themselves). */
@@ -44,7 +58,12 @@ export const FlowchartEditor = ({
   onExportSvg,
   onParseError,
 }: FlowchartEditorProps) => {
-  const storeApi = useMemo(() => createEditorStore(), []);
+  const storeApi = useMemo(() => {
+    const store = createEditorStore();
+    const edgeType = loadEditorEdgeTypePreference();
+    if (edgeType) store.getState().setEditorEdgeType(edgeType);
+    return store;
+  }, []);
   const shellRef = useRef<HTMLDivElement>(null);
   const [saving, setSaving] = useState(false);
 

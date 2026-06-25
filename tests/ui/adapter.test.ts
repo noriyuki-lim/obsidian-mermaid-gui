@@ -26,6 +26,13 @@ describe("irToFlow edge handles", () => {
     expect(edges[0]).toMatchObject({ sourceHandle: "s-bottom", targetHandle: "t-top" });
   });
 
+  it("uses the requested editor edge type", () => {
+    const ir = baseIR("TD");
+
+    expect(irToFlow(ir, ir.positions, "bezier").edges[0].type).toBe("bezier");
+    expect(irToFlow(ir, ir.positions, "smoothstep").edges[0].type).toBe("smoothstep");
+  });
+
   it("prefers stored GUI handles over direction defaults", () => {
     const ir = baseIR("TD");
     ir.edges[0].sourceHandle = "s-right";
