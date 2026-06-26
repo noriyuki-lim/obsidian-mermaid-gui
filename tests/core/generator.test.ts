@@ -26,4 +26,24 @@ describe("generateMermaid", () => {
     if (!parsed.ok) throw new Error("parse failed");
     expect(parsed.ir.nodes.find((n) => n.id === "A")?.subgraph).toBe("S1");
   });
+
+  it("emits direction declarations inside subgraphs", () => {
+    const ir: MermaidIR = {
+      direction: "TD",
+      nodes: [
+        { id: "A", shape: "rect", label: "A", subgraph: "S1" },
+        { id: "B", shape: "rect", label: "B", subgraph: "S1" },
+      ],
+      edges: [{ id: "e1", source: "A", target: "B", style: "solid", head: "arrow", length: 2 }],
+      subgraphs: [{ id: "S1", label: "Group", parent: null, direction: "LR" }],
+      rawLines: [],
+      positions: {},
+      subgraphFrames: {},
+    };
+
+    const generated = generateMermaid(ir);
+
+    expect(generated).toContain("subgraph S1 [Group]");
+    expect(generated).toContain("direction LR");
+  });
 });

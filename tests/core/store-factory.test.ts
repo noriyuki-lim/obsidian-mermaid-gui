@@ -38,6 +38,18 @@ describe("subgraph editing store commands", () => {
     expect(state.ir.nodes.find((n) => n.id === "A")?.subgraph).toBe("S1");
   });
 
+  it("updates subgraph direction and writes it to Mermaid text", () => {
+    const store = createEditorStore();
+    store.getState().applyIR(groupedIR(), { recordHistory: false });
+
+    store.getState().updateSubgraph("S1", { direction: "LR" });
+
+    const state = store.getState();
+    expect(state.ir.subgraphs[0]).toMatchObject({ id: "S1", direction: "LR" });
+    expect(state.text).toContain("direction LR");
+    expect(state.ir.subgraphFrames).toEqual({});
+  });
+
   it("removes only the selected subgraph and keeps its nodes", () => {
     const store = createEditorStore();
     store.getState().applyIR(groupedIR(), { recordHistory: false });

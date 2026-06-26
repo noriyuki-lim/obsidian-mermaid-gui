@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { PALETTE_SHAPES, SHAPE_BY_KEY } from "../../core/shapes";
-import type { EdgeHead, EdgeStyle, NodeShape } from "../../core/ir-types";
+import type { Direction, EdgeHead, EdgeStyle, NodeShape } from "../../core/ir-types";
 import { useEditorStore } from "../EditorContext";
 
 export const PropertyPanel = () => {
@@ -249,6 +249,23 @@ export const PropertyPanel = () => {
                 {s.label ?? s.id}
               </option>
             ))}
+          </select>
+        </div>
+        <div className="mge-prop-field">
+          <label>Direction</label>
+          <select
+            value={subgraph.direction ?? ""}
+            onChange={(e) =>
+              updateSubgraph(subgraph.id, {
+                direction: e.target.value === "" ? undefined : (e.target.value as Direction),
+              })
+            }
+          >
+            <option value="">(inherit)</option>
+            <option value="TD">Top-Down</option>
+            <option value="LR">Left-Right</option>
+            <option value="BT">Bottom-Top</option>
+            <option value="RL">Right-Left</option>
           </select>
         </div>
         <div className="mge-prop-field mge-prop-color-row">

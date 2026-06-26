@@ -92,6 +92,19 @@ describe("parser", () => {
     expect(r.ir.nodes.find((n) => n.id === "C")?.subgraph).toBeNull();
   });
 
+  it("parses direction declarations inside subgraphs", () => {
+    const src = `flowchart TD
+  subgraph S1 [Title]
+    direction LR
+    A --> B
+  end
+`;
+    const r = parseMermaid(src);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.ir.subgraphs[0]).toMatchObject({ id: "S1", direction: "LR" });
+  });
+
   it("preserves unknown lines verbatim", () => {
     const src = `flowchart TD
   A --> B

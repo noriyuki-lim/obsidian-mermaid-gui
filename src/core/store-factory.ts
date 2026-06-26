@@ -298,7 +298,13 @@ export const createEditorStore = (): EditorStoreApi =>
         const subgraph = cur.subgraphs.find((s) => s.id === id);
         if (!subgraph) return;
         Object.assign(subgraph, patch);
-        commit(cur, { recordHistory });
+        commit(cur, {
+          recordHistory,
+          layout: Object.prototype.hasOwnProperty.call(patch, "direction"),
+          subgraphFrames: Object.prototype.hasOwnProperty.call(patch, "direction")
+            ? {}
+            : undefined,
+        });
       },
 
       removeSelection: (targets) => {

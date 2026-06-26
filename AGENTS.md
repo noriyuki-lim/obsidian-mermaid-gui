@@ -334,7 +334,7 @@ flowchart を除く全ての専用エディタは `src/ui/EditorShell.tsx` を r
 - **数値入力欄のみで構成しない**。プレビュー上でグラフィカルに操作できるなら `previewOverride` で SVG エディタを差し込み、ドラッグやハンドルで直接編集する経路を提供する（例: `QuadrantInteractivePreview`、Gantt のバー移動/リサイズ/ラベル編集）。フォームは補助。
 - **`onSourceEdit` は再 parse を伴う**ため、未対応構文を `rawLines` / `rawItems` 経由で round-trip させているエディタ（class / state）は当該配列も `useState` で管理し、再 parse の結果で必ず置き換える。closure-captured な const のままだとコードペイン経由の編集で raw 行が消えてしまう。
 - 共通シェルの toolbar の見た目を変えたければ `toolbarExtras` slot を使う。`<header>` の DOM 構造には触れない。
-- flowchart は React Flow canvas そのものがグラフィカルプレビューなので `EditorShell` を使わず `mge-app-shell` の独自レイアウトを維持する。例外として扱う。コード編集は既存の `src/ui/panels/TextPane.tsx`（store の `setText` / `commitText` 経由、debounce ありの blur commit）に集約。Direction / Subgraph は `src/ui/panels/Palette.tsx` の Shapes 上部に置き、Editor edge / Auto-layout は `src/ui/canvas/FlowchartCanvasControls.tsx` で canvas 左上に表示する。`src/ui/toolbar/Toolbar.tsx` は Undo/Redo/Export/Save/Cancel のみ保持する。
+- flowchart は React Flow canvas そのものがグラフィカルプレビューなので `EditorShell` を使わず `mge-app-shell` の独自レイアウトを維持する。例外として扱う。コード編集は既存の `src/ui/panels/TextPane.tsx`（store の `setText` / `commitText` 経由、debounce ありの blur commit）に集約。Direction / Subgraph は `src/ui/panels/Palette.tsx` の Shapes 上部に置き、Editor edge / Auto-layout は `src/ui/canvas/FlowchartCanvasControls.tsx` で canvas 左上に表示する。`src/ui/toolbar/Toolbar.tsx` は Undo/Redo/Export/Save/Cancel のみ保持する。Subgraph 選択時の右ペインでは `direction` を `(inherit)` / TD / LR / BT / RL から編集でき、変更は Mermaid の `direction ...` とキャンバス上の局所レイアウトの両方に反映される。
 - **ホスト能力の注入** — `src/ui/EditorHostContext.tsx` の `EditorHostProvider` が `onExportSvg` 等のホスト能力を React context 経由で全エディタに供給する。`MermaidEditor` が最上位で `EditorHostProvider` をラップするため、各エディタは prop drilling なしに能力を取得できる。
 
 ---
