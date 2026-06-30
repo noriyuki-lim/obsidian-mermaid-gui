@@ -193,7 +193,7 @@ mermaid-gui-obsidian/
 │   │       ├── KanbanEditor.tsx             ← kanban 専用エディタ（EditorShell + previewOverride）
 │   │       └── KanbanInteractivePreview.tsx ← DOM ベースドラッグボード（カードをカラム間移動、カラム / カード追加・削除・編集）
 │   └── obsidian/                  ← Obsidian API 固有レイヤ
-│       ├── EditorModal.ts         ← Modal の生成・toolbar ドラッグ / ダブルクリック最大化・四隅リサイズハンドル
+│       ├── EditorModal.ts         ← Modal の生成・toolbar ドラッグ / ダブルクリック最大化 / 最大化ドラッグ復元・四隅リサイズハンドル
 │       ├── ReactHost.tsx          ← createRoot / unmount ライフサイクル管理
 │       ├── postProcessor.ts      ← Reading view ブロック装飾
 │       ├── commands.ts           ← コマンドパレット & 右クリックメニュー登録（既存ブロック編集 / 新規挿入）
