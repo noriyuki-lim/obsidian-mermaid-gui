@@ -161,6 +161,14 @@ const restoreModal = (
   return restore.rect;
 };
 
+const clampModalPosition = (left: number, top: number, width: number, height: number): { left: number; top: number } => {
+  const margin = 32;
+  return {
+    left: Math.min(Math.max(left, margin - width), window.innerWidth - margin),
+    top: Math.min(Math.max(top, 0), window.innerHeight - margin),
+  };
+};
+
 const installToolbarDrag = (
   modalEl: HTMLElement,
   contentEl: HTMLElement,
@@ -173,6 +181,7 @@ const installToolbarDrag = (
         startLeft: number;
         startTop: number;
         initialized: boolean;
+        maximizedGrab?: { xRatio: number; yOffset: number };
       }
     | null = null;
 
@@ -195,6 +204,12 @@ const installToolbarDrag = (
       startLeft: rect.left,
       startTop: rect.top,
       initialized: false,
+      maximizedGrab: state.maximized
+        ? {
+            xRatio: rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0.5,
+            yOffset: e.clientY - rect.top,
+          }
+        : undefined,
     };
     document.body.classList.add("mge-dragging");
   };
@@ -221,7 +236,16 @@ const installToolbarDrag = (
   const onMove = (e: MouseEvent) => {
     if (!drag) return;
     if (!drag.initialized) {
-      const rect = state.maximized ? restoreModal(modalEl, state) ?? modalRect(modalEl) : modalRect(modalEl);
+      let rect = state.maximized ? restoreModal(modalEl, state) ?? modalRect(modalEl) : modalRect(modalEl);
+      if (drag.maximizedGrab) {
+        const next = clampModalPosition(
+          e.clientX - rect.width * drag.maximizedGrab.xRatio,
+          e.clientY - drag.maximizedGrab.yOffset,
+          rect.width,
+          rect.height,
+        );
+        rect = { ...rect, ...next };
+      }
       applyModalRect(modalEl, rect);
       state.placement = "free";
       drag.startX = e.clientX;
@@ -235,15 +259,9 @@ const installToolbarDrag = (
     const dy = e.clientY - drag.startY;
     // Keep the modal mostly on-screen — leave at least 32px peeking out so the
     // user can never lose it off the edge.
-    const margin = 32;
     const w = modalEl.offsetWidth;
     const h = modalEl.offsetHeight;
-    const maxLeft = window.innerWidth - margin;
-    const maxTop = window.innerHeight - margin;
-    const minLeft = margin - w;
-    const minTop = 0;
-    const left = Math.min(Math.max(drag.startLeft + dx, minLeft), maxLeft);
-    const top = Math.min(Math.max(drag.startTop + dy, minTop), maxTop);
+    const { left, top } = clampModalPosition(drag.startLeft + dx, drag.startTop + dy, w, h);
     modalEl.style.left = `${left}px`;
     modalEl.style.top = `${top}px`;
   };
