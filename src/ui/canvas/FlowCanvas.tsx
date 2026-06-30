@@ -395,6 +395,7 @@ export const FlowCanvas = () => {
           setSelection({ nodeIds: [], edgeIds: [edge.id], subgraphIds: [] });
         }}
         edgesReconnectable
+        elevateEdgesOnSelect
         connectionMode={ConnectionMode.Loose}
         onInit={(inst) => {
           flowInstance.current = inst;
