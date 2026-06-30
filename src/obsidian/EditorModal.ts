@@ -113,6 +113,18 @@ const applyModalRect = (modalEl: HTMLElement, rect: ModalRect): void => {
   modalEl.style.height = `${rect.height}px`;
 };
 
+const animateModalRect = (modalEl: HTMLElement, rect: ModalRect): void => {
+  modalEl.addClass("mge-modal-animating");
+  applyModalRect(modalEl, rect);
+
+  const clearAnimation = () => {
+    modalEl.removeClass("mge-modal-animating");
+    modalEl.removeEventListener("transitionend", clearAnimation);
+  };
+  modalEl.addEventListener("transitionend", clearAnimation);
+  window.setTimeout(clearAnimation, 220);
+};
+
 const maximizedRect = (): ModalRect => {
   const width = Math.floor(window.innerWidth * 0.98);
   const height = Math.floor(window.innerHeight * 0.96);
@@ -127,10 +139,15 @@ const maximizedRect = (): ModalRect => {
 const isToolbarInteractiveTarget = (target: HTMLElement): boolean =>
   !!target.closest("button, input, select, textarea, label, a");
 
-const restoreModal = (modalEl: HTMLElement, state: ModalPlacementState): ModalRect | null => {
+const restoreModal = (
+  modalEl: HTMLElement,
+  state: ModalPlacementState,
+  opts?: { animate?: boolean },
+): ModalRect | null => {
   if (!state.restore) return null;
   const restore = state.restore;
-  applyModalRect(modalEl, restore.rect);
+  if (opts?.animate) animateModalRect(modalEl, restore.rect);
+  else applyModalRect(modalEl, restore.rect);
   state.placement = restore.placement;
   state.maximized = false;
   state.restore = null;
@@ -185,12 +202,12 @@ const installToolbarDrag = (
     e.stopPropagation();
 
     if (state.maximized) {
-      restoreModal(modalEl, state);
+      restoreModal(modalEl, state, { animate: true });
       return;
     }
 
     state.restore = { rect: modalRect(modalEl), placement: state.placement };
-    applyModalRect(modalEl, maximizedRect());
+    animateModalRect(modalEl, maximizedRect());
     state.maximized = true;
   };
 

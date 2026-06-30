@@ -699,6 +699,22 @@ body.mge-text-pane-resizing * {
      concurrent grippers fighting over the same SE corner. */
   overflow: hidden;
 }
+.modal.mge-modal.mge-modal-animating {
+  transition:
+    left 160ms cubic-bezier(0.2, 0, 0, 1),
+    top 160ms cubic-bezier(0.2, 0, 0, 1),
+    width 160ms cubic-bezier(0.2, 0, 0, 1),
+    height 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+body.mge-dragging .modal.mge-modal,
+body.mge-resizing .modal.mge-modal {
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal.mge-modal.mge-modal-animating {
+    transition: none;
+  }
+}
 
 /* ---------- Corner resize handles (backlog #38) ----------
    Four 14px squares pinned to each corner of the modal. They live in
