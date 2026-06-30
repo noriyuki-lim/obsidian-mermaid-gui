@@ -114,8 +114,15 @@ const applyModalRect = (modalEl: HTMLElement, rect: ModalRect): void => {
 };
 
 const animateModalRect = (modalEl: HTMLElement, rect: ModalRect): void => {
-  modalEl.addClass("mge-modal-animating");
-  applyModalRect(modalEl, rect);
+  const from = modalRect(modalEl);
+  modalEl.removeClass("mge-modal-animating");
+  applyModalRect(modalEl, from);
+  modalEl.getBoundingClientRect();
+
+  requestAnimationFrame(() => {
+    modalEl.addClass("mge-modal-animating");
+    applyModalRect(modalEl, rect);
+  });
 
   const clearAnimation = () => {
     modalEl.removeClass("mge-modal-animating");
