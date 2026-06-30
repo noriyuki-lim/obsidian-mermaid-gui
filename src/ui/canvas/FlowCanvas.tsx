@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, type MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import {
   ReactFlow,
   Background,
@@ -58,6 +58,7 @@ export const FlowCanvas = () => {
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const flowInstance = useRef<ReactFlowInstance<FlowNode, FlowEdge> | null>(null);
+  const canvasSize = useRef<{ width: number; height: number } | null>(null);
   const connectStart = useRef<ConnectStart | null>(null);
   const reconnectMovingSide = useRef<ReconnectMovingSide | null>(null);
   const reconnectEdgeId = useRef<string | null>(null);
@@ -336,6 +337,38 @@ export const FlowCanvas = () => {
     },
     [addNode, setNodePosition],
   );
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    const updateSize = () => {
+      const rect = wrapper.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const prev = canvasSize.current;
+      canvasSize.current = { width: rect.width, height: rect.height };
+      const instance = flowInstance.current;
+      if (!prev || !instance) return;
+
+      const viewport = instance.getViewport();
+      const center = {
+        x: (prev.width / 2 - viewport.x) / viewport.zoom,
+        y: (prev.height / 2 - viewport.y) / viewport.zoom,
+      };
+      instance.setViewport({
+        x: rect.width / 2 - center.x * viewport.zoom,
+        y: rect.height / 2 - center.y * viewport.zoom,
+        zoom: viewport.zoom,
+      });
+    };
+
+    const observer = new ResizeObserver(() => {
+      requestAnimationFrame(updateSize);
+    });
+    observer.observe(wrapper);
+    updateSize();
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div className="mge-canvas" ref={wrapperRef} onDragOver={onDragOver} onDrop={onDrop}>
