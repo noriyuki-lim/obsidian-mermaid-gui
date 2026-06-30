@@ -25,7 +25,7 @@ P1.5 以降（専用ビュー、`[[wikilink]]` 解釈、選択範囲 → flowcha
 2. ビルドで生成された `main.js`、リポジトリ直下の `manifest.json`、`styles.css` の 3 ファイルを<br>
    `<vault>/.obsidian/plugins/mermaid-gui-obsidian/` にコピー
 3. Obsidian の **Settings → Community plugins** で「制限モード」を OFF にし、
-   `Mermaid GUI` を有効化
+   `Mermaid GUI Editor` を有効化
 
 zip 配布する場合は上記 3 ファイル＋`README.md`/`CHANGELOG.md` をまとめて配る。
 
