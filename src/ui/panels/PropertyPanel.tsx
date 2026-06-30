@@ -10,6 +10,7 @@ export const PropertyPanel = () => {
   const updateEdge = useEditorStore((s) => s.updateEdge);
   const updateSubgraph = useEditorStore((s) => s.updateSubgraph);
   const removeSelection = useEditorStore((s) => s.removeSelection);
+  const setSelection = useEditorStore((s) => s.setSelection);
   const recordHistorySnapshot = useEditorStore((s) => s.recordHistorySnapshot);
 
   const node =
@@ -20,6 +21,13 @@ export const PropertyPanel = () => {
     selection.subgraphIds.length === 1
       ? ir.subgraphs.find((s) => s.id === selection.subgraphIds[0])
       : null;
+  const endpointOptions = [
+    ...ir.nodes.map((n) => ({ id: n.id, label: n.label || n.id, kind: "Node" })),
+    ...ir.subgraphs.map((s) => ({ id: s.id, label: s.label ?? s.id, kind: "Subgraph" })),
+  ];
+  const connectedEdges = node
+    ? ir.edges.filter((e) => e.source === node.id || e.target === node.id)
+    : [];
 
   /* Local mirror of label inputs so each keystroke does not produce a history
      entry. We commit to history once on blur. */
@@ -149,6 +157,61 @@ export const PropertyPanel = () => {
         >
           Delete node
         </button>
+        <section className="mge-connected-edges">
+          <h4>Connected edges</h4>
+          {connectedEdges.length === 0 ? (
+            <p className="mge-empty">No connected edges.</p>
+          ) : (
+            connectedEdges.map((e) => (
+              <div key={e.id} className="mge-connected-edge">
+                <button
+                  type="button"
+                  className="mge-edge-select-btn"
+                  onClick={() => setSelection({ nodeIds: [], edgeIds: [e.id], subgraphIds: [] })}
+                  title="Select edge"
+                >
+                  {e.source} → {e.target}
+                </button>
+                {e.label && <span className="mge-edge-chip">{e.label}</span>}
+                <div className="mge-edge-endpoint-row">
+                  <label>
+                    Source
+                    <select
+                      value={e.source}
+                      onChange={(ev) => updateEdge(e.id, { source: ev.target.value })}
+                    >
+                      {endpointOptions.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.kind}: {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Target
+                    <select
+                      value={e.target}
+                      onChange={(ev) => updateEdge(e.id, { target: ev.target.value })}
+                    >
+                      {endpointOptions.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.kind}: {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  className="mge-link-btn"
+                  onClick={() => removeSelection({ nodeIds: [], edgeIds: [e.id], subgraphIds: [] })}
+                >
+                  delete
+                </button>
+              </div>
+            ))
+          )}
+        </section>
       </aside>
     );
   }
@@ -157,6 +220,26 @@ export const PropertyPanel = () => {
     return (
       <aside className="mge-prop-panel">
         <h3>Edge — {edge.source} → {edge.target}</h3>
+        <div className="mge-prop-field">
+          <label>Source</label>
+          <select value={edge.source} onChange={(e) => updateEdge(edge.id, { source: e.target.value })}>
+            {endpointOptions.map((opt) => (
+              <option key={opt.id} value={opt.id}>
+                {opt.kind}: {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="mge-prop-field">
+          <label>Target</label>
+          <select value={edge.target} onChange={(e) => updateEdge(edge.id, { target: e.target.value })}>
+            {endpointOptions.map((opt) => (
+              <option key={opt.id} value={opt.id}>
+                {opt.kind}: {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="mge-prop-field">
           <label>Label</label>
           <input

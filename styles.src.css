@@ -348,6 +348,72 @@ body.mge-dragging .mge-toolbar { cursor: grabbing !important; }
 .mge-danger-btn:hover {
   background: color-mix(in srgb, var(--mge-error) 14%, var(--mge-surface));
 }
+.mge-connected-edges {
+  margin-top: 16px;
+  border-top: 1px solid var(--mge-border);
+  padding-top: 12px;
+}
+.mge-connected-edges h4 {
+  margin: 0 0 8px;
+  color: var(--mge-text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.mge-connected-edge {
+  border-bottom: 1px solid var(--mge-border);
+  padding: 8px 0;
+}
+.mge-connected-edge:last-child {
+  border-bottom: none;
+}
+.mge-edge-select-btn {
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--mge-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.mge-edge-select-btn:hover {
+  color: var(--mge-brand);
+}
+.mge-edge-chip {
+  display: inline-block;
+  max-width: 100%;
+  margin-top: 4px;
+  color: var(--mge-text-muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mge-edge-endpoint-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin: 8px 0;
+}
+.mge-edge-endpoint-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: var(--mge-text-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.mge-edge-endpoint-row select {
+  min-width: 0;
+  padding: 5px 6px;
+  border: 1px solid var(--mge-border);
+  border-radius: 4px;
+  background: var(--mge-surface);
+  color: var(--mge-text);
+  font-size: 12px;
+}
 
 /* ---------- Text pane ---------- */
 .mge-text-pane {
@@ -404,6 +470,21 @@ body.mge-text-pane-resizing * {
   text-transform: none;
   letter-spacing: normal;
   font-size: 12px;
+}
+.mge-source-sort-btn {
+  padding: 3px 8px;
+  border: 1px solid var(--mge-border);
+  border-radius: 4px;
+  background: var(--mge-surface);
+  color: var(--mge-text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.mge-source-sort-btn:hover {
+  border-color: var(--mge-brand);
+  color: var(--mge-text);
 }
 .mge-text-pane-header .mge-status.ok { color: #2c7a3f; }
 .mge-text-pane-header .mge-status.err { color: var(--mge-error); }

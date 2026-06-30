@@ -88,6 +88,7 @@ export interface EditorState {
   updateEdge: (id: string, patch: Partial<IREdge>, opts?: { recordHistory?: boolean }) => void;
   addSubgraph: (label?: string) => string;
   removeSubgraph: (id: string) => void;
+  sortSourceByCanvas: () => void;
   setSelection: (sel: Selection) => void;
   autoLayout: () => void;
   recordHistorySnapshot: () => void;
@@ -173,6 +174,46 @@ const descendantSubgraphIds = (subgraphs: IRSubgraph[], id: string): Set<string>
         changed = true;
       }
     }
+  }
+  return out;
+};
+
+const compareCanvasPosition = (direction: Direction, positions: Positions) => {
+  const pos = (id: string) => positions[id] ?? { x: 0, y: 0 };
+  return (a: string, b: string): number => {
+    const pa = pos(a);
+    const pb = pos(b);
+    switch (direction) {
+      case "LR":
+        return pa.x - pb.x || pa.y - pb.y || a.localeCompare(b);
+      case "RL":
+        return pb.x - pa.x || pa.y - pb.y || a.localeCompare(b);
+      case "BT":
+        return pb.y - pa.y || pa.x - pb.x || a.localeCompare(b);
+      case "TD":
+      case "TB":
+      default:
+        return pa.y - pb.y || pa.x - pb.x || a.localeCompare(b);
+    }
+  };
+};
+
+const subgraphSortPositions = (
+  nodes: IRNode[],
+  subgraphs: IRSubgraph[],
+  positions: Positions,
+): Positions => {
+  const out: Positions = {};
+  for (const sg of subgraphs) {
+    const sgIds = descendantSubgraphIds(subgraphs, sg.id);
+    const members = nodes.filter((node) => node.subgraph && sgIds.has(node.subgraph));
+    if (members.length === 0) {
+      out[sg.id] = { x: 0, y: 0 };
+      continue;
+    }
+    const xs = members.map((node) => positions[node.id]?.x ?? 0);
+    const ys = members.map((node) => positions[node.id]?.y ?? 0);
+    out[sg.id] = { x: Math.min(...xs), y: Math.min(...ys) };
   }
   return out;
 };
@@ -467,6 +508,42 @@ export const createEditorStore = (): EditorStoreApi =>
         for (const s of cur.subgraphs) if (s.parent === id) s.parent = null;
         delete cur.subgraphFrames[id];
         commit(cur);
+      },
+
+      sortSourceByCanvas: () => {
+        if (!ensureTextCommitted()) return;
+        const cur = cloneIR(get().ir);
+        const nodeCompare = compareCanvasPosition(cur.direction, cur.positions);
+        const sgPositions = subgraphSortPositions(cur.nodes, cur.subgraphs, cur.positions);
+        const subgraphCompare = compareCanvasPosition(cur.direction, sgPositions);
+        const nodeRank = new Map<string, number>();
+        const subgraphRank = new Map<string, number>();
+
+        cur.nodes.sort((a, b) => nodeCompare(a.id, b.id));
+        cur.nodes.forEach((node, index) => nodeRank.set(node.id, index));
+
+        cur.subgraphs.sort((a, b) => {
+          if ((a.parent ?? null) !== (b.parent ?? null)) {
+            return (a.parent ?? "").localeCompare(b.parent ?? "") || a.id.localeCompare(b.id);
+          }
+          return subgraphCompare(a.id, b.id);
+        });
+        cur.subgraphs.forEach((sg, index) => subgraphRank.set(sg.id, index));
+
+        const endpointRank = (id: string): number => {
+          const node = nodeRank.get(id);
+          if (node !== undefined) return node;
+          const sg = subgraphRank.get(id);
+          if (sg !== undefined) return cur.nodes.length + sg;
+          return Number.MAX_SAFE_INTEGER;
+        };
+        cur.edges.sort(
+          (a, b) =>
+            endpointRank(a.source) - endpointRank(b.source) ||
+            endpointRank(a.target) - endpointRank(b.target) ||
+            a.id.localeCompare(b.id),
+        );
+        commit(cur, { positions: cur.positions, subgraphFrames: cur.subgraphFrames });
       },
 
       setSelection: (sel) => set({ selection: sel }),

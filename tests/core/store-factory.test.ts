@@ -164,4 +164,39 @@ describe("subgraph editing store commands", () => {
     expect(state.ir.subgraphFrames).toEqual({});
     expect(state.ir.nodes.find((n) => n.id === "A")?.subgraph).toBe("S1");
   });
+
+  it("sorts Mermaid source by current canvas order on request", () => {
+    const store = createEditorStore();
+    store.getState().applyIR(
+      {
+        direction: "TD",
+        nodes: [
+          { id: "C", shape: "round", label: "C", subgraph: null },
+          { id: "A", shape: "round", label: "A", subgraph: null },
+          { id: "B", shape: "round", label: "B", subgraph: null },
+        ],
+        edges: [
+          { id: "e2", source: "B", target: "C", style: "solid", head: "arrow", length: 2 },
+          { id: "e1", source: "A", target: "B", style: "solid", head: "arrow", length: 2 },
+        ],
+        subgraphs: [],
+        rawLines: [],
+        positions: {
+          A: { x: 0, y: 0 },
+          B: { x: 200, y: 0 },
+          C: { x: 100, y: 180 },
+        },
+        subgraphFrames: {},
+      },
+      { recordHistory: false },
+    );
+
+    store.getState().sortSourceByCanvas();
+
+    const state = store.getState();
+    expect(state.ir.nodes.map((node) => node.id)).toEqual(["A", "B", "C"]);
+    expect(state.ir.edges.map((edge) => edge.id)).toEqual(["e1", "e2"]);
+    expect(state.text.indexOf("A(")).toBeLessThan(state.text.indexOf("B("));
+    expect(state.text.indexOf("B --> C")).toBeGreaterThan(state.text.indexOf("A --> B"));
+  });
 });

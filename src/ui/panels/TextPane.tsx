@@ -14,6 +14,7 @@ export const TextPane = () => {
   const isDirty = useEditorStore((s) => s.isTextDirty);
   const setText = useEditorStore((s) => s.setText);
   const commitText = useEditorStore((s) => s.commitText);
+  const sortSourceByCanvas = useEditorStore((s) => s.sortSourceByCanvas);
 
   const timer = useRef<number | null>(null);
   const paneRef = useRef<HTMLElement>(null);
@@ -99,6 +100,14 @@ export const TextPane = () => {
       />
       <div className="mge-text-pane-header">
         <span>Mermaid</span>
+        <button
+          type="button"
+          className="mge-source-sort-btn"
+          onClick={sortSourceByCanvas}
+          title="Reorder Mermaid source by current canvas positions"
+        >
+          Sort source by canvas
+        </button>
         {statusEl}
       </div>
       <textarea

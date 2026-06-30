@@ -16,4 +16,8 @@ flowchart TD
   n3 --> n5
   n3 --> n4
   n2 --> n6
+  n3 --> n7
+  n5 --> n8
+  n4 --> n8
+  n7 --> n8
 ```
