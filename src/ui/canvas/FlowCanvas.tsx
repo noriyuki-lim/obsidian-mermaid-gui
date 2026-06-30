@@ -341,14 +341,16 @@ export const FlowCanvas = () => {
   useEffect(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
+    const modal = wrapper.closest(".mge-modal");
 
-    const updateSize = () => {
+    const updateSize = (opts?: { force?: boolean }) => {
       const rect = wrapper.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return;
       const prev = canvasSize.current;
       canvasSize.current = { width: rect.width, height: rect.height };
       const instance = flowInstance.current;
       if (!prev || !instance) return;
+      if (!opts?.force && modal?.classList.contains("mge-modal-animating")) return;
 
       const viewport = instance.getViewport();
       const center = {
@@ -363,11 +365,24 @@ export const FlowCanvas = () => {
     };
 
     const observer = new ResizeObserver(() => {
-      requestAnimationFrame(updateSize);
+      requestAnimationFrame(() => updateSize());
     });
+    let transitionSettleTimer: number | null = null;
+    const onModalTransitionEnd = () => {
+      if (transitionSettleTimer !== null) window.clearTimeout(transitionSettleTimer);
+      transitionSettleTimer = window.setTimeout(() => {
+        transitionSettleTimer = null;
+        updateSize({ force: true });
+      }, 0);
+    };
     observer.observe(wrapper);
+    modal?.addEventListener("transitionend", onModalTransitionEnd);
     updateSize();
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (transitionSettleTimer !== null) window.clearTimeout(transitionSettleTimer);
+      modal?.removeEventListener("transitionend", onModalTransitionEnd);
+    };
   }, []);
 
   return (
