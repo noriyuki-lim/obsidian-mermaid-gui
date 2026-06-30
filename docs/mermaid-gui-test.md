@@ -5,12 +5,15 @@ tags:
 ---
 ```mermaid
 flowchart TD
-  n1[開始]
-  subgraph sg_1 [サブグラフ]
+  n3{n3}
+  subgraph sg_1 [sg_1]
     direction LR
-    n4[左]
-    n5[中]
+    n2[n2]
+    n6[n6]
   end
-  n4 --> n5
   n1 --> sg_1
+  sg_1 --> n3
+  n3 --> n5
+  n3 --> n4
+  n2 --> n6
 ```

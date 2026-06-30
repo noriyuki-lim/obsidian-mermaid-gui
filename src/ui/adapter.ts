@@ -75,6 +75,35 @@ const handlePairForDirection = (
   }
 };
 
+const endpointSubgraphChain = (
+  id: string,
+  nodesById: Map<string, IRNode>,
+  subgraphsById: Map<string, IRSubgraph>,
+): string[] => {
+  const start = subgraphsById.has(id) ? id : nodesById.get(id)?.subgraph;
+  const chain: string[] = [];
+  let current = start ?? null;
+  while (current) {
+    chain.push(current);
+    current = subgraphsById.get(current)?.parent ?? null;
+  }
+  return chain;
+};
+
+const edgeDirection = (edge: IREdge, ir: MermaidIR): Direction => {
+  const nodesById = new Map(ir.nodes.map((n) => [n.id, n] as const));
+  const subgraphsById = new Map(ir.subgraphs.map((sg) => [sg.id, sg] as const));
+  const sourceChain = endpointSubgraphChain(edge.source, nodesById, subgraphsById);
+  const targetChain = new Set(endpointSubgraphChain(edge.target, nodesById, subgraphsById));
+
+  for (const sgId of sourceChain) {
+    if (!targetChain.has(sgId)) continue;
+    const direction = subgraphsById.get(sgId)?.direction;
+    if (direction) return direction;
+  }
+  return ir.direction;
+};
+
 const computeSgDepth = (subgraphs: IRSubgraph[]): Map<string, number> => {
   const byId = new Map(subgraphs.map((s) => [s.id, s] as const));
   const memo = new Map<string, number>();
@@ -203,28 +232,31 @@ export const irToFlow = (
   const sgIdSet = new Set(ir.subgraphs.map((s) => s.id));
   const routeEndpoint = (id: string): string => (sgIdSet.has(id) ? SG_PREFIX + id : id);
 
-  const edges: FlowEdge[] = ir.edges.map((e) => ({
-    id: e.id,
-    source: routeEndpoint(e.source),
-    target: routeEndpoint(e.target),
-    sourceHandle: e.sourceHandle ?? handlePairForDirection(ir.direction).sourceHandle,
-    targetHandle: e.targetHandle ?? handlePairForDirection(ir.direction).targetHandle,
-    label: e.label,
-    type: edgeType,
-    animated: e.style === "dotted",
-    style: {
-      strokeWidth: e.style === "thick" ? 3 : 1.5,
-      strokeDasharray: e.style === "dotted" ? "4 4" : undefined,
-    },
-    markerEnd: e.head === "arrow" ? "arrowclosed" : undefined,
-    data: {
-      style: e.style,
-      head: e.head,
-      length: e.length,
-      customLabel: e.label,
-    },
-    zIndex: 2000,
-  }));
+  const edges: FlowEdge[] = ir.edges.map((e) => {
+    const handles = handlePairForDirection(edgeDirection(e, ir));
+    return {
+      id: e.id,
+      source: routeEndpoint(e.source),
+      target: routeEndpoint(e.target),
+      sourceHandle: e.sourceHandle ?? handles.sourceHandle,
+      targetHandle: e.targetHandle ?? handles.targetHandle,
+      label: e.label,
+      type: edgeType,
+      animated: e.style === "dotted",
+      style: {
+        strokeWidth: e.style === "thick" ? 3 : 1.5,
+        strokeDasharray: e.style === "dotted" ? "4 4" : undefined,
+      },
+      markerEnd: e.head === "arrow" ? "arrowclosed" : undefined,
+      data: {
+        style: e.style,
+        head: e.head,
+        length: e.length,
+        customLabel: e.label,
+      },
+      zIndex: 2000,
+    };
+  });
 
   // Backdrops first so nodes/edges layer on top.
   return { nodes: [...sgNodes, ...nodes], edges };

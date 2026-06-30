@@ -26,6 +26,33 @@ describe("irToFlow edge handles", () => {
     expect(edges[0]).toMatchObject({ sourceHandle: "s-bottom", targetHandle: "t-top" });
   });
 
+  it("uses subgraph direction for edges inside that subgraph", () => {
+    const ir = baseIR("TD");
+    ir.nodes[0].subgraph = "S1";
+    ir.nodes[1].subgraph = "S1";
+    ir.subgraphs = [{ id: "S1", label: "Group", parent: null, direction: "LR" }];
+
+    const { edges } = irToFlow(ir, ir.positions);
+
+    expect(edges[0]).toMatchObject({ sourceHandle: "s-right", targetHandle: "t-left" });
+  });
+
+  it("keeps chart direction for edges that target a subgraph from outside", () => {
+    const ir = baseIR("TD");
+    ir.nodes[1].subgraph = "S1";
+    ir.subgraphs = [{ id: "S1", label: "Group", parent: null, direction: "LR" }];
+    ir.edges = [{ id: "e1", source: "A", target: "S1", style: "solid", head: "arrow", length: 2 }];
+
+    const { edges } = irToFlow(ir, ir.positions);
+
+    expect(edges[0]).toMatchObject({
+      source: "A",
+      target: ":sg:S1",
+      sourceHandle: "s-bottom",
+      targetHandle: "t-top",
+    });
+  });
+
   it("uses the requested editor edge type", () => {
     const ir = baseIR("TD");
 

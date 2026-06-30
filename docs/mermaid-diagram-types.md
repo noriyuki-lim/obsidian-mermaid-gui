@@ -748,7 +748,7 @@ C4Deployment
 
 | #  | 図種別                  | キーワード                 | ステータス | GUI対応                  |
 | -- | -------------------- | --------------------- | ----- | ----------------------- |
-| 1  | Flowchart            | `flowchart` / `graph` | 安定    | ✅ 実装済み（サブグラフリサイズ・エッジ接続対応） |
+| 1  | Flowchart            | `flowchart` / `graph` | 安定    | ✅ 実装済み（サブグラフリサイズ・Subgraph Direction・エッジ接続対応） |
 | 2  | Sequence Diagram     | `sequenceDiagram`     | 安定    | ✅ 実装済み（Phase 4）        |
 | 3  | Class Diagram        | `classDiagram`        | 安定    | ✅ 実装済み（Phase 5）        |
 | 4  | State Diagram        | `stateDiagram-v2`     | 安定    | ✅ 実装済み（Phase 5）        |
