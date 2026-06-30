@@ -59,6 +59,7 @@ export const FlowCanvas = () => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const flowInstance = useRef<ReactFlowInstance<FlowNode, FlowEdge> | null>(null);
   const canvasSize = useRef<{ width: number; height: number } | null>(null);
+  const pendingResizeCenter = useRef<{ x: number; y: number; zoom: number } | null>(null);
   const connectStart = useRef<ConnectStart | null>(null);
   const reconnectMovingSide = useRef<ReconnectMovingSide | null>(null);
   const reconnectEdgeId = useRef<string | null>(null);
@@ -347,20 +348,43 @@ export const FlowCanvas = () => {
       const rect = wrapper.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return;
       const prev = canvasSize.current;
-      canvasSize.current = { width: rect.width, height: rect.height };
       const instance = flowInstance.current;
-      if (!prev || !instance) return;
-      if (!opts?.force && modal?.classList.contains("mge-modal-animating")) return;
+      if (!prev || !instance) {
+        canvasSize.current = { width: rect.width, height: rect.height };
+        return;
+      }
 
+      const isAnimating = modal?.classList.contains("mge-modal-animating");
       const viewport = instance.getViewport();
-      const center = {
+      if (isAnimating && !opts?.force) {
+        const center =
+          pendingResizeCenter.current ??
+          {
+            x: (prev.width / 2 - viewport.x) / viewport.zoom,
+            y: (prev.height / 2 - viewport.y) / viewport.zoom,
+            zoom: viewport.zoom,
+          };
+        pendingResizeCenter.current = center;
+        canvasSize.current = { width: rect.width, height: rect.height };
+        instance.setViewport({
+          x: rect.width / 2 - center.x * center.zoom,
+          y: rect.height / 2 - center.y * center.zoom,
+          zoom: center.zoom,
+        });
+        return;
+      }
+
+      const center = pendingResizeCenter.current ?? {
         x: (prev.width / 2 - viewport.x) / viewport.zoom,
         y: (prev.height / 2 - viewport.y) / viewport.zoom,
-      };
-      instance.setViewport({
-        x: rect.width / 2 - center.x * viewport.zoom,
-        y: rect.height / 2 - center.y * viewport.zoom,
         zoom: viewport.zoom,
+      };
+      pendingResizeCenter.current = null;
+      canvasSize.current = { width: rect.width, height: rect.height };
+      instance.setViewport({
+        x: rect.width / 2 - center.x * center.zoom,
+        y: rect.height / 2 - center.y * center.zoom,
+        zoom: center.zoom,
       });
     };
 
