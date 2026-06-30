@@ -13,6 +13,34 @@ export const findEdgeForHandleUpdate = (
   return selectedMatch ?? (matchingEdges.length === 1 ? matchingEdges[0] : null);
 };
 
+const sharesEndpointOnFixedSide = (
+  selected: IREdge,
+  hit: IREdge,
+  fixedSide: HandleType | null | undefined,
+): boolean => {
+  if (fixedSide === "source") return selected.source === hit.source;
+  if (fixedSide === "target") return selected.target === hit.target;
+  return (
+    selected.source === hit.source ||
+    selected.source === hit.target ||
+    selected.target === hit.source ||
+    selected.target === hit.target
+  );
+};
+
+export const resolveReconnectEdgeId = (
+  edges: IREdge[],
+  selection: Selection,
+  hitEdgeId: string,
+  fixedSide: HandleType | null | undefined,
+): string => {
+  if (selection.edgeIds.length !== 1) return hitEdgeId;
+  const selected = edges.find((edge) => edge.id === selection.edgeIds[0]);
+  const hit = edges.find((edge) => edge.id === hitEdgeId);
+  if (!selected || !hit) return hitEdgeId;
+  return sharesEndpointOnFixedSide(selected, hit, fixedSide) ? selected.id : hitEdgeId;
+};
+
 export interface ConnectStart {
   nodeId: string;
   handleId?: string | null;

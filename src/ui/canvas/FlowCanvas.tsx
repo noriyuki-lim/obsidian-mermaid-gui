@@ -31,6 +31,7 @@ import {
   findEdgeForHandleUpdate,
   normalizeNewConnection,
   normalizeReconnect,
+  resolveReconnectEdgeId,
   type ConnectStart,
   type ReconnectMovingSide,
 } from "./edgeActions";
@@ -59,6 +60,7 @@ export const FlowCanvas = () => {
   const flowInstance = useRef<ReactFlowInstance<FlowNode, FlowEdge> | null>(null);
   const connectStart = useRef<ConnectStart | null>(null);
   const reconnectMovingSide = useRef<ReconnectMovingSide | null>(null);
+  const reconnectEdgeId = useRef<string | null>(null);
 
   const projection = useMemo(() => irToFlow(ir, ir.positions, editorEdgeType), [ir, editorEdgeType]);
   const subgraphFlowById = useMemo(
@@ -285,10 +287,13 @@ export const FlowCanvas = () => {
 
   const onReconnect = useCallback<OnReconnect<FlowEdge>>(
     (oldEdge, c) => {
-      const irEdge = storeApi.getState().ir.edges.find((edge) => edge.id === oldEdge.id);
-      if (!irEdge) return;
-      const normalized = normalizeReconnect(irEdge, c, reconnectMovingSide.current);
+      const edgeId = reconnectEdgeId.current ?? oldEdge.id;
+      const irEdge = storeApi.getState().ir.edges.find((edge) => edge.id === edgeId);
+      const movingSide = reconnectMovingSide.current;
       reconnectMovingSide.current = null;
+      reconnectEdgeId.current = null;
+      if (!irEdge) return;
+      const normalized = normalizeReconnect(irEdge, c, movingSide);
       if (!normalized) return;
       // Strip subgraph flow-id prefix when persisting endpoints to the IR.
       const patch = {
@@ -296,17 +301,20 @@ export const FlowCanvas = () => {
         source: normalized.source ? (subgraphIdFromFlowId(normalized.source) ?? normalized.source) : normalized.source,
         target: normalized.target ? (subgraphIdFromFlowId(normalized.target) ?? normalized.target) : normalized.target,
       };
-      updateEdge(oldEdge.id, patch);
+      updateEdge(edgeId, patch);
     },
     [storeApi, updateEdge],
   );
 
   const onReconnectStart = useCallback(
     (_: ReactMouseEvent<Element>, edge: FlowEdge, fixedSide: HandleType) => {
-      setSelection({ nodeIds: [], edgeIds: [edge.id], subgraphIds: [] });
+      const state = storeApi.getState();
+      const edgeId = resolveReconnectEdgeId(state.ir.edges, state.selection, edge.id, fixedSide);
+      reconnectEdgeId.current = edgeId;
+      setSelection({ nodeIds: [], edgeIds: [edgeId], subgraphIds: [] });
       reconnectMovingSide.current = fixedSide === "target" ? "source" : "target";
     },
-    [setSelection],
+    [setSelection, storeApi],
   );
 
   const onDragOver = useCallback((e: React.DragEvent) => {
@@ -354,6 +362,7 @@ export const FlowCanvas = () => {
         onReconnectStart={onReconnectStart}
         onReconnectEnd={() => {
           reconnectMovingSide.current = null;
+          reconnectEdgeId.current = null;
         }}
         onNodeDoubleClick={(_, node) => {
           if (!isSubgraphFlowId(node.id)) {

@@ -3,6 +3,7 @@ import {
   findEdgeForHandleUpdate,
   normalizeNewConnection,
   normalizeReconnect,
+  resolveReconnectEdgeId,
 } from "../../src/ui/canvas/edgeActions";
 import type { IREdge } from "../../src/core/ir-types";
 
@@ -44,6 +45,44 @@ describe("findEdgeForHandleUpdate", () => {
     expect(
       findEdgeForHandleUpdate(edges, { nodeIds: [], edgeIds: [], subgraphIds: [] }, "A", "B"),
     ).toBeNull();
+  });
+});
+
+describe("resolveReconnectEdgeId", () => {
+  it("prefers the selected edge when the hit edge shares the fixed target endpoint", () => {
+    const edges = [edge("e1", "A", "C"), edge("e2", "B", "C")];
+    expect(
+      resolveReconnectEdgeId(
+        edges,
+        { nodeIds: [], edgeIds: ["e1"], subgraphIds: [] },
+        "e2",
+        "target",
+      ),
+    ).toBe("e1");
+  });
+
+  it("keeps the hit edge when the selected edge is unrelated to the fixed endpoint", () => {
+    const edges = [edge("e1", "A", "C"), edge("e2", "B", "D")];
+    expect(
+      resolveReconnectEdgeId(
+        edges,
+        { nodeIds: [], edgeIds: ["e1"], subgraphIds: [] },
+        "e2",
+        "target",
+      ),
+    ).toBe("e2");
+  });
+
+  it("keeps the hit edge when multiple edges are selected", () => {
+    const edges = [edge("e1", "A", "C"), edge("e2", "B", "C")];
+    expect(
+      resolveReconnectEdgeId(
+        edges,
+        { nodeIds: [], edgeIds: ["e1", "e2"], subgraphIds: [] },
+        "e2",
+        "target",
+      ),
+    ).toBe("e2");
   });
 });
 
