@@ -1498,22 +1498,32 @@ body.theme-dark .mge-seq-badge-raw {
   flex-direction: column;
   gap: 1px;
 }
+/* Chromeless by design (mirrors `.mge-kind-picker-handle`) — Obsidian applies
+   its own border/background/shadow to bare <button> elements, which beats a
+   plain class selector, so those three need `!important` here.
+   Colour uses `--text-normal` + opacity rather than `--text-muted`/`--text-faint`:
+   those de-emphasis tiers are allowed by Obsidian's theme spec to render at
+   near-zero contrast (confirmed invisible under the "Transparent" theme, for
+   both tiers), whereas `--text-normal` is the one colour every theme must
+   keep legible against the app background. Opacity does the "subtle" work
+   instead, scaling off a colour that's guaranteed visible. */
 .mge-quad-point-stepper-btn {
   appearance: none;
   width: 14px;
   height: 12px;
   padding: 0;
-  border: 1px solid var(--background-modifier-border, #555);
-  border-radius: 2px;
-  background: var(--background-secondary, #2a2a2a);
-  color: var(--text-muted, #8a8a95);
-  font-size: 7px;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-normal, #ddd) !important;
+  opacity: 0.55 !important;
+  font-size: 8px;
   line-height: 1;
   cursor: pointer;
 }
 .mge-quad-point-stepper-btn:hover {
-  background: var(--background-modifier-hover, #333);
-  color: var(--text-normal, #ddd);
+  background: transparent !important;
+  opacity: 1 !important;
 }
 
 /* ---------- Source-only textarea ---------- */
