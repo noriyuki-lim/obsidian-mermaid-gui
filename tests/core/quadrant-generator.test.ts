@@ -16,20 +16,20 @@ describe("generateQuadrant", () => {
       quadrants: {},
       items: [],
     };
-    expect(generateQuadrant(ir)).toContain("  title X");
+    expect(generateQuadrant(ir)).toContain('  title "X"');
   });
 
-  it("emits x-axis with arrow form", () => {
+  it("emits x-axis with arrow form, quoted", () => {
     const ir: QuadrantIR = {
       kind: "quadrantChart",
       xAxis: { left: "L", right: "R" },
       quadrants: {},
       items: [],
     };
-    expect(generateQuadrant(ir)).toContain("  x-axis L --> R");
+    expect(generateQuadrant(ir)).toContain('  x-axis "L" --> "R"');
   });
 
-  it("emits x-axis without arrow", () => {
+  it("emits x-axis without arrow, quoted", () => {
     const ir: QuadrantIR = {
       kind: "quadrantChart",
       xAxis: { left: "L" },
@@ -37,31 +37,46 @@ describe("generateQuadrant", () => {
       items: [],
     };
     const out = generateQuadrant(ir);
-    expect(out).toContain("  x-axis L");
+    expect(out).toContain('  x-axis "L"');
     expect(out).not.toContain("-->");
   });
 
-  it("emits quadrant labels in order 1..4", () => {
+  it("emits quadrant labels in order 1..4, quoted", () => {
     const ir: QuadrantIR = {
       kind: "quadrantChart",
       quadrants: { q1: "A", q2: "B", q3: "C", q4: "D" },
       items: [],
     };
     const out = generateQuadrant(ir);
-    expect(out).toContain("  quadrant-1 A");
-    expect(out).toContain("  quadrant-4 D");
+    expect(out).toContain('  quadrant-1 "A"');
+    expect(out).toContain('  quadrant-4 "D"');
     const i1 = out.indexOf("quadrant-1");
     const i4 = out.indexOf("quadrant-4");
     expect(i1).toBeLessThan(i4);
   });
 
-  it("emits points", () => {
+  it("emits points with quoted names", () => {
     const ir: QuadrantIR = {
       kind: "quadrantChart",
       quadrants: {},
       items: [{ type: "point", name: "P", x: 0.5, y: 0.7 }],
     };
-    expect(generateQuadrant(ir)).toContain("  P: [0.5, 0.7]");
+    expect(generateQuadrant(ir)).toContain('  "P": [0.5, 0.7]');
+  });
+
+  it("quotes text that would otherwise break Mermaid's own parser", () => {
+    // Parens/arrows in unquoted axis or quadrant text are exactly what the
+    // parser's quote-stripping needs the generator to re-quote on the way
+    // back out, or real Mermaid (not just our own parser) fails to render.
+    const ir: QuadrantIR = {
+      kind: "quadrantChart",
+      xAxis: { left: "低い自社適合度", right: "高い自社適合度 (育成・体制)" },
+      quadrants: {},
+      items: [],
+    };
+    expect(generateQuadrant(ir)).toContain(
+      '  x-axis "低い自社適合度" --> "高い自社適合度 (育成・体制)"',
+    );
   });
 
   it("preserves raw lines verbatim", () => {

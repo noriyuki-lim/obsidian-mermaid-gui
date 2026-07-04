@@ -83,6 +83,7 @@ export const JourneyEditor = ({ initialSource, onSave, onCancel, renderMermaid }
 
   return (
     <EditorShell
+      diagramKind="journey"
       currentSource={currentSource}
       onSave={handleSave}
       onCancel={onCancel}

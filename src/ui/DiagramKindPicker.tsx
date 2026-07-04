@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { DIAGRAM_TEMPLATES, templateSource, type DiagramTemplate } from "../core/templates";
 
 interface Props {
@@ -10,13 +10,15 @@ interface Props {
   renderMermaid?: (source: string) => Promise<string>;
 }
 
-// Favorites are a per-device convenience, so we persist them in localStorage
-// rather than threading plugin settings (data.json) through the Obsidian layer.
+// Favorites and the custom tile order are per-device conveniences, so we
+// persist them in localStorage rather than threading plugin settings
+// (data.json) through the Obsidian layer.
 const PIN_STORAGE_KEY = "mge-pinned-kinds";
+const ORDER_STORAGE_KEY = "mge-kind-order";
 
-const loadPinned = (): string[] => {
+const loadStringList = (key: string): string[] => {
   try {
-    const raw = window.localStorage.getItem(PIN_STORAGE_KEY);
+    const raw = window.localStorage.getItem(key);
     const parsed = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === "string") : [];
   } catch {
@@ -24,12 +26,26 @@ const loadPinned = (): string[] => {
   }
 };
 
-const savePinned = (kinds: string[]): void => {
+const saveStringList = (key: string, kinds: string[]): void => {
   try {
-    window.localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(kinds));
+    window.localStorage.setItem(key, JSON.stringify(kinds));
   } catch {
-    // Ignore quota / privacy-mode failures — pinning is non-essential.
+    // Ignore quota / privacy-mode failures — persistence is non-essential.
   }
+};
+
+/**
+ * Merge a saved tile order with the current template list: kinds the user
+ * has already ordered keep their relative order, kinds added since (new
+ * templates) are appended in their default-array position, and kinds that no
+ * longer exist (removed templates) are dropped silently.
+ */
+const mergeOrder = (saved: string[], defaultOrder: string[]): string[] => {
+  const known = new Set(defaultOrder);
+  const kept = saved.filter((k) => known.has(k));
+  const keptSet = new Set(kept);
+  const appended = defaultOrder.filter((k) => !keptSet.has(k));
+  return [...kept, ...appended];
 };
 
 /**
@@ -37,13 +53,22 @@ const savePinned = (kinds: string[]): void => {
  * existing fence (e.g. via the editor right-click menu or the
  * "Insert new Mermaid diagram (GUI)" command).
  *
- * Templates are grouped into Favorites → Available (graphical editing) →
- * Under Construction (form-centric), driven by each template's `editorStage`.
- * Picks reuse the EditorShell-style chrome so the modal remains draggable.
+ * Templates are grouped into Favorites → the rest, ordered by the user's
+ * saved tile order (falls back to `DIAGRAM_TEMPLATES` order, persisted in
+ * localStorage per device via the grip handle's drag-to-reorder). Picks reuse
+ * the EditorShell-style chrome so the modal remains draggable.
  */
 export const DiagramKindPicker = ({ onPick, onCancel, renderMermaid }: Props) => {
   const [highlighted, setHighlighted] = useState<DiagramTemplate>(DIAGRAM_TEMPLATES[0]);
-  const [pinned, setPinned] = useState<string[]>(() => loadPinned());
+  const [pinned, setPinned] = useState<string[]>(() => loadStringList(PIN_STORAGE_KEY));
+  const [order, setOrder] = useState<string[]>(() =>
+    mergeOrder(
+      loadStringList(ORDER_STORAGE_KEY),
+      DIAGRAM_TEMPLATES.map((t) => t.kind),
+    ),
+  );
+  const [draggingKind, setDraggingKind] = useState<string | null>(null);
+  const dragRef = useRef<{ pointerId: number; kind: string; lastTarget: string } | null>(null);
   const [svg, setSvg] = useState<string>("");
   const [renderError, setRenderError] = useState<string | null>(null);
   const tokenRef = useRef(0);
@@ -80,20 +105,100 @@ export const DiagramKindPicker = ({ onPick, onCancel, renderMermaid }: Props) =>
   const togglePin = (kind: string): void => {
     setPinned((prev) => {
       const next = prev.includes(kind) ? prev.filter((k) => k !== kind) : [...prev, kind];
-      savePinned(next);
+      saveStringList(PIN_STORAGE_KEY, next);
       return next;
     });
   };
 
-  const pinnedTemplates = pinned
-    .map((k) => DIAGRAM_TEMPLATES.find((t) => t.kind === k))
-    .filter((t): t is DiagramTemplate => Boolean(t));
-  const available = DIAGRAM_TEMPLATES.filter(
-    (t) => t.editorStage === "available" && !pinnedSet.has(t.kind),
+  const resetOrder = (): void => {
+    const defaultOrder = DIAGRAM_TEMPLATES.map((t) => t.kind);
+    setOrder(defaultOrder);
+    saveStringList(ORDER_STORAGE_KEY, defaultOrder);
+  };
+
+  // Move `fromKind` to sit where `toKind` currently is. Operates on the full
+  // order (not the pinned/rest sub-lists), so dragging within either visible
+  // group only changes the two kinds' relative position to each other.
+  const reorderKind = (fromKind: string, toKind: string): void => {
+    if (fromKind === toKind) return;
+    setOrder((prev) => {
+      const fromIdx = prev.indexOf(fromKind);
+      if (fromIdx === -1 || !prev.includes(toKind)) return prev;
+      const next = prev.slice();
+      next.splice(fromIdx, 1);
+      next.splice(next.indexOf(toKind), 0, fromKind);
+      saveStringList(ORDER_STORAGE_KEY, next);
+      return next;
+    });
+  };
+
+  const kindFromPoint = (x: number, y: number): string | null => {
+    // `elementFromPoint` only returns the topmost hit — near the scroll
+    // container's edge (e.g. the rightmost grid column, under a scrollbar)
+    // that topmost element can be something with no `data-kind-tile`
+    // ancestor at all, making the tile underneath unreachable. Walk the full
+    // hit stack instead so an overlay never blocks the drop target.
+    const stack = document.elementsFromPoint(x, y);
+    for (const el of stack) {
+      const tile = el.closest<HTMLElement>("[data-kind-tile]");
+      if (tile) return tile.dataset.kindTile ?? null;
+    }
+    return null;
+  };
+
+  // Tiles are keyed by `kind` (content identity, not array position), so
+  // reordering physically relocates the dragged tile's DOM node. Relying on
+  // `setPointerCapture` on that node breaks mid-drag: Chromium can implicitly
+  // release capture when the captured element moves within the DOM, and no
+  // `pointerup` ever arrives — leaving the tile stuck in its "grabbed" state.
+  // Tracking the drag via window-level listeners sidesteps this entirely.
+  useEffect(() => {
+    if (!draggingKind) return;
+    const handleMove = (e: PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag || drag.pointerId !== e.pointerId) return;
+      const target = kindFromPoint(e.clientX, e.clientY);
+      // Skip both no-hit and "still hovering the spot we already reordered
+      // against" — without this guard every pointermove over the same tile
+      // re-splices the order array and re-persists to localStorage.
+      if (!target || target === drag.kind || target === drag.lastTarget) return;
+      reorderKind(drag.kind, target);
+      drag.lastTarget = target;
+    };
+    const handleEnd = (e: PointerEvent) => {
+      if (!dragRef.current || dragRef.current.pointerId !== e.pointerId) return;
+      dragRef.current = null;
+      setDraggingKind(null);
+    };
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleEnd);
+    window.addEventListener("pointercancel", handleEnd);
+    return () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleEnd);
+      window.removeEventListener("pointercancel", handleEnd);
+    };
+  }, [draggingKind]);
+
+  const startDrag = (kind: string) => (e: ReactPointerEvent<HTMLButtonElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragRef.current = { pointerId: e.pointerId, kind, lastTarget: kind };
+    setDraggingKind(kind);
+  };
+
+  const orderIndex = useMemo(() => new Map(order.map((k, i) => [k, i])), [order]);
+  const sortedTemplates = useMemo(
+    () =>
+      [...DIAGRAM_TEMPLATES].sort(
+        (a, b) => (orderIndex.get(a.kind) ?? Number.MAX_SAFE_INTEGER) -
+          (orderIndex.get(b.kind) ?? Number.MAX_SAFE_INTEGER),
+      ),
+    [orderIndex],
   );
-  const wip = DIAGRAM_TEMPLATES.filter(
-    (t) => t.editorStage === "wip" && !pinnedSet.has(t.kind),
-  );
+  const pinnedTemplates = sortedTemplates.filter((t) => pinnedSet.has(t.kind));
+  const rest = sortedTemplates.filter((t) => !pinnedSet.has(t.kind));
 
   const renderTile = (tpl: DiagramTemplate) => {
     const active = tpl.kind === highlighted.kind;
@@ -101,9 +206,14 @@ export const DiagramKindPicker = ({ onPick, onCancel, renderMermaid }: Props) =>
     return (
       <li key={tpl.kind}>
         <div
-          className={active ? "mge-kind-picker-item active" : "mge-kind-picker-item"}
+          className={
+            "mge-kind-picker-item" +
+            (active ? " active" : "") +
+            (draggingKind === tpl.kind ? " dragging" : "")
+          }
           role="button"
           tabIndex={0}
+          data-kind-tile={tpl.kind}
           onClick={() => setHighlighted(tpl)}
           onDoubleClick={() => onPick(tpl)}
           onKeyDown={(e) => {
@@ -114,6 +224,16 @@ export const DiagramKindPicker = ({ onPick, onCancel, renderMermaid }: Props) =>
             }
           }}
         >
+          <button
+            type="button"
+            className="mge-kind-picker-handle"
+            aria-label="ドラッグして並べ替え"
+            title="ドラッグして並べ替え"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={startDrag(tpl.kind)}
+          >
+            <span className="mge-kind-picker-grip" aria-hidden="true" />
+          </button>
           <button
             type="button"
             className="mge-kind-picker-star"
@@ -134,10 +254,10 @@ export const DiagramKindPicker = ({ onPick, onCancel, renderMermaid }: Props) =>
     );
   };
 
-  const section = (title: string, items: DiagramTemplate[]) =>
+  const section = (title: string | null, items: DiagramTemplate[]) =>
     items.length === 0 ? null : (
       <div className="mge-kind-picker-group">
-        <h3 className="mge-kind-picker-section">{title}</h3>
+        {title ? <h3 className="mge-kind-picker-section">{title}</h3> : null}
         <ul className="mge-kind-picker-list">{items.map(renderTile)}</ul>
       </div>
     );
@@ -157,12 +277,16 @@ export const DiagramKindPicker = ({ onPick, onCancel, renderMermaid }: Props) =>
       </header>
 
       <section className="mge-editor-body mge-kind-picker-body">
-        <p className="mge-kind-picker-lead">
-          図の種別を選択。テンプレートが読み込まれ、続きを GUI で編集できる。☆ で上部にピンできる。
-        </p>
+        <div className="mge-kind-picker-lead-row">
+          <p className="mge-kind-picker-lead">
+            図の種類を選択してください。テンプレートが読み込まれ、続きをGUIでの直接編集、またはフォーム中心の編集で進められます。☆で上部にピンできます。
+          </p>
+          <button type="button" className="mge-kind-picker-reset" onClick={resetOrder}>
+            並び順をリセット
+          </button>
+        </div>
         {section("★ お気に入り", pinnedTemplates)}
-        {section("Available — GUI で直接編集", available)}
-        {section("Under Construction — フォーム中心", wip)}
+        {section(null, rest)}
       </section>
 
       <aside className="mge-editor-side mge-kind-picker-side">

@@ -62,6 +62,7 @@ export const SankeyEditor = ({ initialSource, onSave, onCancel, renderMermaid }:
 
   return (
     <EditorShell
+      diagramKind="sankey-beta"
       currentSource={currentSource}
       onSave={handleSave}
       onCancel={onCancel}

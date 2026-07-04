@@ -83,6 +83,7 @@ export const ArchitectureEditor = ({ initialSource, onSave, onCancel, renderMerm
 
   return (
     <EditorShell
+      diagramKind="architecture-beta"
       currentSource={currentSource}
       onSave={handleSave}
       onCancel={onCancel}

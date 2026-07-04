@@ -202,6 +202,7 @@ export const ClassEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
   // ---------------------------------------------------------------------------
   return (
     <EditorShell
+      diagramKind="classDiagram"
       currentSource={currentSource}
       onSave={handleSave}
       onCancel={onCancel}

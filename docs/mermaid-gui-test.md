@@ -12,12 +12,15 @@ flowchart TD
     n6[n6]
   end
   n1 --> sg_1
-  sg_1 --> n3
-  n3 --> n5
-  n3 --> n4
   n2 --> n6
+  n3 --> n5
   n3 --> n7
+  n3 --> n4
   n5 --> n8
-  n4 --> n8
   n7 --> n8
+  n4 --> n8
+  sg_1 --> n3
 ```
+
+
+

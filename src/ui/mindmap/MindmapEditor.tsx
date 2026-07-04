@@ -202,6 +202,7 @@ export const MindmapEditor = ({ initialSource, onSave, onCancel, renderMermaid }
 
   return (
     <EditorShell
+      diagramKind="mindmap"
       currentSource={currentSource}
       onSave={handleSave}
       onCancel={onCancel}

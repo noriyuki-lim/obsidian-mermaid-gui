@@ -120,6 +120,7 @@ export const SequenceEditor = ({ initialSource, onSave, onCancel, renderMermaid 
 
   return (
     <EditorShell
+      diagramKind="sequenceDiagram"
       currentSource={currentSource}
       onSave={handleSave}
       onCancel={onCancel}

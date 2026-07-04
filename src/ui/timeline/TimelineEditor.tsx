@@ -83,6 +83,7 @@ export const TimelineEditor = ({ initialSource, onSave, onCancel, renderMermaid 
 
   return (
     <EditorShell
+      diagramKind="timeline"
       currentSource={currentSource}
       onSave={handleSave}
       onCancel={onCancel}

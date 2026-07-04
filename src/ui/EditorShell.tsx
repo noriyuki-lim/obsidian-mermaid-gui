@@ -8,6 +8,8 @@ import {
 import { EditorActions } from "./EditorActions";
 import { useEditorHost } from "./EditorHostContext";
 import { isEditableShortcutTarget } from "./keyboard";
+import type { DiagramKind } from "../core/diagram-kind";
+import { loadNumber, previewRatioKey, saveNumber, sideRatioKey } from "./layoutPrefs";
 
 const SIDE_DEFAULT = 0.42;
 const HISTORY_LIMIT = 100;
@@ -20,6 +22,10 @@ const PREVIEW_MAX = 0.85;
 export type SourceEditOutcome = { ok: true } | { ok: false; error: string };
 
 interface Props {
+  /** Diagram kind this shell instance is editing. Namespaces the persisted
+   *  panel-size preferences (side/preview ratio) so resizing one diagram
+   *  type's panels does not affect another's. */
+  diagramKind: DiagramKind;
   /** Brand label rendered on the left of the toolbar. */
   title?: string;
   /** Latest serialised Mermaid source — driven by the host editor's IR. */
@@ -31,6 +37,13 @@ interface Props {
   toolbarExtras?: ReactNode;
   /** Layout variant. `side` preserves the classic two-pane editor. */
   layout?: "side" | "stacked";
+  /** Overrides the shared side-ratio default for this diagram kind's first
+   *  open (before the user has ever dragged the splitter). Ignored once a
+   *  per-kind preference is saved. */
+  defaultSideRatio?: number;
+  /** Overrides the shared preview-ratio default for this diagram kind's
+   *  first open. Ignored once a per-kind preference is saved. */
+  defaultPreviewRatio?: number;
   /** For stacked layouts, source starts hidden unless explicitly opened. */
   sourceInitiallyOpen?: boolean;
   /** Button label for the collapsible source pane in stacked layouts. */
@@ -69,6 +82,7 @@ const clamp = (value: number, min: number, max: number) =>
  * times so the user can verify their edits without leaving the modal.
  */
 export const EditorShell = ({
+  diagramKind,
   title = "Mermaid GUI",
   currentSource,
   onSave,
@@ -76,6 +90,8 @@ export const EditorShell = ({
   saving,
   toolbarExtras,
   layout = "side",
+  defaultSideRatio,
+  defaultPreviewRatio,
   sourceInitiallyOpen = false,
   sourceToggleLabel = "Mermaid source",
   renderMermaid,
@@ -169,6 +185,24 @@ export const EditorShell = ({
   const sideDrag = useRef<{ startX: number; startRatio: number } | null>(null);
   const previewDrag = useRef<{ startY: number; startRatio: number } | null>(null);
 
+  // Initial ratios come from this diagram kind's saved preference (falling
+  // back to the shared default), so reopening the editor keeps the panel
+  // sizes the user last set for this specific diagram type.
+  const [initialSideRatio] = useState(() =>
+    clamp(
+      loadNumber(sideRatioKey(diagramKind), defaultSideRatio ?? SIDE_DEFAULT),
+      SIDE_MIN,
+      SIDE_MAX,
+    ),
+  );
+  const [initialPreviewRatio] = useState(() =>
+    clamp(
+      loadNumber(previewRatioKey(diagramKind), defaultPreviewRatio ?? PREVIEW_DEFAULT),
+      PREVIEW_MIN,
+      PREVIEW_MAX,
+    ),
+  );
+
   // Render Mermaid source to SVG whenever it (or the renderer) changes. We use
   // a monotonically increasing token so an in-flight render that resolves late
   // never overwrites a newer result. Skipped when a host editor supplies its
@@ -258,6 +292,8 @@ export const EditorShell = ({
       // pointer capture may already be released
     }
     document.body.classList.remove("mge-side-resizing");
+    const ratio = parseFloat(shellRef.current?.style.getPropertyValue("--mge-side-ratio") ?? "");
+    if (Number.isFinite(ratio)) saveNumber(sideRatioKey(diagramKind), ratio);
   };
 
   const startPreviewDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -300,6 +336,8 @@ export const EditorShell = ({
       // pointer capture may already be released
     }
     document.body.classList.remove("mge-preview-resizing");
+    const ratio = parseFloat(shellRef.current?.style.getPropertyValue("--mge-preview-ratio") ?? "");
+    if (Number.isFinite(ratio)) saveNumber(previewRatioKey(diagramKind), ratio);
   };
 
   const previewBody = (() => {
@@ -387,8 +425,8 @@ export const EditorShell = ({
         className={`mge-editor-shell mge-editor-shell-stacked ${sourceOpen ? "mge-source-open" : ""}`}
         ref={shellRef}
         style={{
-          ["--mge-side-ratio" as string]: SIDE_DEFAULT,
-          ["--mge-preview-ratio" as string]: PREVIEW_DEFAULT,
+          ["--mge-side-ratio" as string]: initialSideRatio,
+          ["--mge-preview-ratio" as string]: initialPreviewRatio,
         }}
       >
         <header className="mge-toolbar mge-editor-toolbar">
@@ -446,8 +484,8 @@ export const EditorShell = ({
       className="mge-editor-shell"
       ref={shellRef}
       style={{
-        ["--mge-side-ratio" as string]: SIDE_DEFAULT,
-        ["--mge-preview-ratio" as string]: PREVIEW_DEFAULT,
+        ["--mge-side-ratio" as string]: initialSideRatio,
+        ["--mge-preview-ratio" as string]: initialPreviewRatio,
       }}
     >
       <header className="mge-toolbar mge-editor-toolbar">

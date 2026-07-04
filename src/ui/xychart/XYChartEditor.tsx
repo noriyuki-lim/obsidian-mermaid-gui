@@ -550,6 +550,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
 
   return (
     <EditorShell
+      diagramKind="xychart-beta"
       currentSource={currentSource}
       onSave={handleSave}
       onCancel={onCancel}

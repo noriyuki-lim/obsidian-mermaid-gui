@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useEditorStore } from "../EditorContext";
+import { FLOWCHART_TEXT_PANE_HEIGHT_KEY, loadNumber, saveNumber } from "../layoutPrefs";
 
 const COMMIT_DEBOUNCE_MS = 700;
 const DEFAULT_HEIGHT = 240;
@@ -25,6 +26,16 @@ export const TextPane = () => {
     },
     [],
   );
+
+  // Restore the last saved source-pane height once the shell (grid parent) is
+  // mounted, so reopening the flowchart editor keeps the user's preferred
+  // split instead of resetting to DEFAULT_HEIGHT every time.
+  useEffect(() => {
+    const shell = paneRef.current?.parentElement;
+    if (!shell) return;
+    const saved = loadNumber(FLOWCHART_TEXT_PANE_HEIGHT_KEY, DEFAULT_HEIGHT);
+    shell.style.setProperty("--mge-text-pane-height", `${Math.round(clamp(saved, MIN_HEIGHT, Number.MAX_SAFE_INTEGER))}px`);
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
@@ -65,10 +76,14 @@ export const TextPane = () => {
     dragRef.current = null;
     e.currentTarget.releasePointerCapture(e.pointerId);
     document.body.classList.remove("mge-text-pane-resizing");
+    const shell = paneRef.current?.parentElement;
+    const height = parseFloat(shell?.style.getPropertyValue("--mge-text-pane-height") ?? "");
+    if (Number.isFinite(height)) saveNumber(FLOWCHART_TEXT_PANE_HEIGHT_KEY, height);
   };
 
   const handleResizeReset = () => {
     paneRef.current?.parentElement?.style.setProperty("--mge-text-pane-height", `${DEFAULT_HEIGHT}px`);
+    saveNumber(FLOWCHART_TEXT_PANE_HEIGHT_KEY, DEFAULT_HEIGHT);
   };
 
   let statusEl: React.ReactElement;

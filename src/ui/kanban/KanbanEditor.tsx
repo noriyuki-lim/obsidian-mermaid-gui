@@ -141,6 +141,7 @@ export const KanbanEditor = ({ initialSource, onSave, onCancel }: Props) => {
 
   return (
     <EditorShell
+      diagramKind="kanban"
       currentSource={currentSource}
       onSave={handleSave}
       onCancel={onCancel}

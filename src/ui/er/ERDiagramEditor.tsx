@@ -164,6 +164,7 @@ export const ERDiagramEditor = ({ initialSource, onSave, onCancel, renderMermaid
 
   return (
     <EditorShell
+      diagramKind="erDiagram"
       currentSource={currentSource}
       onSave={handleSave}
       onCancel={onCancel}

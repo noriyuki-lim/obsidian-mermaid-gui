@@ -140,7 +140,7 @@ mermaid-gui-obsidian/
 │   │   ├── EditorShell.tsx        ← 非 flowchart 全エディタ共通の外殻（ドラッグ可能 toolbar + プレビュー + コードペイン + Undo/Redo 履歴）
 │   │   ├── EditorActions.tsx      ← Undo / Redo / SVG エクスポートボタン共通コンポーネント（flowchart Toolbar と EditorShell が共用）
 │   │   ├── EditorHostContext.tsx  ← ホスト能力（onExportSvg 等）を React context で全エディタに供給。MermaidEditor が EditorHostProvider でラップ
-│   │   ├── DiagramKindPicker.tsx  ← 新規作成時の図種選択 UI（Favorites ★ / Available / Under Construction グループ、テンプレートプレビュー付き）
+│   │   ├── DiagramKindPicker.tsx  ← 新規作成時の図種選択 UI（Favorites ★ / それ以外はフラットな一覧、タイルはドラッグで自由に並べ替え可能、テンプレートプレビュー付き）
 │   │   ├── FlowchartEditor.tsx
 │   │   ├── SourceOnlyEditor.tsx   ← GUI 未対応図種のフォールバック
 │   │   ├── EditorContext.tsx
@@ -308,11 +308,13 @@ flowchart を除く全ての専用エディタは `src/ui/EditorShell.tsx` を r
 2. **Mermaid ソース文字列の Undo/Redo 履歴** — EditorShell 内部でソース文字列のスタックを管理し、`Ctrl+Z` / `Ctrl+Y` / `Ctrl+Shift+Z` で操作を取り消し・やり直せる。flowchart の store-backed undo とは別個に実装されている。
 3. **ライブ Mermaid プレビュー** — 親から渡された `renderMermaid(source)` を使い、IR の更新ごとに最新の Mermaid SVG を再描画する。`EditorModal` からは `src/obsidian/mermaidRender.ts` の `renderMermaidThemed` が注入される。同 helper は Obsidian の `theme-dark` クラスを見て `mermaid.initialize({ theme })` を切り替えるため、ライト/ダーク両方で文字色が追従する。Reading view の `postProcessor.ts` も同じ helper を経由するので、プレビューの見た目はモーダルと一致する（#37）。
 4. **コードペイン** — 生成中のソースを textarea に同期表示する。`onSourceEdit` を渡すと編集可能になり、ユーザーのキーストロークごとに `parse<Kind>(next)` を呼んで IR を差し替える。draft state がユーザーの正確な入力を保持し続け、blur で IR から再生成された canonical 形に戻る。parse 失敗時はインラインの error バッジ（赤）が出るだけで IR は据え置く。
+5. **パネル比率の永続化** — side ratio（`--mge-side-ratio`）と preview ratio（`--mge-preview-ratio`）はドラッグ確定時に `src/ui/layoutPrefs.ts` 経由で `localStorage` に保存され、次回モーダルを開いたときに復元される。キーは必須 prop `diagramKind`（`DiagramKind`）で名前空間化されており、図種ごとに独立して幅・高さの好みを保持する（ある図種で広げても他の図種には影響しない）。flowchart 専用の `TextPane`（ソースペイン高さ `--mge-text-pane-height`）も同モジュールで同様に永続化するが、flowchart は単一エディタなので図種別のキー分けは不要。保存済みの好みがまだ無い場合の初期比率は、任意 prop `defaultSideRatio` / `defaultPreviewRatio` でエディタ側から上書きできる（例: `QuadrantEditor` はグラフィカルなプレビューを広く見せたいので 0.55 / 0.68 を指定）。未指定時は共通の `SIDE_DEFAULT`(0.42) / `PREVIEW_DEFAULT`(0.58) にフォールバックする。
 
 各 `<Kind>Editor` は次のシグネチャを満たす：
 
 ```tsx
 <EditorShell
+  diagramKind="pie"                 // このエディタが担当する DiagramKind リテラル（パネル比率のキーに使う）
   currentSource={generate(ir)}      // IR から都度生成。useMemo 推奨
   onSave={async () => onSave(...)}
   onCancel={onCancel}
@@ -336,6 +338,7 @@ flowchart を除く全ての専用エディタは `src/ui/EditorShell.tsx` を r
 - 共通シェルの toolbar の見た目を変えたければ `toolbarExtras` slot を使う。`<header>` の DOM 構造には触れない。
 - flowchart は React Flow canvas そのものがグラフィカルプレビューなので `EditorShell` を使わず `mge-app-shell` の独自レイアウトを維持する。例外として扱う。コード編集は既存の `src/ui/panels/TextPane.tsx`（store の `setText` / `commitText` 経由、debounce ありの blur commit）に集約し、`Sort source by canvas` で現在座標に基づいて Mermaid の node / subgraph / edge 出力順を明示的に整列できる。Direction / Subgraph は `src/ui/panels/Palette.tsx` の Shapes 上部に置き、Editor edge / Auto-layout は `src/ui/canvas/FlowchartCanvasControls.tsx` で canvas 左上に表示する。`src/ui/toolbar/Toolbar.tsx` は Undo/Redo/Export/Save/Cancel のみ保持する。キャンバスコンテナのリサイズ時は、リサイズ前の画面中心にあった flow 座標をリサイズ後も中心に保つ。ただし Modal 最大化 / 復元の transition 中は viewport 補正を保留し、transition 終了後に1回だけ補正する。Subgraph 選択時の右ペインでは `direction` を `(inherit)` / TD / LR / BT / RL から編集でき、変更は Mermaid の `direction ...` とキャンバス上の局所レイアウトの両方に反映される。ノード選択時の右ペインには接続 edge 一覧を表示し、重なって掴みにくい edge も一覧から選択・削除・接続先変更できる。選択済み edge は canvas 上でも前面化し、edge reconnect は選択済み edge が1本かつヒットした edge と固定端点を共有する場合、その選択済み edge を操作対象にする。Auto-layout は各 subgraph 内を先にレイアウトして表示上の subgraph frame と同じサイズの box として外側の Dagre に渡す。Subgraph endpoint の edge はその box へ接続されるため、個別条件ごとの距離補正は行わない。
 - **ホスト能力の注入** — `src/ui/EditorHostContext.tsx` の `EditorHostProvider` が `onExportSvg` 等のホスト能力を React context 経由で全エディタに供給する。`MermaidEditor` が最上位で `EditorHostProvider` をラップするため、各エディタは prop drilling なしに能力を取得できる。
+- `SourceOnlyEditor`（treemap-beta / venn-beta / 未対応図種の共通フォールバック）だけは `diagramKind` をリテラルで固定せず、`MermaidEditor.tsx` が `detectDiagramKind` で判定した実際の kind を prop で受け取って転送する。1 コンポーネントが複数図種を跨ぐため、リテラル固定だとパネル比率がそれらの図種間で共有されてしまう。
 
 ---
 
@@ -355,7 +358,9 @@ flowchart を除く全ての専用エディタは `src/ui/EditorShell.tsx` を r
 - `kind` は `DiagramKind` の値
 - `source` は **最小だが parser が通る** Mermaid テキスト（テストで保証）。動的に日付を生成する場合は `source` の代わりに `templateSource()` ヘルパ関数として定義できる。gantt テンプレートはこの形式を採用し、今日の日付から約 3 ヶ月先のタスク・依存・マイルストーン・`axisFormat %m/%d` を動的に生成する。
 - `supportsGui: true` を立てるのは bespoke エディタがある図種だけ。`false` だと `SourceOnlyEditor` 経由になるが、テンプレートピッカーには出てよい
-- `editorStage: "available" | "wip"` を付与する。`"available"` はグラフィカルな直接操作エディタが完成している図種（flowchart / quadrantChart / xychart-beta / gantt / block-beta / kanban）。`"wip"` はそれ以外。`DiagramKindPicker` はこのフラグで **Favorites ★**（localStorage 永続）/ **Available** / **Under Construction** の 3 グループに分類して表示する。
+- `DiagramKindPicker` は `DIAGRAM_TEMPLATES` の配列順を初期表示順として使う。新規テンプレートを挿入する位置がそのまま初期表示順になる点に注意する。グラフィカルな直接操作エディタを持つ図種（flowchart / quadrantChart / gantt / block-beta / kanban / xychart-beta）は配列先頭にまとめてある。
+  - ユーザーはタイル左上のグリップハンドルをドラッグして表示順を自由に並べ替えられる（`mge-kind-order` として localStorage に永続化）。並べ替えは `DiagramKindPicker.tsx` の `reorderKind` が担い、保存済み順序と `DIAGRAM_TEMPLATES` を `mergeOrder()` でマージする（新規テンプレートは末尾に追加、削除されたテンプレートは無視）。
+  - **Favorites ★**（`mge-pinned-kinds`）は独立した永続キーで、ピン留めした図種を別セクションとして先頭に固定表示する。ピン内・ピン外それぞれの並び順は上記のドラッグ順序に従う。
 
 テンプレートは `tests/core/templates.test.ts` が次の不変条件を検証する：
 
@@ -438,6 +443,12 @@ npm run dev
 ```
 
 を回しつつ、vault の `<vault>/.obsidian/plugins/mermaid-gui-obsidian/` に対して **junction**（Windows: `New-Item -ItemType Junction`）でリポジトリ直下を貼ると、保存即反映できる。`Ctrl+R` で Obsidian をリロード。
+
+**`src/` を編集したら、ユーザーに動作確認を促す前に必ず `main.js` / `styles.css` が最新化されているか確認する。** `npm run dev` がバックグラウンドで動いていない状態（このセッションでは既定）で `Edit`/`Write` だけ行うと `main.js` は古いままで、Obsidian が何度リロードしても変更が反映されない（実際に発生した事故）。
+
+- `npm run dev` を watch で回していないなら、ソース変更後に毎回 `npm run build` を実行してから「リロードして確認して」と伝える。
+- `ls -la main.js styles.css` 等でタイムスタンプが直近の編集より新しいことを確認してから完了報告する。
+- watch を回している場合でも、esbuild のエラーで再生成が止まっていないか出力を確認する。
 
 ---
 

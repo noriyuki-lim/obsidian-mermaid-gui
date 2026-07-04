@@ -96,6 +96,7 @@ export const BlockEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
 
   return (
     <EditorShell
+      diagramKind="block-beta"
       currentSource={currentSource}
       onSave={handleSave}
       onCancel={onCancel}

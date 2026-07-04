@@ -75,4 +75,23 @@ describe("parseQuadrant", () => {
     if (!result.ok) return;
     expect(result.ir.items.filter((i) => i.type === "raw")).toHaveLength(1);
   });
+
+  it("strips surrounding quotes from title, axis, quadrant and point labels", () => {
+    const src = `quadrantChart
+  title "My Title"
+  x-axis "Low Reach" --> "High Reach"
+  y-axis "Low Engagement" --> "High Engagement"
+  quadrant-1 "We should expand"
+  "Campaign A": [0.3, 0.6]
+`;
+    const result = parseQuadrant(src);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.ir.title).toBe("My Title");
+    expect(result.ir.xAxis).toEqual({ left: "Low Reach", right: "High Reach" });
+    expect(result.ir.yAxis).toEqual({ bottom: "Low Engagement", top: "High Engagement" });
+    expect(result.ir.quadrants.q1).toBe("We should expand");
+    const pts = result.ir.items.filter((i) => i.type === "point");
+    expect(pts[0]).toMatchObject({ name: "Campaign A" });
+  });
 });

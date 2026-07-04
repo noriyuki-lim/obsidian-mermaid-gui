@@ -1451,6 +1451,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
 
   return (
     <EditorShell
+      diagramKind="gantt"
       currentSource={currentSource}
       onSave={handleSave}
       onCancel={onCancel}

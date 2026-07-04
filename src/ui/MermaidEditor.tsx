@@ -107,7 +107,7 @@ export const MermaidEditor = (props: Props) => {
     if (kind === "architecture-beta") return <ArchitectureEditor {...passthrough} />;
     if (kind === "block-beta") return <BlockEditor {...passthrough} />;
     if (kind === "kanban") return <KanbanEditor {...passthrough} />;
-    return <SourceOnlyEditor {...passthrough} />;
+    return <SourceOnlyEditor {...passthrough} kind={kind} />;
   })();
 
   return (

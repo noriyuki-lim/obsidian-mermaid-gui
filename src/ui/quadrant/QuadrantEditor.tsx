@@ -30,6 +30,8 @@ const quadrantLabels: Record<(typeof quadrantKeys)[number], string> = {
 };
 
 const round = (n: number) => Math.round(n * 1000) / 1000;
+const clamp01 = (n: number) => Math.min(Math.max(n, 0), 1);
+const POINT_STEP = 0.05;
 
 export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
   // QuadrantEditor swaps Mermaid's static render for an interactive SVG so the
@@ -91,6 +93,9 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
 
   return (
     <EditorShell
+      diagramKind="quadrantChart"
+      defaultSideRatio={0.55}
+      defaultPreviewRatio={0.68}
       currentSource={currentSource}
       onSave={handleSave}
       onCancel={onCancel}
@@ -229,25 +234,65 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
                     placeholder="name"
                   />
                   <span className="mge-seq-row-label">x</span>
-                  <input
-                    className="mge-seq-input"
-                    type="number"
-                    step={0.05}
-                    min={0}
-                    max={1}
-                    value={item.x}
-                    onChange={(e) => updateItem(idx, { x: Number(e.target.value) })}
-                  />
+                  <span className="mge-quad-point-field">
+                    <input
+                      className="mge-seq-input"
+                      type="number"
+                      step={POINT_STEP}
+                      min={0}
+                      max={1}
+                      value={item.x}
+                      onChange={(e) => updateItem(idx, { x: Number(e.target.value) })}
+                    />
+                    <span className="mge-quad-point-stepper">
+                      <button
+                        type="button"
+                        className="mge-quad-point-stepper-btn"
+                        aria-label="x を増やす"
+                        onClick={() => updateItem(idx, { x: round(clamp01(item.x + POINT_STEP)) })}
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        className="mge-quad-point-stepper-btn"
+                        aria-label="x を減らす"
+                        onClick={() => updateItem(idx, { x: round(clamp01(item.x - POINT_STEP)) })}
+                      >
+                        ▼
+                      </button>
+                    </span>
+                  </span>
                   <span className="mge-seq-row-label">y</span>
-                  <input
-                    className="mge-seq-input"
-                    type="number"
-                    step={0.05}
-                    min={0}
-                    max={1}
-                    value={item.y}
-                    onChange={(e) => updateItem(idx, { y: Number(e.target.value) })}
-                  />
+                  <span className="mge-quad-point-field">
+                    <input
+                      className="mge-seq-input"
+                      type="number"
+                      step={POINT_STEP}
+                      min={0}
+                      max={1}
+                      value={item.y}
+                      onChange={(e) => updateItem(idx, { y: Number(e.target.value) })}
+                    />
+                    <span className="mge-quad-point-stepper">
+                      <button
+                        type="button"
+                        className="mge-quad-point-stepper-btn"
+                        aria-label="y を増やす"
+                        onClick={() => updateItem(idx, { y: round(clamp01(item.y + POINT_STEP)) })}
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        className="mge-quad-point-stepper-btn"
+                        aria-label="y を減らす"
+                        onClick={() => updateItem(idx, { y: round(clamp01(item.y - POINT_STEP)) })}
+                      >
+                        ▼
+                      </button>
+                    </span>
+                  </span>
                   <button
                     className="mge-seq-btn mge-seq-btn-sm mge-seq-btn-danger"
                     onClick={() => deleteItem(idx)}

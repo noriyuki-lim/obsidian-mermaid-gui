@@ -172,6 +172,7 @@ export const StateEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
 
   return (
     <EditorShell
+      diagramKind="stateDiagram-v2"
       currentSource={currentSource}
       onSave={handleSave}
       onCancel={onCancel}

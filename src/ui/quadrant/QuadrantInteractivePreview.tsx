@@ -8,6 +8,20 @@ interface Props {
 
 const clamp01 = (n: number) => Math.min(Math.max(n, 0), 1);
 
+// The plot itself is always 0..100 on both axes. Mermaid renders axis labels
+// outside the plotted quadrants (x-axis below, y-axis rotated to the left),
+// so the viewBox reserves margin strips for them rather than cramming the
+// text inside the 0..100 box.
+const PLOT_SIZE = 100;
+const MARGIN_LEFT = 16;
+const MARGIN_BOTTOM = 12;
+const VIEWBOX_WIDTH = PLOT_SIZE + MARGIN_LEFT;
+const VIEWBOX_HEIGHT = PLOT_SIZE + MARGIN_BOTTOM;
+const VIEWBOX = `${-MARGIN_LEFT} 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`;
+// Mermaid's default point radius is small relative to the chart — the
+// previous r=2.4 read as oversized next to the real rendering.
+const POINT_RADIUS = 1.3;
+
 /**
  * Interactive drag-and-drop quadrant preview. Built bespoke (not via Mermaid
  * render) because the user request is "graphical operation on the preview" —
@@ -33,14 +47,22 @@ export const QuadrantInteractivePreview = ({ ir, onPointMove }: Props) => {
   const toLocal = (clientX: number, clientY: number) => {
     const svg = svgRef.current;
     if (!svg) return null;
-    const rect = svg.getBoundingClientRect();
-    const w = rect.width;
-    const h = rect.height;
-    if (w <= 0 || h <= 0) return null;
+    // getBoundingClientRect() is the CSS box, which is wider/taller than the
+    // "meet"-fitted viewBox content whenever the flex container's aspect
+    // ratio doesn't match the viewBox's — that mismatch is exactly what made
+    // dragged points lag behind the cursor. getScreenCTM() gives the actual
+    // screen-to-viewBox transform (letterboxing and viewBox offset included),
+    // so inverting it maps the pointer straight into our 0..100 plot space.
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    const point = svg.createSVGPoint();
+    point.x = clientX;
+    point.y = clientY;
+    const local = point.matrixTransform(ctm.inverse());
     return {
-      x: clamp01((clientX - rect.left) / w),
+      x: clamp01(local.x / PLOT_SIZE),
       // SVG y grows downwards; IR y grows upwards.
-      y: clamp01(1 - (clientY - rect.top) / h),
+      y: clamp01(1 - local.y / PLOT_SIZE),
     };
   };
 
@@ -86,7 +108,7 @@ export const QuadrantInteractivePreview = ({ ir, onPointMove }: Props) => {
       <svg
         ref={svgRef}
         className="mge-quad-preview-svg"
-        viewBox="0 0 100 100"
+        viewBox={VIEWBOX}
         preserveAspectRatio="xMidYMid meet"
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -108,31 +130,50 @@ export const QuadrantInteractivePreview = ({ ir, onPointMove }: Props) => {
         {/* Axes */}
         <line x1={50} y1={0} x2={50} y2={100} className="mge-quad-axis" />
         <line x1={0} y1={50} x2={100} y2={50} className="mge-quad-axis" />
-        {/* Quadrant labels */}
+        {/* Quadrant labels — anchored near the top of each quadrant, matching
+            Mermaid's own quadrantChart rendering (not vertically centered). */}
         {ir.quadrants.q2 ? (
-          <text x={25} y={25} className="mge-quad-label" textAnchor="middle">{ir.quadrants.q2}</text>
+          <text x={25} y={4} className="mge-quad-label" textAnchor="middle">{ir.quadrants.q2}</text>
         ) : null}
         {ir.quadrants.q1 ? (
-          <text x={75} y={25} className="mge-quad-label" textAnchor="middle">{ir.quadrants.q1}</text>
+          <text x={75} y={4} className="mge-quad-label" textAnchor="middle">{ir.quadrants.q1}</text>
         ) : null}
         {ir.quadrants.q3 ? (
-          <text x={25} y={75} className="mge-quad-label" textAnchor="middle">{ir.quadrants.q3}</text>
+          <text x={25} y={54} className="mge-quad-label" textAnchor="middle">{ir.quadrants.q3}</text>
         ) : null}
         {ir.quadrants.q4 ? (
-          <text x={75} y={75} className="mge-quad-label" textAnchor="middle">{ir.quadrants.q4}</text>
+          <text x={75} y={54} className="mge-quad-label" textAnchor="middle">{ir.quadrants.q4}</text>
         ) : null}
-        {/* Axis labels */}
+        {/* Axis labels — rendered outside the plotted quadrants, mirroring
+            Mermaid's own layout: x-axis below the box, y-axis rotated in the
+            left margin. */}
         {ir.xAxis?.left ? (
-          <text x={2} y={98} className="mge-quad-axis-label" textAnchor="start">{ir.xAxis.left}</text>
+          <text x={0} y={PLOT_SIZE + 7} className="mge-quad-axis-label" textAnchor="start">{ir.xAxis.left}</text>
         ) : null}
         {ir.xAxis?.right ? (
-          <text x={98} y={98} className="mge-quad-axis-label" textAnchor="end">{ir.xAxis.right}</text>
+          <text x={PLOT_SIZE} y={PLOT_SIZE + 7} className="mge-quad-axis-label" textAnchor="end">{ir.xAxis.right}</text>
         ) : null}
         {ir.yAxis?.bottom ? (
-          <text x={2} y={98} className="mge-quad-axis-label" textAnchor="start" dy={-10}>{ir.yAxis.bottom}</text>
+          <text
+            x={-MARGIN_LEFT / 2}
+            y={75}
+            transform={`rotate(-90 ${-MARGIN_LEFT / 2} 75)`}
+            className="mge-quad-axis-label"
+            textAnchor="middle"
+          >
+            {ir.yAxis.bottom}
+          </text>
         ) : null}
         {ir.yAxis?.top ? (
-          <text x={2} y={4} className="mge-quad-axis-label" textAnchor="start">{ir.yAxis.top}</text>
+          <text
+            x={-MARGIN_LEFT / 2}
+            y={25}
+            transform={`rotate(-90 ${-MARGIN_LEFT / 2} 25)`}
+            className="mge-quad-axis-label"
+            textAnchor="middle"
+          >
+            {ir.yAxis.top}
+          </text>
         ) : null}
         {/* Points */}
         {points.map(({ item, index }) => {
@@ -144,13 +185,14 @@ export const QuadrantInteractivePreview = ({ ir, onPointMove }: Props) => {
               <circle
                 cx={cx}
                 cy={cy}
-                r={2.4}
+                r={POINT_RADIUS}
                 className="mge-quad-point-dot"
                 onPointerDown={onPointerDown(index)}
               />
               <text
-                x={cx + 3}
-                y={cy - 3}
+                x={cx}
+                y={cy + POINT_RADIUS + 2.4}
+                textAnchor="middle"
                 className="mge-quad-point-label"
               >
                 {item.name}

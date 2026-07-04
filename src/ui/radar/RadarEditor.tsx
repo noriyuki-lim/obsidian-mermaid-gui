@@ -87,6 +87,7 @@ export const RadarEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
   // error returned by the renderer (or the "preview unavailable" hint).
   return (
     <EditorShell
+      diagramKind="radar-beta"
       currentSource={currentSource}
       onSave={handleSave}
       onCancel={onCancel}

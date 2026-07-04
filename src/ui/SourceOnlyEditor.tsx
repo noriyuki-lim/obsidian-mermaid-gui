@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { EditorShell } from "./EditorShell";
+import type { DiagramKind } from "../core/diagram-kind";
 
 interface Props {
   /** Raw Mermaid block body (without fences, GUI metadata already stripped). */
@@ -7,6 +8,10 @@ interface Props {
   onSave: (newSource: string) => void | Promise<void>;
   onCancel: () => void;
   renderMermaid?: (source: string) => Promise<string>;
+  /** Detected kind — this editor is a fallback shared by several kinds
+   *  (treemap-beta, venn-beta, unrecognised text), so panel-size preferences
+   *  must be namespaced by the actual kind rather than a single shared key. */
+  kind: DiagramKind;
 }
 
 /**
@@ -17,7 +22,7 @@ interface Props {
  * user types — handy when verifying small syntax tweaks against the rendered
  * diagram.
  */
-export const SourceOnlyEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
+export const SourceOnlyEditor = ({ initialSource, onSave, onCancel, renderMermaid, kind }: Props) => {
   const [source, setSource] = useState(initialSource);
   const [saving, setSaving] = useState(false);
 
@@ -33,6 +38,7 @@ export const SourceOnlyEditor = ({ initialSource, onSave, onCancel, renderMermai
 
   return (
     <EditorShell
+      diagramKind={kind}
       currentSource={source}
       onSave={handleSave}
       onCancel={onCancel}

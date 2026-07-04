@@ -43,11 +43,11 @@ flowchart TD
 
 ```mermaid
 sequenceDiagram
-    participant Alice
-    participant Bob
-    Alice->>Bob: Hello Bob!
-    Bob-->>Alice: Hi Alice!
-    Alice->>Bob: どうぞよろしく
+  participant Alice
+  participant Bob
+  Alice->>Bob: Hello Bob!
+  Bob-->>Alice: Hi Alice!
+  Alice->>Bob: どうぞよろしく
 ```
 
 ***

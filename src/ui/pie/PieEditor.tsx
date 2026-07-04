@@ -63,6 +63,7 @@ export const PieEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Pr
 
   return (
     <EditorShell
+      diagramKind="pie"
       currentSource={currentSource}
       onSave={handleSave}
       onCancel={onCancel}
