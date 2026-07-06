@@ -216,6 +216,16 @@ export const irToFlow = (
     id: n.id,
     type: "shape" as const,
     position: positions[n.id] ?? { x: 0, y: 0 },
+    // Seeds React Flow's internal `measured` size before the node's actual
+    // DOM box is measured via ResizeObserver on mount. Without this, edges
+    // on the very first render are routed against an unknown/zero size and
+    // visibly snap into place once measurement completes a frame later —
+    // the "misaligned until you press Auto-layout" bug (Auto-layout just
+    // happens to commit a re-render after measurement has already settled).
+    // .mge-shape-node is a fixed 160x60 box (styles.src.css), matching
+    // NODE_SIZE used for Dagre layout, so this is always accurate up front.
+    width: NODE_SIZE.width,
+    height: NODE_SIZE.height,
     data: {
       label: n.label,
       shape: n.shape,
