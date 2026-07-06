@@ -198,6 +198,51 @@ const compareCanvasPosition = (direction: Direction, positions: Positions) => {
   };
 };
 
+/** Cross-axis-only coordinate: the axis siblings at the same graph rank are
+ * ordered along. TD/TB/BT lay ranks out top-to-bottom, so the cross axis is
+ * x; LR/RL lay ranks out left-to-right, so the cross axis is y. Unlike
+ * {@link compareCanvasPosition} this never looks at the primary axis, so a
+ * few stray pixels of primary-axis jitter between same-rank siblings can no
+ * longer outrank their intended left-to-right (or top-to-bottom) order. */
+const crossAxisPosition = (direction: Direction, positions: Positions) => {
+  const pos = (id: string) => positions[id] ?? { x: 0, y: 0 };
+  return (a: string, b: string): number => {
+    const pa = pos(a);
+    const pb = pos(b);
+    return direction === "LR" || direction === "RL" ? pa.y - pb.y : pa.x - pb.x;
+  };
+};
+
+/**
+ * Longest-path rank of every node/subgraph id from any source (no incoming
+ * edges), via bounded Bellman-Ford relaxation: `rank[target]` becomes
+ * `rank[source] + 1` whenever that is larger than what it already holds.
+ * Capping at `vertexIds.length` passes guarantees a correct topological rank
+ * for any DAG and simply stops propagating once a cycle would otherwise
+ * make the rank climb forever, instead of looping indefinitely.
+ */
+const computeGraphRanks = (
+  vertexIds: string[],
+  edges: Array<{ source: string; target: string }>,
+): Map<string, number> => {
+  const rank = new Map<string, number>();
+  for (const id of vertexIds) rank.set(id, 0);
+
+  const relevantEdges = edges.filter((edge) => rank.has(edge.source) && rank.has(edge.target));
+  for (let pass = 0; pass < vertexIds.length; pass++) {
+    let changed = false;
+    for (const edge of relevantEdges) {
+      const candidate = (rank.get(edge.source) ?? 0) + 1;
+      if (candidate > (rank.get(edge.target) ?? 0)) {
+        rank.set(edge.target, candidate);
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+  return rank;
+};
+
 const subgraphSortPositions = (
   nodes: IRNode[],
   subgraphs: IRSubgraph[],
@@ -513,7 +558,16 @@ export const createEditorStore = (): EditorStoreApi =>
       sortSourceByCanvas: () => {
         if (!ensureTextCommitted()) return;
         const cur = cloneIR(get().ir);
-        const nodeCompare = compareCanvasPosition(cur.direction, cur.positions);
+        // Graph rank is computed over nodes AND subgraphs together (an edge
+        // may target a subgraph id directly, e.g. `n1 --> sg_1`) so a chain
+        // that passes through a subgraph still ranks its far side correctly.
+        const vertexIds = [...cur.nodes.map((n) => n.id), ...cur.subgraphs.map((s) => s.id)];
+        const graphRank = computeGraphRanks(vertexIds, cur.edges);
+        const crossAxisCompare = crossAxisPosition(cur.direction, cur.positions);
+        const nodeCompare = (a: string, b: string): number =>
+          (graphRank.get(a) ?? 0) - (graphRank.get(b) ?? 0) ||
+          crossAxisCompare(a, b) ||
+          a.localeCompare(b);
         const sgPositions = subgraphSortPositions(cur.nodes, cur.subgraphs, cur.positions);
         const subgraphCompare = compareCanvasPosition(cur.direction, sgPositions);
         const nodeRank = new Map<string, number>();
