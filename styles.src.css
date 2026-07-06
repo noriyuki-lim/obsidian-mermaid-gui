@@ -471,24 +471,19 @@ body.mge-text-pane-resizing * {
   letter-spacing: normal;
   font-size: 12px;
 }
-/* Specificity fix carried over from Auto-layout (see below), plus a contrast
- * fix on top of it: .mge-text-pane-header's own background is
- * --mge-surface-alt (see .mge-text-pane-header above), so giving this
- * button that same variable made it blend into its own header regardless
- * of !important or specificity — those only control *whether* our colour
- * wins, not whether it contrasts with its surroundings. Auto-layout's
- * --mge-surface-alt works for it because it sits on the canvas background,
- * not on a --mge-surface-alt bar. Here we use --mge-surface (the header's
- * OTHER surface tone) instead, which is what actually shows a visible box.
- *
- * Specificity note: Auto-layout's selector is 4 classes deep
- * (`.mge-canvas .mge-flow-canvas-controls .mge-auto-layout-button:hover`),
- * specific enough to beat Obsidian's generic <button> reset without
- * !important. This selector is only 1-2 classes deep and needs !important
- * on the properties Obsidian's generic button rule also sets, same as the
- * point-stepper case. */
+/* Same theme-derived variables as .mge-auto-layout-button (--mge-surface-alt /
+ * --mge-text / --mge-border), so this renders identically to it under any
+ * theme — that part was already correct. What was missing: Auto-layout's
+ * selector is 4 classes deep (`.mge-canvas .mge-flow-canvas-controls
+ * .mge-auto-layout-button:hover`), which is specific enough to always beat
+ * Obsidian's own generic <button> reset without needing !important. This
+ * selector is only 1-2 classes deep and was losing that specificity fight —
+ * not a theme-skinning issue, just not specific enough to win. !important
+ * on the properties Obsidian's generic button rule also sets is the fix,
+ * same as the point-stepper case, but keeping Auto-layout's own variables
+ * rather than inventing different colours. */
 .mge-source-sort-btn {
-  --mge-sort-btn-bg: var(--mge-surface);
+  --mge-sort-btn-bg: var(--mge-surface-alt);
   --mge-sort-btn-bg-hover: color-mix(in srgb, var(--mge-sort-btn-bg) 88%, var(--mge-text) 12%);
   --mge-sort-btn-bg-active: color-mix(in srgb, var(--mge-sort-btn-bg) 76%, var(--mge-text) 24%);
   padding: 3px 8px;
