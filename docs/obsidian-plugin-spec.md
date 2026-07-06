@@ -21,11 +21,11 @@
 ### ゴール
 - Obsidian ノート内の `\`\`\`mermaid` ブロックを GUI で編集でき、保存結果がそのブロックに書き戻る。
 - 既存ノートの記法を**破壊しない**（未対応構文・スタイル指定を素通し）。
-- ノード座標を**ノート内に永続化**し、再オープン時に同じレイアウトが復元される。
+- ノード座標は**セッション内のみ**保持し、再オープン時は Dagre 自動レイアウトで再配置する（標準 Mermaid 準拠。§5 参照）。
 - 既存 Web 版の IR・パーサ・ジェネレータ・Dagre レイアウトを共通ソースで再利用する。
 
 ### 非ゴール（初版）
-- Mermaid 全図種 GUI 対応（現在 flowchart / sequenceDiagram / classDiagram / stateDiagram / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta / gantt / timeline / erDiagram / mindmap / journey / architecture-beta / block-beta / kanban が GUI 実装済み（20 種）。gantt は表形式エディタ + 操作可能 SVG プレビュー + axisFormat 編集。xychart は全幅の操作可能 SVG プレビュー + 縦向き Excel ライクテーブル。block-beta はインタラクティブグリッドプレビュー。kanban は全幅 DOM ドラッグボード。それ以外は `SourceOnlyEditor` でソース表示のみ。radar-beta は Obsidian 内蔵 Mermaid 非対応のためプレビュー描画なし）。
+- Mermaid 全図種 GUI 対応（現在 flowchart / sequenceDiagram / classDiagram / stateDiagram(-v2) / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta / gantt / timeline / erDiagram / mindmap / treemap-beta / venn-beta / journey / architecture-beta / block-beta / kanban の 20 種をアダプタ登録済み。gantt は表形式エディタ + 操作可能 SVG プレビュー + axisFormat 編集。xychart は全幅の操作可能 SVG プレビュー + 縦向き Excel ライクテーブル。block-beta はインタラクティブグリッドプレビュー。kanban は全幅 DOM ドラッグボード。treemap-beta / venn-beta は `supportsGui: false` のため `SourceOnlyEditor` でソース表示のみ。radar-beta / venn-beta は Obsidian 内蔵 Mermaid が非対応のため GUI 編集は可能でもプレビューは描画されない。未登録の図種も同様に `SourceOnlyEditor` にフォールバックする）。
 - モバイル（Obsidian Mobile）対応。
 - Vault 横断検索や Dataview 連携。
 - 共同編集・コンフリクト解決（個人利用前提）。
@@ -64,7 +64,19 @@
 
 ## 5. 座標永続化 — 設計判断
 
-### 採用案: Mermaid コメント行への JSON 埋め込み
+### 現行方針（v0.1.x で採用、初版から変更）: セッション内のみ保持、ファイルへは書き出さない
+
+ノードの x/y 座標は React/Zustand の store（セッション内メモリ）にのみ存在し、保存される Mermaid テキストには一切含まれない。ブロックを開き直すたびに Dagre 自動レイアウトで再配置する。
+
+| 観点 | 評価 |
+| --- | --- |
+| Mermaid 公式レンダラとの互換 | 生成される Mermaid が標準構文のみになり、他ツール（GitHub / VS Code 拡張等）でも同じソースがそのまま読める |
+| Git 差分 | 座標行がそもそも存在しないため、レイアウト微調整のたびに無関係な diff が発生しない |
+| 既存ノートの互換 | 旧バージョンで書き出された `%% gui:positions` / `%% gui:meta` 行は `stripGuiComments()`（`src/core/parser.ts`）で読み込み時に無視する（後方互換のみ、書き出しはしない） |
+
+初版（v1/v2、下記「却下した旧採用案」）では Mermaid コメント行への JSON 埋め込みを採用していたが、`refactor: remove positions-codec; stop persisting %% gui:* to Mermaid source` で撤回した。
+
+### 却下した旧採用案: Mermaid コメント行への JSON 埋め込み（初版で採用、後に撤回）
 
 \`\`\`
 \`\`\`mermaid
@@ -75,21 +87,12 @@ flowchart LR
 \`\`\`
 \`\`\`
 
-| 観点 | 評価 |
-| --- | --- |
-| Mermaid 公式レンダラとの互換 | `%%` で始まる行は仕様上コメント。レンダリングに影響なし |
-| Git 差分 | テキストでそのまま読める |
-| ノート移動・rename | コードブロック内に閉じているので破綻しない |
-| 既存ロジックとの整合 | 現行 `rawLines` の温存機構で自然に通る |
+コードブロック内に閉じているためノート移動・rename では破綻しない、`rawLines` 温存機構にも自然に乗る、という利点はあったが、「保存される Mermaid が標準構文から外れる」「レイアウトを少し動かすたびに無関係な diff が生まれる」という欠点を優先し、session-only 方式へ切り替えた。
 
-### 却下した代替案
+### さらに却下した代替案
 - **frontmatter**: 1 ノートに複数図がある場合キーが衝突／煩雑。
 - **サイドカー `.json`**: vault 構造を汚す、添付ルール・rename・モバイル同期で破綻しやすい。
 - **HTML コメント `<!-- -->`**: フェンス内では Markdown コメントとして機能しない。
-
-### マイグレーション
-- `gui:positions` 行が無いブロックは Dagre で初期配置し、保存時に追記。
-- バージョンキー (`gui:meta.version`) を付け、将来の schema 変更時に変換可能にする。
 
 ### 5.1 補助構文（classDef / style / linkStyle / click）の方針
 
@@ -138,7 +141,6 @@ mermaid-gui-obsidian/
 │   │   ├── ir-types.ts        # flowchart IR 型
 │   │   ├── dagre.ts           # 自動レイアウト
 │   │   ├── store-factory.ts   # createEditorStore() ファクトリ
-│   │   ├── positions-codec.ts # %% gui:positions の読み書き
 │   │   ├── diagram-kind.ts    # detectDiagramKind()
 │   │   ├── diagram-ir.ts      # DiagramIR 判別 union
 │   │   ├── index.ts
@@ -279,7 +281,7 @@ mermaid-gui-obsidian/
 1. `registerMarkdownCodeBlockProcessor("mermaid", ...)` で Reading view のフェンスを装飾し、右上に Edit ボタンを表示。
 2. ボタン／コマンドパレット「Edit current Mermaid block」で Modal を起動。
 3. Modal 内で既存 GUI 編集を提供。Save で当該フェンスのみ書き戻し。
-4. `%% gui:positions` を読み書きし、再オープン時にレイアウト復元。
+4. ノード座標はセッション内のみ保持（ファイルへは書き出さない）。再オープン時は Dagre 自動レイアウトで再配置。旧バージョンの `%% gui:positions` / `%% gui:meta` 行は読み込み時に無視する。
 5. 既存ブロックの未対応構文（`classDef` / `linkStyle` / `click` 等）は `rawLines` で温存。
 6. SVG エクスポート（添付保存 + リンク挿入）。
 7. テーマ追従（Obsidian の CSS 変数を palette に反映）。
@@ -323,10 +325,10 @@ mermaid-gui-obsidian/
 
 ## 10. テスト戦略
 
-- `packages/core`: 既存 vitest を継続。`positions-codec` のラウンドトリップを追加。
+- `src/core`: vitest でパーサ・ジェネレータ・ストアのラウンドトリップを継続。図種を追加・変更したら対応するラウンドトリップテストを追加する。
 - プラグイン層: Obsidian の API は thin adapter に閉じ込め、adapter のみ jest mock。E2E は Obsidian 開発者用 vault に手動シナリオを置く（自動化困難）。
 - 受け入れシナリオ:
-  1. 既存 `.mmd` を含むノートを開く → Edit → 何も変更せず Save → diff が `%% gui:positions` 追加のみ。
+  1. 既存 `.mmd` を含むノートを開く → Edit → 何も変更せず Save → diff なし（座標はファイルに書き出さないため）。
   2. `classDef` を含むブロックを編集 → 保存 → `classDef` が温存されている。
   3. 1 ノートに 3 ブロック並べて同時に開閉 → ストア混線なし。
 
