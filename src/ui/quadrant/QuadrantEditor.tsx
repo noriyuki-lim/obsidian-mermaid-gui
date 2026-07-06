@@ -31,7 +31,7 @@ const quadrantLabels: Record<(typeof quadrantKeys)[number], string> = {
 
 const round = (n: number) => Math.round(n * 1000) / 1000;
 const clamp01 = (n: number) => Math.min(Math.max(n, 0), 1);
-const POINT_STEP = 0.05;
+const POINT_STEP = 0.01;
 
 export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
   // QuadrantEditor swaps Mermaid's static render for an interactive SVG so the
