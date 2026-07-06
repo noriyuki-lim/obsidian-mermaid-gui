@@ -1080,6 +1080,9 @@ body.mge-dragging .mge-seq-toolbar { cursor: grabbing; }
 }
 
 .mge-seq-section {
+  background: var(--background-secondary, #fff);
+  border: 1px solid var(--background-modifier-border, #d6d6df);
+  border-radius: 6px;
   padding: 10px 12px;
 }
 
@@ -1149,11 +1152,10 @@ body.theme-dark .mge-seq-badge-raw {
 
 .mge-seq-input,
 .mge-seq-select {
-  padding: 4px 2px;
-  border: none;
-  border-bottom: 1px solid var(--background-modifier-border, #d6d6df);
-  border-radius: 0;
-  background: transparent;
+  padding: 4px 7px;
+  border: 1px solid var(--background-modifier-border, #d6d6df);
+  border-radius: 4px;
+  background: var(--background-primary, #f7f7fa);
   color: var(--text-normal, #1f1f2e);
   font: inherit;
   font-size: 13px;
@@ -1161,8 +1163,9 @@ body.theme-dark .mge-seq-badge-raw {
 }
 .mge-seq-input:focus,
 .mge-seq-select:focus {
-  outline: none;
-  border-bottom-color: var(--mge-brand, #2b245c);
+  outline: 2px solid var(--mge-brand, #2b245c);
+  outline-offset: -1px;
+  border-color: var(--mge-brand, #2b245c);
 }
 
 .mge-seq-input-wide { flex: 1; min-width: 120px; }
