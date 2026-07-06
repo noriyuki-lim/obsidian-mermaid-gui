@@ -471,32 +471,36 @@ body.mge-text-pane-resizing * {
   letter-spacing: normal;
   font-size: 12px;
 }
-/* Deliberately NOT !important here: this button must lose to a theme's own
- * button skin exactly the same way .mge-auto-layout-button already does
- * (e.g. Obsidian's "Transparent" theme paints every bare <button>,
- * including React Flow's own zoom/fit/lock controls, with its interactive
- * accent colour). Fighting that with !important made this button look
- * different from Auto-layout instead of the same — matching its theme
- * dependence, not its literal colour values, is the actual goal. */
+/* Same theme-derived variables as .mge-auto-layout-button (--mge-surface-alt /
+ * --mge-text / --mge-border), so this renders identically to it under any
+ * theme — that part was already correct. What was missing: Auto-layout's
+ * selector is 4 classes deep (`.mge-canvas .mge-flow-canvas-controls
+ * .mge-auto-layout-button:hover`), which is specific enough to always beat
+ * Obsidian's own generic <button> reset without needing !important. This
+ * selector is only 1-2 classes deep and was losing that specificity fight —
+ * not a theme-skinning issue, just not specific enough to win. !important
+ * on the properties Obsidian's generic button rule also sets is the fix,
+ * same as the point-stepper case, but keeping Auto-layout's own variables
+ * rather than inventing different colours. */
 .mge-source-sort-btn {
   --mge-sort-btn-bg: var(--mge-surface-alt);
   --mge-sort-btn-bg-hover: color-mix(in srgb, var(--mge-sort-btn-bg) 88%, var(--mge-text) 12%);
   --mge-sort-btn-bg-active: color-mix(in srgb, var(--mge-sort-btn-bg) 76%, var(--mge-text) 24%);
   padding: 3px 8px;
-  border: 1px solid var(--mge-border);
+  border: 1px solid var(--mge-border) !important;
   border-radius: 4px;
-  background: var(--mge-sort-btn-bg);
-  color: var(--mge-text);
+  background: var(--mge-sort-btn-bg) !important;
+  color: var(--mge-text) !important;
   cursor: pointer;
   font-size: 11px;
   text-transform: none;
   letter-spacing: normal;
 }
 .mge-source-sort-btn:hover {
-  background: var(--mge-sort-btn-bg-hover);
+  background: var(--mge-sort-btn-bg-hover) !important;
 }
 .mge-source-sort-btn:active {
-  background: var(--mge-sort-btn-bg-active);
+  background: var(--mge-sort-btn-bg-active) !important;
 }
 .mge-text-pane-header .mge-status.ok { color: #2c7a3f; }
 .mge-text-pane-header .mge-status.err { color: var(--mge-error); }
