@@ -597,7 +597,10 @@ export const createEditorStore = (): EditorStoreApi =>
             endpointRank(a.target) - endpointRank(b.target) ||
             a.id.localeCompare(b.id),
         );
-        commit(cur, { positions: cur.positions, subgraphFrames: cur.subgraphFrames });
+        // Re-run auto-layout in the same commit (one undo step) so the
+        // canvas is tidied up to match the freshly sorted source order,
+        // instead of leaving the old, possibly-jittered positions in place.
+        commit(cur, { layout: true, subgraphFrames: {} });
       },
 
       setSelection: (sel) => set({ selection: sel }),
