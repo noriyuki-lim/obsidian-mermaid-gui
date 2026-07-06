@@ -476,22 +476,27 @@ body.mge-text-pane-resizing * {
   --mge-sort-btn-bg-hover: color-mix(in srgb, var(--mge-sort-btn-bg) 88%, var(--mge-text) 12%);
   --mge-sort-btn-bg-active: color-mix(in srgb, var(--mge-sort-btn-bg) 76%, var(--mge-text) 24%);
   padding: 3px 8px;
-  border: 1px solid var(--mge-border);
+  /* Obsidian themes a bare <button> with their own border/background/shadow/
+   * color, which otherwise wins over a plain class selector — see the
+   * quadrant point-stepper fix for the same issue. !important on all of
+   * those properties (including on :hover/:active) is required here too. */
+  border: 1px solid var(--mge-border) !important;
   border-radius: 4px;
-  background: var(--mge-sort-btn-bg);
-  color: var(--mge-text-muted);
+  background: var(--mge-sort-btn-bg) !important;
+  box-shadow: none !important;
+  color: var(--mge-text-muted) !important;
   cursor: pointer;
   font-size: 11px;
   text-transform: none;
   letter-spacing: normal;
 }
 .mge-source-sort-btn:hover {
-  background: var(--mge-sort-btn-bg-hover);
-  border-color: var(--mge-brand);
-  color: var(--mge-text);
+  background: var(--mge-sort-btn-bg-hover) !important;
+  border-color: var(--mge-brand) !important;
+  color: var(--mge-text) !important;
 }
 .mge-source-sort-btn:active {
-  background: var(--mge-sort-btn-bg-active);
+  background: var(--mge-sort-btn-bg-active) !important;
 }
 .mge-text-pane-header .mge-status.ok { color: #2c7a3f; }
 .mge-text-pane-header .mge-status.err { color: var(--mge-error); }
