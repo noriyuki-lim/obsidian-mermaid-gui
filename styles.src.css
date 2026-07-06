@@ -1151,8 +1151,6 @@ body.theme-dark .mge-seq-badge-raw {
 .mge-seq-select {
   padding: 4px 2px;
   border: none;
-  border-bottom: 1px solid var(--background-modifier-border, #d6d6df);
-  border-radius: 0;
   background: transparent;
   color: var(--text-normal, #1f1f2e);
   font: inherit;
@@ -1162,7 +1160,7 @@ body.theme-dark .mge-seq-badge-raw {
 .mge-seq-input:focus,
 .mge-seq-select:focus {
   outline: none;
-  border-bottom-color: var(--mge-brand, #2b245c);
+  border-bottom: 1px solid var(--mge-brand, #2b245c);
 }
 
 .mge-seq-input-wide { flex: 1; min-width: 120px; }
