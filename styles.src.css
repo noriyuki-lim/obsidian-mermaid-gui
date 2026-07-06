@@ -1110,7 +1110,9 @@ body.mge-dragging .mge-seq-toolbar { cursor: grabbing; }
   align-items: center;
   gap: 6px;
   padding: 5px 0;
+  border-bottom: 1px solid var(--background-modifier-border, #d6d6df);
 }
+.mge-seq-row:last-child { border-bottom: none; }
 
 .mge-seq-row-raw {
   opacity: 0.7;
