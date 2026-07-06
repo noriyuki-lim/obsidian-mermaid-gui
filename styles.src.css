@@ -472,10 +472,13 @@ body.mge-text-pane-resizing * {
   font-size: 12px;
 }
 .mge-source-sort-btn {
+  --mge-sort-btn-bg: var(--mge-surface);
+  --mge-sort-btn-bg-hover: color-mix(in srgb, var(--mge-sort-btn-bg) 88%, var(--mge-text) 12%);
+  --mge-sort-btn-bg-active: color-mix(in srgb, var(--mge-sort-btn-bg) 76%, var(--mge-text) 24%);
   padding: 3px 8px;
   border: 1px solid var(--mge-border);
   border-radius: 4px;
-  background: var(--mge-surface);
+  background: var(--mge-sort-btn-bg);
   color: var(--mge-text-muted);
   cursor: pointer;
   font-size: 11px;
@@ -483,8 +486,12 @@ body.mge-text-pane-resizing * {
   letter-spacing: normal;
 }
 .mge-source-sort-btn:hover {
+  background: var(--mge-sort-btn-bg-hover);
   border-color: var(--mge-brand);
   color: var(--mge-text);
+}
+.mge-source-sort-btn:active {
+  background: var(--mge-sort-btn-bg-active);
 }
 .mge-text-pane-header .mge-status.ok { color: #2c7a3f; }
 .mge-text-pane-header .mge-status.err { color: var(--mge-error); }
