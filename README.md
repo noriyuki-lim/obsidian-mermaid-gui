@@ -1,21 +1,21 @@
 # Mermaid GUI for Obsidian
 
 Obsidian ノート内の `` ```mermaid `` フェンスをそのまま GUI で編集できるプラグイン。
-保存はあくまで **プレーンテキストの Mermaid 記法**で、ノードの座標だけを `%% gui:positions` のコメント行としてフェンス内に書き戻す。
+保存はあくまで **プレーンテキストの Mermaid 記法**。ノードの座標はセッション内のみ保持し、ファイルには書き出さない（標準 Mermaid 準拠）。
 
-要件・設計: [`docs/obsidian-plugin-spec.md`](./docs/obsidian-plugin-spec.md)
+プロジェクトのルール・アーキテクチャの SSOT は [`AGENTS.md`](./AGENTS.md)、要件・設計は [`docs/obsidian-plugin-spec.md`](./docs/obsidian-plugin-spec.md)、図種別ごとの GUI 対応状況は [`docs/mermaid-diagram-types.md`](./docs/mermaid-diagram-types.md) を参照。
 
-## できること（v0.1 MVP）
+## できること
 
 - Reading view の `` ```mermaid `` ブロックに「Edit」ボタンを差し込み、Modal で GUI 編集
-- コマンドパレットから `Edit current Mermaid block` で Live Preview / Source view からも起動
-- 保存時に **そのフェンスの中身だけ** を `editor` API で書き戻し、ノートの他の行は触らない
-- ノードの座標を `%% gui:positions {...}` のコメントとしてフェンス内に永続化（再オープンでレイアウト復元）
+- コマンドパレット / 右クリックメニューから既存ブロックの編集、および新規 Mermaid ブロックの挿入
+- flowchart / sequenceDiagram / classDiagram / stateDiagram(-v2) / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta / gantt / timeline / erDiagram / mindmap / journey / architecture-beta / block-beta / kanban に専用 GUI エディタ（詳細は `docs/mermaid-diagram-types.md`）。それ以外の図種はソース編集のみのフォールバック
+- 保存時に **そのフェンスの中身だけ** を `vault.modify` で書き戻し、ノートの他の行は触らない
 - 未対応の構文（`classDef` / `style` / `linkStyle` / `click` 等）は `rawLines` で素通し
-- SVG エクスポート（Obsidian 内蔵の `loadMermaid()` でレンダリング → ノートと同じフォルダに添付保存）
+- 全エディタ共通で Undo / Redo、SVG エクスポート
 - Obsidian テーマ追従（CSS 変数を読みに行く）
 
-P1.5 以降（専用ビュー、`[[wikilink]]` 解釈、選択範囲 → flowchart 化、Live Preview インライン GUI、sequence diagram）はスコープ外。
+スコープ外（TODO）は専用ビュー、`[[wikilink]]` クリック遷移、選択範囲 → flowchart 生成コマンド、Live Preview インライン GUI など。詳細は `AGENTS.md` の「TODO／未実装メモ」を参照。
 
 ## インストール
 
@@ -53,70 +53,45 @@ New-Item -ItemType Junction `
 
 ## ディレクトリ構成
 
+図種別ごとのアダプタ・専用エディタを含む詳細なディレクトリ構成は [`AGENTS.md`](./AGENTS.md#リポジトリ構成) を参照。要点のみ:
+
 ```
-.
-├── main.ts                       # Plugin エントリ（registerMarkdownCodeBlockProcessor / commands）
-├── manifest.json                 # Obsidian プラグインマニフェスト
-├── esbuild.config.mjs            # main.ts → main.js、styles.src.css → styles.css の concat
-├── styles.src.css                # 著者管理の CSS（mge-* プレフィックス）
-├── styles.css                    # ビルド成果物（@xyflow/react CSS と styles.src.css を結合）
-├── main.js                       # ビルド成果物
+mermaid-gui-obsidian/
+├── main.ts            # Plugin エントリ（registerMarkdownCodeBlockProcessor / commands）
+├── manifest.json       # Obsidian プラグインマニフェスト
+├── esbuild.config.mjs  # main.ts → main.js、styles.src.css → styles.css の concat
+├── styles.src.css      # 著者管理の CSS（mge-* プレフィックス）
 ├── src/
-│   ├── core/                     # IO 非依存の中核ロジック（Obsidian API に触れない）
-│   │   ├── ir-types.ts           # MermaidIR / Positions など
-│   │   ├── parser.ts             # text → IR
-│   │   ├── generator.ts          # IR → text
-│   │   ├── shapes.ts
-│   │   ├── dagre.ts              # 自動レイアウト
-│   │   ├── store-factory.ts      # createEditorStore() — 1 ブロック 1 store
-│   │   └── positions-codec.ts    # %% gui:positions / %% gui:meta の読み書き
-│   ├── ui/                       # React コンポーネント（Obsidian 非依存）
-│   │   ├── MermaidEditor.tsx     # Modal / 専用ビューから共通呼出される GUI シェル
-│   │   ├── EditorContext.tsx     # store ファクトリと React を橋渡しする Provider/hook
-│   │   ├── adapter.ts            # IR ↔ ReactFlow 変換
-│   │   ├── canvas/               # FlowCanvas / ShapeNode / SubgraphNode
-│   │   ├── panels/               # Palette / PropertyPanel / TextPane
-│   │   └── toolbar/Toolbar.tsx
-│   ├── obsidian/                 # Obsidian API を呼ぶレイヤ
-│   │   ├── postProcessor.ts      # Reading view のブロック装飾＋Edit ボタン
-│   │   ├── EditorModal.ts        # Modal をラップして React をホスト
-│   │   ├── ReactHost.tsx         # createRoot / unmount ライフサイクル
-│   │   ├── commands.ts           # コマンドパレットからの起動経路
-│   │   ├── io.ts                 # editor.replaceRange 相当を vault.modify で安全に
-│   │   └── svgExport.ts          # loadMermaid → SVG → vault attachment
-│   └── global.d.ts               # `import "*.css"` 用の型宣言
+│   ├── core/           # IO 非依存の中核ロジック（Obsidian / React 非依存）。図種ごとに ir-types / parser / generator
+│   ├── ui/              # React コンポーネント（Obsidian 非依存）。図種ごとに専用エディタ
+│   └── obsidian/        # Obsidian API を呼ぶレイヤ（Modal / postProcessor / commands / io）
 └── tests/
-    └── core/                     # vitest（parser ラウンドトリップ／positions-codec ラウンドトリップ）
+    └── core/, ui/       # vitest（パーサ・ジェネレータのラウンドトリップ、ストア、UI 射影ロジック）
 ```
 
-`_legacy/web/` は旧 Web 版の痕跡（`App.tsx` / `index.html` / `vite.config.ts` 等）。
-プラグインのビルドからは除外しており、参考用として保持しているだけ。
+`main.js` / `styles.css` はビルド成果物のため Git 管理外。`_legacy/web/` は旧 Web 版の痕跡で、プラグインのビルドからは除外している。
 
 ## 設計の要点
 
-- **IR 中心 + rawLines 温存** — 旧 Web 版のロジックをそのまま継承。未対応構文は破壊しない。
-- **store は 1 ブロック 1 インスタンス** — `createEditorStore()` を `useMemo` で初期化し、
-  Modal/View のライフサイクルで生成 → 破棄。複数の mermaid ブロックを同時に開いても状態が混線しない。
-- **Obsidian 内蔵 mermaid を再利用** — `loadMermaid()` でレンダリングし、自前で mermaid をバンドルしない（仕様 §6.2）。
+- **IR 中心 + rawLines 温存** — 図種ごとに Mermaid テキスト ⇄ IR を変換し、パーサが理解できない行は破壊せず素通しする（`AGENTS.md` の「rawLines 戦略」）。
+- **アダプタレジストリ** — 図種の識別・parse・generate は `src/core/adapters/` に隔離。新図種の追加手順は `AGENTS.md` を参照。
+- **store は 1 ブロック 1 インスタンス** — `createEditorStore()` を `useMemo` で初期化し、Modal/View のライフサイクルで生成 → 破棄。複数の mermaid ブロックを同時に開いても状態が混線しない。
+- **Obsidian 内蔵 mermaid を再利用** — `loadMermaid()` でレンダリングし、自前で mermaid をバンドルしない。
 - **CSS は `mge-` プレフィックスで隔離** — テーマや他プラグインと衝突しない。
-- **書き戻しは fence 検証つき** — `vault.modify` の前に開始/終了 fence のシグネチャを再検証して、
-  ノートの他の行を破壊しない（仕様 §9 の「`editor.replaceRange` 失敗時のノート破損」対策）。
+- **書き戻しは fence 検証つき** — `vault.modify` の前に開始/終了 fence のシグネチャを再検証して、ノートの他の行を破壊しない。
+- **ノード座標はセッション内のみ** — ファイルには書き出さない（標準 Mermaid 準拠）。
 
 ## テスト
 
+```bash
+npm run test
 ```
-$ npm run test
- ✓ tests/core/parser.test.ts            (14 tests)
- ✓ tests/core/positions-codec.test.ts   (4 tests)
-   ✓ decodes a block with gui:positions and removes them from rawLines
-   ✓ falls through cleanly when no gui comments are present
-   ✓ encodes positions just below the flowchart header
-   ✓ round-trips: decode → encode keeps positions stable
-```
+
+パーサ・ジェネレータのラウンドトリップは `tests/core/`、UI の射影ロジックは `tests/ui/` に集中している。Mermaid シリアライズ・座標・パーサ対応を変更したときは必ずラウンドトリップテストを追加する。
 
 ## 既知の制約
 
 - モバイル（Obsidian Mobile）は対象外（`isDesktopOnly: true`）
-- sequence / state / class diagram は P2 以降
-- Live Preview のインラインで GUI を直接表示する B 案は実装していない（CM6 と主導権を取り合うため、Modal/A 案先行）
-- `linkStyle 0` などインデックス参照のスタイルは IR 化していないため、エッジを並び替えると指し先がズレる可能性あり（仕様 §12.1 の残課題）
+- radar-beta / venn-beta は Obsidian 内蔵 Mermaid が非対応のため GUI 編集は可能だがプレビューは描画されない。treemap-beta / venn-beta は GUI 編集自体が未対応でソース編集のみ
+- Live Preview のインラインで GUI を直接表示する案は実装していない（CM6 と主導権を取り合うため、Modal 先行）
+- `linkStyle 0` などインデックス参照のスタイルは IR 化していないため、エッジを並び替えると指し先がズレる可能性あり
