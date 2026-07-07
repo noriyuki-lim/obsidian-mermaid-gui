@@ -433,6 +433,7 @@ parser が理解できない行は `MermaidIR.rawLines` に温存され、genera
 - 全クラスに `mge-` プレフィックスを付ける（仕様 §9 のリスク対策）。Obsidian テーマや他プラグインと衝突させない。
 - 色はハードコードせず、Obsidian のテーマ変数（`--background-primary`, `--text-normal` 等）をフォールバック付きで参照。
 - `.mge-app-shell` の中で CSS 変数を再定義してテーマ変化に追従させている。
+- **モーダルの開閉アニメーションは opacity のみに固定する（`transform: scale()` を持ち込ませない）**。`.mge-modal` は `styles.src.css` で opacity フェードの `@keyframes mge-modal-open` を `animation ... !important` で当て、コミュニティテーマ（例: "Transparent"）の `.modal` に対する `scale()` 開閉アニメーションを無効化している。理由: React Flow はノード/ハンドルの座標を `getBoundingClientRect()` で計測し、この値は**祖先要素の transform を巻き込む**。モーダルが `scale()` の最中に計測されると flowchart のエッジがハンドルからズレて固定される（ドラッグや Auto-layout で「直る」ように見えるのは、それらが再計測を強制するだけで座標データ自体は最初から正しいため）。祖先の transform を再計測で後から補正するのではなく、そもそも scale を持ち込ませない方針を採る。詳細な調査記録は [[tech-reactflow-ancestor-transform-measurement]]。同種の落とし穴は自作 SVG の座標マッピング（quadrant / gantt 等）でも起こりうるので、テーマ依存の表示崩れは祖先の transform を最初に疑う。
 
 ---
 
