@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { EditorActions } from "./EditorActions";
-import { useEditorHost } from "./EditorHostContext";
+import { useEditorHost, useT } from "./EditorHostContext";
 import { isEditableShortcutTarget } from "./keyboard";
 import type { DiagramKind } from "../core/diagram-kind";
 import { loadNumber, previewRatioKey, saveNumber, sideRatioKey } from "./layoutPrefs";
@@ -93,13 +93,14 @@ export const EditorShell = ({
   defaultSideRatio,
   defaultPreviewRatio,
   sourceInitiallyOpen = false,
-  sourceToggleLabel = "Mermaid source",
+  sourceToggleLabel,
   renderMermaid,
   previewOverride,
   previewUnavailableMessage,
   onSourceEdit,
   children,
 }: Props) => {
+  const t = useT();
   const [svg, setSvg] = useState<string>("");
   const [renderError, setRenderError] = useState<string | null>(null);
   const renderToken = useRef(0);
@@ -345,7 +346,7 @@ export const EditorShell = ({
     if (!renderMermaid) {
       return (
         <p className="mge-editor-preview-note">
-          {previewUnavailableMessage ?? "プレビューは利用できない。"}
+          {previewUnavailableMessage ?? t.common.previewUnavailable}
         </p>
       );
     }
@@ -355,7 +356,7 @@ export const EditorShell = ({
       );
     }
     if (svg.length === 0) {
-      return <p className="mge-editor-preview-note">プレビューを描画中…</p>;
+      return <p className="mge-editor-preview-note">{t.common.previewRendering}</p>;
     }
     return (
       <div
@@ -376,9 +377,9 @@ export const EditorShell = ({
           sourceError ? (
             <span className="mge-source-status err">parse error: {sourceError}</span>
           ) : draft !== null ? (
-            <span className="mge-source-status dirty">編集中… blur で確定</span>
+            <span className="mge-source-status dirty">{t.common.sourceDirty}</span>
           ) : (
-            <span className="mge-source-status ok">同期済み</span>
+            <span className="mge-source-status ok">{t.common.sourceSynced}</span>
           )
         ) : null}
       </div>
@@ -439,21 +440,21 @@ export const EditorShell = ({
               onClick={() => setSourceOpen((open) => !open)}
               aria-pressed={sourceOpen}
             >
-              {sourceOpen ? "ソースを隠す" : sourceToggleLabel}
+              {sourceOpen ? t.common.hideSource : sourceToggleLabel ?? t.common.showSource}
             </button>
             <button
               className="mge-btn-secondary"
               onClick={onCancel}
               disabled={saving}
             >
-              キャンセル
+              {t.common.cancel}
             </button>
             <button
               className="mge-btn-primary"
               onClick={() => void onSave()}
               disabled={saving}
             >
-              {saving ? "保存中…" : "保存"}
+              {saving ? t.common.saving : t.common.save}
             </button>
           </div>
         </header>
@@ -498,14 +499,14 @@ export const EditorShell = ({
             onClick={onCancel}
             disabled={saving}
           >
-            キャンセル
+            {t.common.cancel}
           </button>
           <button
             className="mge-btn-primary"
             onClick={() => void onSave()}
             disabled={saving}
           >
-            {saving ? "保存中…" : "保存"}
+            {saving ? t.common.saving : t.common.save}
           </button>
         </div>
       </header>

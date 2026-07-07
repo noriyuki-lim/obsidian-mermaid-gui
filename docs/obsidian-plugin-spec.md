@@ -274,6 +274,10 @@ mermaid-gui-editor/
 
 `src/core` は IO に依存しない。`src/obsidian/io.ts` が adapter として注入される。
 
+### 6.5 i18n（表示言語）
+
+GUI の表示言語は Obsidian 本体の言語設定に動的連動する（併記ではなく単一言語表示）。`src/obsidian/locale.ts` が Obsidian 公式 API `getLanguage()`（v1.8.7〜。本プラグインの `minAppVersion` もこれに合わせて引き上げ済み）でモーダルを開いた瞬間に1回だけ言語を判定し、`ja` はそのまま、それ以外は英語にフォールバックする。辞書は `src/ui/i18n/ja.ts`（正）/ `en.ts`（`typeof ja` で型付け）に保持し、`EditorHostContext` 経由の `useT()` で全エディタに配る。詳細な運用ルール（新規文字列の追加手順等）は `AGENTS.md` の「i18n（日本語・英語の動的切り替え）」節を参照。
+
 ---
 
 ## 7. 機能要件
@@ -302,11 +306,11 @@ mermaid-gui-editor/
 
 | 区分 | 要件 |
 | --- | --- |
-| 互換 | Obsidian v1.5 以降（`MarkdownRenderer.render` API 安定版が前提） |
+| 互換 | Obsidian v1.8.7 以降（`getLanguage()` API が前提。§6.5 i18n） |
 | 性能 | 1 ノートに mermaid ブロック 20 個程度まで違和感なく開ける（React root の遅延初期化） |
 | サイズ | プラグイン本体（`main.js` + `styles.css`）で 500KB 以下を目標。mermaid・@xyflow/react は含めるが、tree-shake で削減 |
 | 安全性 | ノートの**未対応行を絶対に消さない**（rawLines 必須）。書き戻しは該当フェンスの range だけ |
-| 国際化 | UI は日本語／英語の文字列辞書を `core` から分離 |
+| 国際化 | UI は日本語／英語の文字列辞書（`src/ui/i18n/`）を持ち、Obsidian の言語設定で動的切替（実装済み・§6.5） |
 | アクセシビリティ | キーボードのみで主要操作が完結すること（既存 Web 版の課題と共通） |
 
 ---

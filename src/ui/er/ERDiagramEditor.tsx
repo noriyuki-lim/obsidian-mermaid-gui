@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { parseErDiagram } from "../../core/er/parser";
 import { generateErDiagram } from "../../core/er/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
+import { useT } from "../EditorHostContext";
 import type { ErDiagramIR, ErEntity, ErRelationship, ErLineStyle } from "../../core/er/ir-types";
 
 interface Props {
@@ -30,6 +31,7 @@ function seed(source: string): ErDiagramIR {
 }
 
 export const ERDiagramEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
+  const t = useT();
   const [ir, setIr] = useState<ErDiagramIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
 
@@ -182,7 +184,7 @@ export const ERDiagramEditor = ({ initialSource, onSave, onCancel, renderMermaid
             </div>
           </div>
           {ir.entities.length === 0 && (
-            <p className="mge-seq-empty">エンティティ未定義。+ で追加。</p>
+            <p className="mge-seq-empty">{t.er.entitiesEmpty}</p>
           )}
           {ir.entities.map((entity: ErEntity, eidx: number) => (
             <div key={eidx} className="mge-er-entity">
@@ -254,7 +256,7 @@ export const ERDiagramEditor = ({ initialSource, onSave, onCancel, renderMermaid
             </div>
           </div>
           {relationships.length === 0 && (
-            <p className="mge-seq-empty">リレーションシップ未定義。+ で追加。</p>
+            <p className="mge-seq-empty">{t.er.relationshipsEmpty}</p>
           )}
           {relationships.map((rel: ErRelationship, ridx: number) => (
             <div key={ridx} className="mge-seq-row mge-er-rel-row">

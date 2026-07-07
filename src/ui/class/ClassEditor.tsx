@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from "react";
 import { parseClassDiagram } from "../../core/class/parser";
 import { generateClassDiagram } from "../../core/class/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
+import { useT } from "../EditorHostContext";
 import type {
   ClassDiagramItem,
   ClassNote,
@@ -92,6 +93,7 @@ const initState = (items: ClassDiagramItem[]) => {
 // Component
 // ---------------------------------------------------------------------------
 export const ClassEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
+  const t = useT();
   const parsed = parseClassDiagram(initialSource);
   const init = parsed.ok ? initState(parsed.ir.items) : { classes: [], relations: [], notes: [], rawItems: [] };
 
@@ -220,7 +222,7 @@ export const ClassEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
               <button className="mge-seq-btn mge-seq-btn-sm" onClick={addClass}>+ class</button>
             </div>
           </div>
-          {classes.length === 0 && <p className="mge-seq-empty">クラスなし。+ で追加。</p>}
+          {classes.length === 0 && <p className="mge-seq-empty">{t.classDiagram.classesEmpty}</p>}
           {classes.map((cls) => (
             <div key={cls.id} className="mge-cls-card">
               {/* Class header */}
@@ -281,7 +283,7 @@ export const ClassEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
               <button className="mge-seq-btn mge-seq-btn-sm" onClick={addRelation}>+ relation</button>
             </div>
           </div>
-          {relations.length === 0 && <p className="mge-seq-empty">関係なし。+ で追加。</p>}
+          {relations.length === 0 && <p className="mge-seq-empty">{t.classDiagram.relationsEmpty}</p>}
           {relations.map((rel, idx) => (
             <div key={idx} className="mge-seq-row">
               <input
@@ -333,7 +335,7 @@ export const ClassEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
               <button className="mge-seq-btn mge-seq-btn-sm" onClick={addNote}>+ note</button>
             </div>
           </div>
-          {notes.length === 0 && <p className="mge-seq-empty">ノートなし。</p>}
+          {notes.length === 0 && <p className="mge-seq-empty">{t.common.notesEmpty}</p>}
           {notes.map((note, idx) => (
             <div key={idx} className="mge-seq-row">
               <span className="mge-seq-badge">note</span>
@@ -364,7 +366,7 @@ export const ClassEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
         {rawItems.length > 0 && (
           <section className="mge-seq-section">
             <div className="mge-seq-section-header">
-              <span className="mge-seq-section-title">未解析行 (read-only)</span>
+              <span className="mge-seq-section-title">{t.common.unparsedLines}</span>
             </div>
             {rawItems.map((r, idx) => (
               <div key={idx} className="mge-seq-row mge-seq-row-raw">

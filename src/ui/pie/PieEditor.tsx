@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { parsePie } from "../../core/pie/parser";
 import { generatePie } from "../../core/pie/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
+import { useT } from "../EditorHostContext";
 import type { PieIR, PieItem } from "../../core/pie/ir-types";
 
 interface Props {
@@ -18,6 +19,7 @@ const seed = (initialSource: string): PieIR => {
 };
 
 export const PieEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
+  const t = useT();
   const [ir, setIr] = useState<PieIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
 
@@ -107,7 +109,7 @@ export const PieEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Pr
             </div>
           </div>
           {ir.items.filter((i) => i.type === "slice").length === 0 && (
-            <p className="mge-seq-empty">スライスが未定義。+ で追加。</p>
+            <p className="mge-seq-empty">{t.pie.slicesEmpty}</p>
           )}
           {ir.items.map((item, idx) => {
             if (item.type === "slice") {

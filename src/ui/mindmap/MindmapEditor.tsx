@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { parseMindmap } from "../../core/mindmap/parser";
 import { generateMindmap } from "../../core/mindmap/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
+import { useT } from "../EditorHostContext";
 import type { MindmapIR, MindmapNode, MindmapNodeShape } from "../../core/mindmap/ir-types";
 
 interface Props {
@@ -157,6 +158,7 @@ const NodeRow = ({ node, path, isRoot, onUpdate, onDelete, onAddChild }: NodeEdi
 };
 
 export const MindmapEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
+  const t = useT();
   const [ir, setIr] = useState<MindmapIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
 
@@ -215,13 +217,13 @@ export const MindmapEditor = ({ initialSource, onSave, onCancel, renderMermaid }
           <div className="mge-seq-section-header">
             <span className="mge-seq-section-title">Mindmap tree</span>
             <span className="mge-seq-section-hint" style={{ fontSize: "0.8em", color: "var(--text-muted)" }}>
-              ダブルクリックでテキスト・形状を編集
+              {t.mindmap.editHint}
             </span>
           </div>
           {!ir.root ? (
             <div className="mge-seq-empty">
-              <p>ルートノードなし。</p>
-              <button className="mge-seq-btn" onClick={addRoot}>+ ルート作成</button>
+              <p>{t.mindmap.noRoot}</p>
+              <button className="mge-seq-btn" onClick={addRoot}>{t.mindmap.addRoot}</button>
             </div>
           ) : (
             <div className="mge-mm-tree">

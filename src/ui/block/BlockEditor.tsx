@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { parseBlock } from "../../core/block/parser";
 import { generateBlock } from "../../core/block/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
+import { useT } from "../EditorHostContext";
 import type { BlockIR, BlockItem, BlockNode } from "../../core/block/ir-types";
 
 interface Props {
@@ -26,6 +27,7 @@ function seed(source: string): BlockIR {
 }
 
 export const BlockEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
+  const t = useT();
   const [ir, setIr] = useState<BlockIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
 
@@ -114,7 +116,7 @@ export const BlockEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
               <button className="mge-seq-btn mge-seq-btn-sm" onClick={addSpace}>+ space</button>
             </div>
           </div>
-          {ir.items.length === 0 && <p className="mge-seq-empty">未定義。+ で追加。</p>}
+          {ir.items.length === 0 && <p className="mge-seq-empty">{t.common.emptyAddHint}</p>}
           {ir.items.map((item, i) => {
             if (item.type === "columns") {
               return (

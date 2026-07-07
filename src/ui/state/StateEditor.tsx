@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from "react";
 import { parseStateDiagram } from "../../core/state/parser";
 import { generateStateDiagram } from "../../core/state/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
+import { useT } from "../EditorHostContext";
 import type {
   NotePosition,
   RawItem,
@@ -50,6 +51,7 @@ const initState = (items: StateDiagramItem[]) => {
 // Component
 // ---------------------------------------------------------------------------
 export const StateEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
+  const t = useT();
   const parsed = parseStateDiagram(initialSource);
   const init = parsed.ok
     ? initState(parsed.ir.items)
@@ -187,12 +189,12 @@ export const StateEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
           <div className="mge-seq-section-header">
             <span className="mge-seq-section-title">Transitions</span>
             <div className="mge-seq-add-btns">
-              <button className="mge-seq-btn mge-seq-btn-sm" onClick={addTransition}>+ 遷移</button>
+              <button className="mge-seq-btn mge-seq-btn-sm" onClick={addTransition}>{t.state.addTransitionButton}</button>
               <button className="mge-seq-btn mge-seq-btn-sm" onClick={addInitialTransition}>[*] →</button>
               <button className="mge-seq-btn mge-seq-btn-sm" onClick={addFinalTransition}>→ [*]</button>
             </div>
           </div>
-          {transitions.length === 0 && <p className="mge-seq-empty">遷移なし。+ で追加。</p>}
+          {transitions.length === 0 && <p className="mge-seq-empty">{t.state.transitionsEmpty}</p>}
           {transitions.map((t) => (
             <div key={t.id} className="mge-seq-row">
               {stateInput(t.from, (v) => updateTransition(t.id, { from: v }), "From", `mge-sta-from-${t.id}`)}
@@ -218,7 +220,7 @@ export const StateEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
               <button className="mge-seq-btn mge-seq-btn-sm" onClick={addStateDecl}>+ state</button>
             </div>
           </div>
-          {stateDecls.length === 0 && <p className="mge-seq-empty">明示的な宣言なし。</p>}
+          {stateDecls.length === 0 && <p className="mge-seq-empty">{t.state.noExplicitDecls}</p>}
           {stateDecls.map((s) => (
             <div key={s.id} className="mge-seq-row">
               <span className="mge-seq-badge">state</span>
@@ -277,7 +279,7 @@ export const StateEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
                 <button className="mge-seq-btn mge-seq-btn-sm" onClick={addStateDesc}>+ description</button>
               </div>
             </div>
-            <p className="mge-seq-empty">状態の説明文なし。</p>
+            <p className="mge-seq-empty">{t.state.noStateDescription}</p>
           </div>
         )}
 
@@ -289,7 +291,7 @@ export const StateEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
               <button className="mge-seq-btn mge-seq-btn-sm" onClick={addNote}>+ note</button>
             </div>
           </div>
-          {notes.length === 0 && <p className="mge-seq-empty">ノートなし。</p>}
+          {notes.length === 0 && <p className="mge-seq-empty">{t.common.notesEmpty}</p>}
           {notes.map((n) => (
             <div key={n.id} className="mge-seq-row">
               <span className="mge-seq-badge">Note</span>
@@ -317,7 +319,7 @@ export const StateEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
         {rawItems.length > 0 && (
           <section className="mge-seq-section">
             <div className="mge-seq-section-header">
-              <span className="mge-seq-section-title">未解析行 (read-only)</span>
+              <span className="mge-seq-section-title">{t.common.unparsedLines}</span>
             </div>
             {rawItems.map((r, idx) => (
               <div key={idx} className="mge-seq-row mge-seq-row-raw">

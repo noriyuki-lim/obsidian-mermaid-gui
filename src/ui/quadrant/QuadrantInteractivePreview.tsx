@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { QuadrantIR, QuadrantItem } from "../../core/quadrant/ir-types";
+import { useT } from "../EditorHostContext";
 
 interface Props {
   ir: QuadrantIR;
@@ -32,6 +33,7 @@ const POINT_RADIUS = 1.3;
  * onto the SVG.
  */
 export const QuadrantInteractivePreview = ({ ir, onPointMove }: Props) => {
+  const t = useT();
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<{ index: number; pointerId: number } | null>(null);
   const [dragging, setDragging] = useState<number | null>(null);
@@ -201,9 +203,7 @@ export const QuadrantInteractivePreview = ({ ir, onPointMove }: Props) => {
           );
         })}
       </svg>
-      <p className="mge-quad-preview-help">
-        ポイントをドラッグして位置を編集
-      </p>
+      <p className="mge-quad-preview-help">{t.quadrant.dragHint}</p>
     </div>
   );
 };

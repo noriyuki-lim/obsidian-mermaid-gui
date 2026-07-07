@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { parseTimeline } from "../../core/timeline/parser";
 import { generateTimeline } from "../../core/timeline/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
+import { useT } from "../EditorHostContext";
 import type { TimelineIR, TimelineItem, TimelinePeriod } from "../../core/timeline/ir-types";
 
 interface Props {
@@ -17,6 +18,7 @@ const seed = (src: string): TimelineIR => {
 };
 
 export const TimelineEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
+  const t = useT();
   const [ir, setIr] = useState<TimelineIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
 
@@ -121,7 +123,7 @@ export const TimelineEditor = ({ initialSource, onSave, onCancel, renderMermaid 
           </div>
 
           {ir.items.length === 0 && (
-            <p className="mge-seq-empty">セクションまたは期間を追加。</p>
+            <p className="mge-seq-empty">{t.timeline.itemsEmpty}</p>
           )}
 
           {ir.items.map((item, idx) => {

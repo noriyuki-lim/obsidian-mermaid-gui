@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { EditorShell } from "./EditorShell";
+import { useT } from "./EditorHostContext";
 import type { DiagramKind } from "../core/diagram-kind";
 
 interface Props {
@@ -23,6 +24,7 @@ interface Props {
  * diagram.
  */
 export const SourceOnlyEditor = ({ initialSource, onSave, onCancel, renderMermaid, kind }: Props) => {
+  const t = useT();
   const [source, setSource] = useState(initialSource);
   const [saving, setSaving] = useState(false);
 
@@ -44,7 +46,7 @@ export const SourceOnlyEditor = ({ initialSource, onSave, onCancel, renderMermai
       onCancel={onCancel}
       saving={saving}
       renderMermaid={renderMermaid}
-      previewUnavailableMessage="プレビューを描画する renderer が未接続。"
+      previewUnavailableMessage={t.sourceOnly.previewUnavailable}
     >
       <textarea
         className="mge-source-only-textarea"

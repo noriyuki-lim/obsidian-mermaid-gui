@@ -22,6 +22,7 @@ import { KanbanEditor } from "./kanban/KanbanEditor";
 import { DiagramKindPicker } from "./DiagramKindPicker";
 import { EditorHostProvider } from "./EditorHostContext";
 import { templateSource } from "../core/templates";
+import { translationsFor, type Locale } from "./i18n";
 
 export interface Props {
   /** Raw text from inside ```mermaid fences (without the fences themselves).
@@ -39,6 +40,10 @@ export interface Props {
    *  provided, non-flowchart editors show a live preview alongside the
    *  generated source. */
   renderMermaid?: (source: string) => Promise<string>;
+  /** Obsidian UI language detected by the host (`EditorModal`'s
+   *  `detectLocale()`). Defaults to "ja" — this plugin's original,
+   *  hardcoded-Japanese behaviour — for any call site that omits it. */
+  locale?: Locale;
 }
 
 const isBlank = (s: string): boolean => s.trim().length === 0;
@@ -65,14 +70,17 @@ const isBlank = (s: string): boolean => s.trim().length === 0;
 export const MermaidEditor = (props: Props) => {
   const [seeded, setSeeded] = useState<string | null>(null);
   const effectiveSource = seeded ?? props.initialSource;
+  const t = translationsFor(props.locale ?? "ja");
 
   if (isBlank(effectiveSource)) {
     return (
-      <DiagramKindPicker
-        onPick={(template) => setSeeded(templateSource(template))}
-        onCancel={props.onCancel}
-        renderMermaid={props.renderMermaid}
-      />
+      <EditorHostProvider value={{ onExportSvg: props.onExportSvg, t }}>
+        <DiagramKindPicker
+          onPick={(template) => setSeeded(templateSource(template))}
+          onCancel={props.onCancel}
+          renderMermaid={props.renderMermaid}
+        />
+      </EditorHostProvider>
     );
   }
 
@@ -111,7 +119,7 @@ export const MermaidEditor = (props: Props) => {
   })();
 
   return (
-    <EditorHostProvider value={{ onExportSvg: props.onExportSvg }}>
+    <EditorHostProvider value={{ onExportSvg: props.onExportSvg, t }}>
       {content}
     </EditorHostProvider>
   );

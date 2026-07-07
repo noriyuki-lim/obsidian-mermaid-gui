@@ -1,0 +1,157 @@
+import type { DiagramKind } from "../../core/diagram-kind";
+
+/**
+ * Japanese strings — the plugin's historical default UI language and the
+ * source-of-truth shape for the dictionary. `en.ts` is typed against
+ * `typeof ja`, so a missing or mistyped translation is a compile error
+ * rather than a silent fallback to the wrong language.
+ */
+export const ja = {
+  common: {
+    save: "保存",
+    saving: "保存中…",
+    cancel: "キャンセル",
+    showSource: "ソースを表示",
+    hideSource: "ソースを隠す",
+    previewUnavailable: "プレビューは利用できない。",
+    previewRendering: "プレビューを描画中…",
+    sourceDirty: "編集中… blur で確定",
+    sourceSynced: "同期済み",
+    notesEmpty: "ノートなし。",
+    unparsedLines: "未解析行 (read-only)",
+    emptyAddHint: "未定義。+ で追加。",
+  },
+  picker: {
+    brand: "Mermaid GUI — 新規作成",
+    dragReorder: "ドラッグして並べ替え",
+    pin: "お気に入りに追加",
+    unpin: "お気に入りから外す",
+    intro:
+      "図の種類を選択してください。テンプレートが読み込まれ、続きをGUIでの直接編集、またはフォーム中心の編集で進められます。☆で上部にピンできます。",
+    resetOrder: "並び順をリセット",
+    favorites: "★ お気に入り",
+    previewUnavailable: "プレビュー不可",
+    startWith: (label: string) => `${label} で始める`,
+  },
+  templateDescriptions: {
+    flowchart: "ノード・矢印で手順や関係を表現。GUI で形状・配線を編集",
+    quadrantChart: "2 軸 4 象限のポジショニング。プレビュー上で点をドラッグ編集",
+    gantt: "タスクとスケジュールをバーで表現するプロジェクト管理図",
+    "block-beta": "コンポーネント配置をブロックとカラム数で表現するシステム設計図",
+    kanban: "カラムとカードでワークフローを表現するカンバンボード（カードをドラッグで移動）",
+    "xychart-beta": "棒/折れ線の数値グラフ",
+    sequenceDiagram: "参加者間のメッセージ往復・時系列を表現",
+    classDiagram: "クラス・属性・関係（継承/集約等）を表現",
+    "stateDiagram-v2": "状態と遷移を表現（stateDiagram-v2 で出力）",
+    pie: "比率を扇形で表現。ラベル + 数値の素直なグラフ",
+    "sankey-beta": "ソース → ターゲット間のフロー量を帯幅で表現",
+    "radar-beta": "多軸のレーダーチャート（Obsidian 内蔵 Mermaid 非対応のためプレビュー不可）",
+    timeline: "時系列のイベントや出来事を年表形式で表現",
+    erDiagram: "エンティティ・属性・リレーションシップを表現するER図",
+    mindmap: "階層的なアイデアや構造をツリーで表現するマインドマップ",
+    "treemap-beta": "階層データの面積比で可視化（Obsidian 内蔵 Mermaid 非対応のためプレビュー不可）",
+    journey: "ユーザータスクと満足度スコア（1-7）を時系列で表現するUX分析図",
+    "architecture-beta": "クラウド/インフラ構成図。group / service / edge の関係を表現",
+    "venn-beta": "集合の重なりを表現するベン図（Obsidian 内蔵 Mermaid 非対応のためプレビュー不可）",
+  } satisfies Partial<Record<DiagramKind, string>>,
+  kanban: {
+    columnHandleLabel: "列を並べ替え",
+    columnHandleTitle: "ドラッグして列を並べ替え",
+    columnTitlePlaceholder: "列タイトル",
+    deleteColumn: "列を削除",
+    taskHandleLabel: "タスクを並べ替え",
+    taskHandleTitle: "ドラッグしてタスクを並べ替え",
+    deleteCard: "カードを削除",
+    emptyCardText: "(空)",
+    addCard: "+ カード",
+    addColumn: "+ 列",
+    ghostUntitled: "(無題)",
+    ghostCardCount: (n: number) => `${n} 件`,
+    previewNote:
+      "タスク左端・列左端のドットハンドルをドラッグして並べ替え。ダブルクリックで編集、選択して Delete で削除。",
+  },
+  gantt: {
+    axisPresetDate: "日付 (%m/%d)",
+    axisPresetWeek: "週 (%W)",
+    axisPresetCustom: "カスタム",
+    weekday: "曜日",
+    zoomReset: "ズーム解除",
+    emptyPreviewHint: "+ task で追加、または空白をダブルクリック",
+    previewHelp:
+      "バーをドラッグして移動・左右端で期間変更・右端の○から別バーへドラッグで依存。端のハンドルで表示範囲をズーム。選択して Delete で削除。",
+    pickerEmpty: "id 付きタスクなし",
+    openPicker: "ピッカーを開く",
+    toggleModeTitle: "F2 でも切替",
+    editMode: "編集モード",
+    moveMode: "移動モード",
+    gridEmpty: "+ task か + section で開始。",
+    reorderRowTitle: "ドラッグして行を並べ替え",
+    critToggleTitle: "crit と組み合わせ",
+  },
+  xychart: {
+    helpText: "棒をドラッグして値を変更。棒・点・カテゴリ名はダブルクリックで編集。",
+    seriesLabel: (n: number) => `系列${n}`,
+    deleteSeriesTitle: (n: number) => `系列${n} を削除`,
+    addSeriesTitle: "系列を追加",
+    rowPlaceholder: (n: number) => `行${n}`,
+    deleteRowTitle: (n: number) => `行${n} を削除`,
+    addRowTitle: "行を追加",
+    addRowButton: "+ 行を追加",
+    pasteHint: "Excelからのコピー（TSV）を表内にペーストするとインポートされる",
+  },
+  quadrant: {
+    pointsEmpty: "ポイントが未定義。+ で追加するか、プレビューを右にスクロール。",
+    increaseX: "x を増やす",
+    decreaseX: "x を減らす",
+    increaseY: "y を増やす",
+    decreaseY: "y を減らす",
+    dragHint: "ポイントをドラッグして位置を編集",
+  },
+  architecture: {
+    groupsEmpty: "グループ未定義。",
+    servicesEmpty: "サービス未定義。",
+    edgesEmpty: "エッジ未定義。",
+  },
+  classDiagram: {
+    classesEmpty: "クラスなし。+ で追加。",
+    relationsEmpty: "関係なし。+ で追加。",
+  },
+  er: {
+    entitiesEmpty: "エンティティ未定義。+ で追加。",
+    relationshipsEmpty: "リレーションシップ未定義。+ で追加。",
+  },
+  mindmap: {
+    editHint: "ダブルクリックでテキスト・形状を編集",
+    noRoot: "ルートノードなし。",
+    addRoot: "+ ルート作成",
+  },
+  pie: {
+    slicesEmpty: "スライスが未定義。+ で追加。",
+  },
+  radar: {
+    previewUnavailable: "Obsidian の内蔵 Mermaid は radar-beta 非対応。コードのみ確認可能。",
+    axesEmpty: "軸が未定義。+ で追加。",
+    curvesEmpty: "カーブが未定義。+ で追加。",
+  },
+  sankey: {
+    csvHeaderHint: "CSVヘッダ行 `source,target,value` を出力",
+    linksEmpty: "リンクが未定義。+ で追加。",
+  },
+  sequence: {
+    participantsEmpty: "参加者が未定義。+ で追加。",
+    messagesEmpty: "メッセージ・イベントなし。+ で追加。",
+    actorsPlaceholder: "A または A,B",
+  },
+  state: {
+    addTransitionButton: "+ 遷移",
+    transitionsEmpty: "遷移なし。+ で追加。",
+    noExplicitDecls: "明示的な宣言なし。",
+    noStateDescription: "状態の説明文なし。",
+  },
+  timeline: {
+    itemsEmpty: "セクションまたは期間を追加。",
+  },
+  sourceOnly: {
+    previewUnavailable: "プレビューを描画する renderer が未接続。",
+  },
+};

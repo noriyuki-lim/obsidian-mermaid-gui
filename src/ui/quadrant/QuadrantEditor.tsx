@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { parseQuadrant } from "../../core/quadrant/parser";
 import { generateQuadrant } from "../../core/quadrant/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
+import { useT } from "../EditorHostContext";
 import { QuadrantInteractivePreview } from "./QuadrantInteractivePreview";
 import type {
   QuadrantIR,
@@ -37,6 +38,7 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
   // QuadrantEditor swaps Mermaid's static render for an interactive SVG so the
   // user can drag points instead of typing x/y by hand. `renderMermaid` from
   // props is intentionally ignored — the override always wins.
+  const t = useT();
   const [ir, setIr] = useState<QuadrantIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
 
@@ -221,7 +223,7 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
             </div>
           </div>
           {ir.items.filter((i) => i.type === "point").length === 0 && (
-            <p className="mge-seq-empty">ポイントが未定義。+ で追加するか、プレビューを右にスクロール。</p>
+            <p className="mge-seq-empty">{t.quadrant.pointsEmpty}</p>
           )}
           {ir.items.map((item, idx) => {
             if (item.type === "point") {
@@ -248,7 +250,7 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
                       <button
                         type="button"
                         className="mge-quad-point-stepper-btn"
-                        aria-label="x を増やす"
+                        aria-label={t.quadrant.increaseX}
                         onClick={() => updateItem(idx, { x: round(clamp01(item.x + POINT_STEP)) })}
                       >
                         ▲
@@ -256,7 +258,7 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
                       <button
                         type="button"
                         className="mge-quad-point-stepper-btn"
-                        aria-label="x を減らす"
+                        aria-label={t.quadrant.decreaseX}
                         onClick={() => updateItem(idx, { x: round(clamp01(item.x - POINT_STEP)) })}
                       >
                         ▼
@@ -278,7 +280,7 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
                       <button
                         type="button"
                         className="mge-quad-point-stepper-btn"
-                        aria-label="y を増やす"
+                        aria-label={t.quadrant.increaseY}
                         onClick={() => updateItem(idx, { y: round(clamp01(item.y + POINT_STEP)) })}
                       >
                         ▲
@@ -286,7 +288,7 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
                       <button
                         type="button"
                         className="mge-quad-point-stepper-btn"
-                        aria-label="y を減らす"
+                        aria-label={t.quadrant.decreaseY}
                         onClick={() => updateItem(idx, { y: round(clamp01(item.y - POINT_STEP)) })}
                       >
                         ▼

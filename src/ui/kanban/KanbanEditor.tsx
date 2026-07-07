@@ -2,7 +2,9 @@ import { useCallback, useMemo, useState, type KeyboardEvent } from "react";
 import { parseKanban } from "../../core/kanban/parser";
 import { generateKanban } from "../../core/kanban/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
+import { useT } from "../EditorHostContext";
 import { KanbanInteractivePreview, type BoardColumn } from "./KanbanInteractivePreview";
+import { identityKey } from "./identity";
 import type { KanbanCard, KanbanColumn, KanbanIR, KanbanItem } from "../../core/kanban/ir-types";
 
 interface Props {
@@ -33,6 +35,7 @@ const withColumn = (
 export const KanbanEditor = ({ initialSource, onSave, onCancel }: Props) => {
   // Like the other graphical editors, the interactive board replaces Mermaid's
   // static render via `previewOverride`; `renderMermaid` is intentionally unused.
+  const t = useT();
   const [ir, setIr] = useState<KanbanIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<{ col: number; card: number } | null>(null);
@@ -40,7 +43,15 @@ export const KanbanEditor = ({ initialSource, onSave, onCancel }: Props) => {
   const columns = useMemo<BoardColumn[]>(() => {
     const out: BoardColumn[] = [];
     ir.items.forEach((it, itemIndex) => {
-      if (isColumn(it)) out.push({ itemIndex, title: it.title, cards: it.cards });
+      if (isColumn(it)) {
+        out.push({
+          itemIndex,
+          key: identityKey(it),
+          title: it.title,
+          cards: it.cards,
+          cardKeys: it.cards.map(identityKey),
+        });
+      }
     });
     return out;
   }, [ir.items]);
@@ -66,7 +77,6 @@ export const KanbanEditor = ({ initialSource, onSave, onCancel }: Props) => {
         items[dstItem] = { ...dst, cards: dstCards };
         return { ...prev, items };
       });
-      setSelected({ col: dstItem, card: 0 });
     },
     [],
   );
@@ -109,6 +119,19 @@ export const KanbanEditor = ({ initialSource, onSave, onCancel }: Props) => {
     setIr((prev) => ({ ...prev, items: [...prev.items, col] }));
   }, []);
 
+  const moveColumn = useCallback((from: number, to: number) => {
+    setIr((prev) => {
+      if (from === to || from < 0 || to < 0 || from >= prev.items.length || to >= prev.items.length) {
+        return prev;
+      }
+      const items = prev.items.slice();
+      const [item] = items.splice(from, 1);
+      items.splice(to, 0, item);
+      return { ...prev, items };
+    });
+    setSelected(null);
+  }, []);
+
   const onBodyKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if ((e.key === "Delete" || e.key === "Backspace") && selected) {
       const target = e.target as HTMLElement;
@@ -147,20 +170,19 @@ export const KanbanEditor = ({ initialSource, onSave, onCancel }: Props) => {
       onCancel={onCancel}
       saving={saving}
       layout="stacked"
-      sourceToggleLabel="ソースを表示"
+      sourceToggleLabel={t.common.showSource}
       previewOverride={
         <div
           className="mge-kanban-board-wrap"
           tabIndex={-1}
           onKeyDown={onBodyKeyDown}
         >
-          <div className="mge-kanban-preview-note">
-            ドラッグで列間移動。ダブルクリックで編集、選択して Delete で削除。
-          </div>
+          <div className="mge-kanban-preview-note">{t.kanban.previewNote}</div>
           <KanbanInteractivePreview
             columns={columns}
             selected={selected}
             onMoveCard={moveCard}
+            onReorderColumn={moveColumn}
             onSelectCard={(col, card) => setSelected({ col, card })}
             onEditCard={editCard}
             onDeleteCard={deleteCard}

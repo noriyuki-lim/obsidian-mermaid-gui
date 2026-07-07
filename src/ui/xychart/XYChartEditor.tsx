@@ -9,6 +9,7 @@ import {
 import { parseXYChart } from "../../core/xychart/parser";
 import { generateXYChart } from "../../core/xychart/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
+import { useT } from "../EditorHostContext";
 import type {
   XYAxis,
   XYChartIR,
@@ -76,6 +77,7 @@ const XYChartInteractivePreview = ({
   onCategoryChange,
   onValueChange,
 }: XYPreviewProps) => {
+  const t = useT();
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<{ pointerId: number; itemIndex: number; row: number } | null>(null);
   const [editingCategory, setEditingCategory] = useState<number | null>(null);
@@ -269,7 +271,7 @@ const XYChartInteractivePreview = ({
           );
         })}
       </svg>
-      <p className="mge-xy-preview-help">棒をドラッグして値を変更。棒・点・カテゴリ名はダブルクリックで編集。</p>
+      <p className="mge-xy-preview-help">{t.xychart.helpText}</p>
     </div>
   );
 };
@@ -279,6 +281,7 @@ const XYChartInteractivePreview = ({
 // ──────────────────────────────────────────────
 
 export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
+  const t = useT();
   const [ir, setIr] = useState<XYChartIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
   const [selectedCell, setSelectedCell] = useState<XYCell>({ row: 0, col: 0 });
@@ -558,7 +561,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
       renderMermaid={renderMermaid}
       onSourceEdit={handleSourceEdit}
       layout="stacked"
-      sourceToggleLabel="ソースを表示"
+      sourceToggleLabel={t.common.showSource}
       previewOverride={
         <XYChartInteractivePreview
           ir={ir}
@@ -647,7 +650,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
                 {seriesList.map((s, colIdx) => (
                   <th key={s.index} className="mge-xy-th mge-xy-th-series">
                     <div className="mge-xy-th-series-inner">
-                      <span className="mge-xy-col-label">系列{colIdx + 1}</span>
+                      <span className="mge-xy-col-label">{t.xychart.seriesLabel(colIdx + 1)}</span>
                       <select
                         className="mge-xy-kind-select"
                         value={s.series}
@@ -659,7 +662,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
                       </select>
                       <button
                         className="mge-xy-del-btn"
-                        title={`系列${colIdx + 1} を削除`}
+                        title={t.xychart.deleteSeriesTitle(colIdx + 1)}
                         onClick={() => deleteSeries(s.index)}
                         aria-label={`Delete series ${colIdx + 1}`}
                       >
@@ -673,7 +676,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
                   <button
                     className="mge-xy-add-btn"
                     onClick={addSeries}
-                    title="系列を追加"
+                    title={t.xychart.addSeriesTitle}
                     aria-label="Add series"
                   >
                     +
@@ -696,12 +699,12 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
                       onChange={e => {
                         setCategoryAt(rowIdx, e.target.value);
                       }}
-                      placeholder={`行${rowIdx + 1}`}
+                      placeholder={t.xychart.rowPlaceholder(rowIdx + 1)}
                     />
                     <button
                       className="mge-xy-del-row-btn"
                       onClick={() => deleteRow(rowIdx)}
-                      title={`行${rowIdx + 1} を削除`}
+                      title={t.xychart.deleteRowTitle(rowIdx + 1)}
                       aria-label={`Delete row ${rowIdx + 1}`}
                     >
                       ×
@@ -735,19 +738,17 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
                   <button
                     className="mge-xy-add-row-btn"
                     onClick={addRow}
-                    title="行を追加"
+                    title={t.xychart.addRowTitle}
                     aria-label="Add row"
                   >
-                    + 行を追加
+                    {t.xychart.addRowButton}
                   </button>
                 </td>
               </tr>
             </tbody>
           </table>
 
-          <p className="mge-xy-paste-hint">
-            Excelからのコピー（TSV）を表内にペーストするとインポートされる
-          </p>
+          <p className="mge-xy-paste-hint">{t.xychart.pasteHint}</p>
         </div>
 
         {/* raw items (preserved, read-only) */}

@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { parseSankey } from "../../core/sankey/parser";
 import { generateSankey } from "../../core/sankey/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
+import { useT } from "../EditorHostContext";
 import type { SankeyIR, SankeyItem } from "../../core/sankey/ir-types";
 
 interface Props {
@@ -18,6 +19,7 @@ const seed = (initialSource: string): SankeyIR => {
 };
 
 export const SankeyEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
+  const t = useT();
   const [ir, setIr] = useState<SankeyIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
 
@@ -82,7 +84,7 @@ export const SankeyEditor = ({ initialSource, onSave, onCancel, renderMermaid }:
                 checked={ir.hasHeaderRow}
                 onChange={(e) => setIr({ ...ir, hasHeaderRow: e.target.checked })}
               />{" "}
-              CSVヘッダ行 `source,target,value` を出力
+              {t.sankey.csvHeaderHint}
             </label>
           </div>
         </section>
@@ -97,7 +99,7 @@ export const SankeyEditor = ({ initialSource, onSave, onCancel, renderMermaid }:
             </div>
           </div>
           {ir.items.filter((i) => i.type === "link").length === 0 && (
-            <p className="mge-seq-empty">リンクが未定義。+ で追加。</p>
+            <p className="mge-seq-empty">{t.sankey.linksEmpty}</p>
           )}
           {ir.items.map((item, idx) => {
             if (item.type === "link") {

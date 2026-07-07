@@ -1,0 +1,157 @@
+import type { ja } from "./ja";
+
+/**
+ * English strings. Typed as `typeof ja` so a missing key, wrong value type
+ * (e.g. forgetting a `(n) => ...` function for an interpolated string), or
+ * extra key is a compile error — see `ja.ts` for the canonical shape.
+ */
+export const en: typeof ja = {
+  common: {
+    save: "Save",
+    saving: "Saving…",
+    cancel: "Cancel",
+    showSource: "Show source",
+    hideSource: "Hide source",
+    previewUnavailable: "Preview unavailable.",
+    previewRendering: "Rendering preview…",
+    sourceDirty: "Editing… commits on blur",
+    sourceSynced: "Synced",
+    notesEmpty: "No notes.",
+    unparsedLines: "Unparsed lines (read-only)",
+    emptyAddHint: "None defined yet. Add one with +.",
+  },
+  picker: {
+    brand: "Mermaid GUI — New Diagram",
+    dragReorder: "Drag to reorder",
+    pin: "Add to favorites",
+    unpin: "Remove from favorites",
+    intro:
+      "Choose a diagram type. Its template loads, and you can continue editing directly on the GUI canvas or through form-based controls. Pin favorites to the top with ☆.",
+    resetOrder: "Reset order",
+    favorites: "★ Favorites",
+    previewUnavailable: "Preview unavailable",
+    startWith: (label: string) => `Start with ${label}`,
+  },
+  templateDescriptions: {
+    flowchart: "Nodes and arrows for steps or relationships. Edit shapes and connections on the GUI canvas",
+    quadrantChart: "Positioning across 2 axes / 4 quadrants. Drag points directly on the preview",
+    gantt: "Project schedule with tasks shown as bars",
+    "block-beta": "System design diagram showing component layout via blocks and columns",
+    kanban: "Workflow board with columns and cards (drag cards to move them)",
+    "xychart-beta": "Bar / line numeric chart",
+    sequenceDiagram: "Message exchanges and timing between participants",
+    classDiagram: "Classes, attributes, and relationships (inheritance / aggregation, etc.)",
+    "stateDiagram-v2": "States and transitions (emitted as stateDiagram-v2)",
+    pie: "Proportions as pie slices — a straightforward label + value chart",
+    "sankey-beta": "Flow volume between source and target shown as band width",
+    "radar-beta": "Multi-axis radar chart (no preview — Obsidian's built-in Mermaid doesn't support radar-beta)",
+    timeline: "Chronological events laid out as a timeline",
+    erDiagram: "Entities, attributes, and relationships as an ER diagram",
+    mindmap: "Hierarchical ideas or structure as a tree-shaped mind map",
+    "treemap-beta":
+      "Hierarchical data visualized by area ratio (no preview — Obsidian's built-in Mermaid doesn't support treemap-beta)",
+    journey: "UX analysis of user tasks and satisfaction scores (1-7) over time",
+    "architecture-beta": "Cloud / infrastructure diagram of group / service / edge relationships",
+    "venn-beta": "Venn diagram of set overlaps (no preview — Obsidian's built-in Mermaid doesn't support venn-beta)",
+  },
+  kanban: {
+    columnHandleLabel: "Reorder column",
+    columnHandleTitle: "Drag to reorder column",
+    columnTitlePlaceholder: "Column title",
+    deleteColumn: "Delete column",
+    taskHandleLabel: "Reorder task",
+    taskHandleTitle: "Drag to reorder task",
+    deleteCard: "Delete card",
+    emptyCardText: "(empty)",
+    addCard: "+ Card",
+    addColumn: "+ Column",
+    ghostUntitled: "(untitled)",
+    ghostCardCount: (n: number) => `${n} item${n === 1 ? "" : "s"}`,
+    previewNote:
+      "Drag the dot handle at the left edge of a task or column to reorder. Double-click to edit, select and press Delete to remove.",
+  },
+  gantt: {
+    axisPresetDate: "Date (%m/%d)",
+    axisPresetWeek: "Week (%W)",
+    axisPresetCustom: "Custom",
+    weekday: "Weekday",
+    zoomReset: "Reset zoom",
+    emptyPreviewHint: "Add with + task, or double-click empty space",
+    previewHelp:
+      "Drag a bar to move it, its left/right edge to change duration, or from the ○ on its right edge to another bar to link them. Drag the outer handles to zoom the visible range. Select and press Delete to remove.",
+    pickerEmpty: "No tasks with an id",
+    openPicker: "Open picker",
+    toggleModeTitle: "F2 also toggles",
+    editMode: "Edit mode",
+    moveMode: "Move mode",
+    gridEmpty: "Start with + task or + section.",
+    reorderRowTitle: "Drag to reorder row",
+    critToggleTitle: "Combine with crit",
+  },
+  xychart: {
+    helpText: "Drag a bar to change its value. Double-click a bar, point, or category name to edit it.",
+    seriesLabel: (n: number) => `Series ${n}`,
+    deleteSeriesTitle: (n: number) => `Delete series ${n}`,
+    addSeriesTitle: "Add series",
+    rowPlaceholder: (n: number) => `Row ${n}`,
+    deleteRowTitle: (n: number) => `Delete row ${n}`,
+    addRowTitle: "Add row",
+    addRowButton: "+ Add row",
+    pasteHint: "Paste a copy from Excel (TSV) into the table to import it",
+  },
+  quadrant: {
+    pointsEmpty: "No points yet. Add one with +, or scroll the preview to the right.",
+    increaseX: "Increase x",
+    decreaseX: "Decrease x",
+    increaseY: "Increase y",
+    decreaseY: "Decrease y",
+    dragHint: "Drag a point to edit its position",
+  },
+  architecture: {
+    groupsEmpty: "No groups defined.",
+    servicesEmpty: "No services defined.",
+    edgesEmpty: "No edges defined.",
+  },
+  classDiagram: {
+    classesEmpty: "No classes. Add one with +.",
+    relationsEmpty: "No relations. Add one with +.",
+  },
+  er: {
+    entitiesEmpty: "No entities defined. Add one with +.",
+    relationshipsEmpty: "No relationships defined. Add one with +.",
+  },
+  mindmap: {
+    editHint: "Double-click to edit text and shape",
+    noRoot: "No root node.",
+    addRoot: "+ Create root",
+  },
+  pie: {
+    slicesEmpty: "No slices defined. Add one with +.",
+  },
+  radar: {
+    previewUnavailable: "Obsidian's built-in Mermaid doesn't support radar-beta. Only the source is available.",
+    axesEmpty: "No axes defined. Add one with +.",
+    curvesEmpty: "No curves defined. Add one with +.",
+  },
+  sankey: {
+    csvHeaderHint: "Output CSV header row `source,target,value`",
+    linksEmpty: "No links defined. Add one with +.",
+  },
+  sequence: {
+    participantsEmpty: "No participants defined. Add one with +.",
+    messagesEmpty: "No messages or events. Add one with +.",
+    actorsPlaceholder: "A or A,B",
+  },
+  state: {
+    addTransitionButton: "+ Transition",
+    transitionsEmpty: "No transitions. Add one with +.",
+    noExplicitDecls: "No explicit declarations.",
+    noStateDescription: "No state description.",
+  },
+  timeline: {
+    itemsEmpty: "Add a section or period.",
+  },
+  sourceOnly: {
+    previewUnavailable: "No renderer connected to draw the preview.",
+  },
+};

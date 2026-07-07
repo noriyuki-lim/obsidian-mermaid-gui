@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { DIAGRAM_TEMPLATES, templateSource, type DiagramTemplate } from "../core/templates";
+import type { DiagramKind } from "../core/diagram-kind";
+import { useT } from "./EditorHostContext";
 
 interface Props {
   /** Called once when the user confirms a kind. The host then mounts the
@@ -59,6 +61,7 @@ const mergeOrder = (saved: string[], defaultOrder: string[]): string[] => {
  * the EditorShell-style chrome so the modal remains draggable.
  */
 export const DiagramKindPicker = ({ onPick, onCancel, renderMermaid }: Props) => {
+  const t = useT();
   const [highlighted, setHighlighted] = useState<DiagramTemplate>(DIAGRAM_TEMPLATES[0]);
   const [pinned, setPinned] = useState<string[]>(() => loadStringList(PIN_STORAGE_KEY));
   const [order, setOrder] = useState<string[]>(() =>
@@ -227,8 +230,8 @@ export const DiagramKindPicker = ({ onPick, onCancel, renderMermaid }: Props) =>
           <button
             type="button"
             className="mge-kind-picker-handle"
-            aria-label="ドラッグして並べ替え"
-            title="ドラッグして並べ替え"
+            aria-label={t.picker.dragReorder}
+            title={t.picker.dragReorder}
             onClick={(e) => e.stopPropagation()}
             onPointerDown={startDrag(tpl.kind)}
           >
@@ -238,8 +241,8 @@ export const DiagramKindPicker = ({ onPick, onCancel, renderMermaid }: Props) =>
             type="button"
             className="mge-kind-picker-star"
             aria-pressed={isPinned}
-            aria-label={isPinned ? "お気に入りから外す" : "お気に入りに追加"}
-            title={isPinned ? "お気に入りから外す" : "お気に入りに追加"}
+            aria-label={isPinned ? t.picker.unpin : t.picker.pin}
+            title={isPinned ? t.picker.unpin : t.picker.pin}
             onClick={(e) => {
               e.stopPropagation();
               togglePin(tpl.kind);
@@ -248,7 +251,10 @@ export const DiagramKindPicker = ({ onPick, onCancel, renderMermaid }: Props) =>
             {isPinned ? "★" : "☆"}
           </button>
           <span className="mge-kind-picker-item-label">{tpl.label}</span>
-          <span className="mge-kind-picker-item-desc">{tpl.description}</span>
+          <span className="mge-kind-picker-item-desc">
+            {(t.templateDescriptions as Partial<Record<DiagramKind, string>>)[tpl.kind] ??
+              tpl.description}
+          </span>
         </div>
       </li>
     );
@@ -265,27 +271,25 @@ export const DiagramKindPicker = ({ onPick, onCancel, renderMermaid }: Props) =>
   return (
     <div className="mge-editor-shell mge-kind-picker-shell">
       <header className="mge-toolbar mge-editor-toolbar">
-        <span className="mge-brand">Mermaid GUI — 新規作成</span>
+        <span className="mge-brand">{t.picker.brand}</span>
         <div className="mge-group" style={{ marginLeft: "auto" }}>
           <button className="mge-btn-secondary" onClick={onCancel}>
-            キャンセル
+            {t.common.cancel}
           </button>
           <button className="mge-btn-primary" onClick={() => onPick(highlighted)}>
-            {highlighted.label} で始める
+            {t.picker.startWith(highlighted.label)}
           </button>
         </div>
       </header>
 
       <section className="mge-editor-body mge-kind-picker-body">
         <div className="mge-kind-picker-lead-row">
-          <p className="mge-kind-picker-lead">
-            図の種類を選択してください。テンプレートが読み込まれ、続きをGUIでの直接編集、またはフォーム中心の編集で進められます。☆で上部にピンできます。
-          </p>
+          <p className="mge-kind-picker-lead">{t.picker.intro}</p>
           <button type="button" className="mge-kind-picker-reset" onClick={resetOrder}>
-            並び順をリセット
+            {t.picker.resetOrder}
           </button>
         </div>
-        {section("★ お気に入り", pinnedTemplates)}
+        {section(t.picker.favorites, pinnedTemplates)}
         {section(null, rest)}
       </section>
 
@@ -294,11 +298,11 @@ export const DiagramKindPicker = ({ onPick, onCancel, renderMermaid }: Props) =>
           <div className="mge-editor-pane-header">Preview — {highlighted.label}</div>
           <div className="mge-editor-preview-inner">
             {!renderMermaid ? (
-              <p className="mge-editor-preview-note">プレビュー不可</p>
+              <p className="mge-editor-preview-note">{t.picker.previewUnavailable}</p>
             ) : renderError ? (
               <div className="mge-preview-error">{renderError}</div>
             ) : svg.length === 0 ? (
-              <p className="mge-editor-preview-note">プレビューを描画中…</p>
+              <p className="mge-editor-preview-note">{t.common.previewRendering}</p>
             ) : (
               <div
                 className="mge-mermaid-preview"

@@ -2,6 +2,7 @@ import { useMemo, useState, useCallback } from "react";
 import { parseSequence } from "../../core/sequence/parser";
 import { generateSequence } from "../../core/sequence/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
+import { useT } from "../EditorHostContext";
 import type {
   ActorItem,
   ActivationItem,
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export const SequenceEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
+  const t = useT();
   const [items, setItems] = useState<SequenceItem[]>(() => {
     const outcome = parseSequence(initialSource);
     return outcome.ok ? outcome.ir.items : [];
@@ -149,7 +151,7 @@ export const SequenceEditor = ({ initialSource, onSave, onCancel, renderMermaid 
             </div>
           </div>
           {participantItems.length === 0 && (
-            <p className="mge-seq-empty">参加者が未定義。+ で追加。</p>
+            <p className="mge-seq-empty">{t.sequence.participantsEmpty}</p>
           )}
           {items.map((item, idx) => {
             if (item.type !== "participant" && item.type !== "actor") return null;
@@ -200,7 +202,7 @@ export const SequenceEditor = ({ initialSource, onSave, onCancel, renderMermaid 
             </div>
           </div>
           {items.filter((i) => i.type !== "participant" && i.type !== "actor").length === 0 && (
-            <p className="mge-seq-empty">メッセージ・イベントなし。+ で追加。</p>
+            <p className="mge-seq-empty">{t.sequence.messagesEmpty}</p>
           )}
           {items.map((item, idx) => {
             if (item.type === "participant" || item.type === "actor") return null;
@@ -259,7 +261,7 @@ export const SequenceEditor = ({ initialSource, onSave, onCancel, renderMermaid 
                           .filter(Boolean),
                       })
                     }
-                    placeholder="A または A,B"
+                    placeholder={t.sequence.actorsPlaceholder}
                   />
                   <span className="mge-seq-row-label">:</span>
                   <input

@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { parseArchitecture } from "../../core/architecture/parser";
 import { generateArchitecture } from "../../core/architecture/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
+import { useT } from "../EditorHostContext";
 import type {
   ArchitectureIR, ArchItem, ArchGroup, ArchService, ArchEdge, ArchEdgeDirection, ArchArrow,
 } from "../../core/architecture/ir-types";
@@ -25,6 +26,7 @@ function seed(source: string): ArchitectureIR {
 }
 
 export const ArchitectureEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
+  const t = useT();
   const [ir, setIr] = useState<ArchitectureIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
 
@@ -100,7 +102,7 @@ export const ArchitectureEditor = ({ initialSource, onSave, onCancel, renderMerm
               <button className="mge-seq-btn mge-seq-btn-sm" onClick={addGroup}>+ group</button>
             </div>
           </div>
-          {groups.length === 0 && <p className="mge-seq-empty">グループ未定義。</p>}
+          {groups.length === 0 && <p className="mge-seq-empty">{t.architecture.groupsEmpty}</p>}
           {groups.map((g, i) => (
             <div key={i} className="mge-seq-row">
               <span className="mge-seq-badge">group</span>
@@ -120,7 +122,7 @@ export const ArchitectureEditor = ({ initialSource, onSave, onCancel, renderMerm
               <button className="mge-seq-btn mge-seq-btn-sm" onClick={addService}>+ service</button>
             </div>
           </div>
-          {services.length === 0 && <p className="mge-seq-empty">サービス未定義。</p>}
+          {services.length === 0 && <p className="mge-seq-empty">{t.architecture.servicesEmpty}</p>}
           {services.map((s, i) => (
             <div key={i} className="mge-seq-row">
               <span className="mge-seq-badge">service</span>
@@ -144,7 +146,7 @@ export const ArchitectureEditor = ({ initialSource, onSave, onCancel, renderMerm
               <button className="mge-seq-btn mge-seq-btn-sm" onClick={addEdge}>+ edge</button>
             </div>
           </div>
-          {edges.length === 0 && <p className="mge-seq-empty">エッジ未定義。</p>}
+          {edges.length === 0 && <p className="mge-seq-empty">{t.architecture.edgesEmpty}</p>}
           {edges.map((e, i) => (
             <div key={i} className="mge-seq-row">
               <span className="mge-seq-badge">edge</span>

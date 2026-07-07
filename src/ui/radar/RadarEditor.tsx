@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { parseRadar } from "../../core/radar/parser";
 import { generateRadar } from "../../core/radar/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
+import { useT } from "../EditorHostContext";
 import type { RadarAxis, RadarCurve, RadarIR } from "../../core/radar/ir-types";
 
 interface Props {
@@ -29,6 +30,7 @@ const parseValues = (text: string): number[] => {
 };
 
 export const RadarEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
+  const t = useT();
   const [ir, setIr] = useState<RadarIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
 
@@ -93,7 +95,7 @@ export const RadarEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       onCancel={onCancel}
       saving={saving}
       renderMermaid={renderMermaid}
-      previewUnavailableMessage="Obsidian の内蔵 Mermaid は radar-beta 非対応。コードのみ確認可能。"
+      previewUnavailableMessage={t.radar.previewUnavailable}
       onSourceEdit={handleSourceEdit}
     >
       <div className="mge-seq-body">
@@ -121,7 +123,7 @@ export const RadarEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
               </button>
             </div>
           </div>
-          {ir.axes.length === 0 && <p className="mge-seq-empty">軸が未定義。+ で追加。</p>}
+          {ir.axes.length === 0 && <p className="mge-seq-empty">{t.radar.axesEmpty}</p>}
           {ir.axes.map((axis, idx) => (
             <div key={idx} className="mge-seq-row">
               <span className="mge-seq-row-label">id</span>
@@ -157,7 +159,7 @@ export const RadarEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
               </button>
             </div>
           </div>
-          {ir.curves.length === 0 && <p className="mge-seq-empty">カーブが未定義。+ で追加。</p>}
+          {ir.curves.length === 0 && <p className="mge-seq-empty">{t.radar.curvesEmpty}</p>}
           {ir.curves.map((curve, idx) => (
             <div key={idx} className="mge-seq-row">
               <span className="mge-seq-row-label">id</span>

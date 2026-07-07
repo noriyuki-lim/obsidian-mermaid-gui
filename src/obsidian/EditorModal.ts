@@ -3,11 +3,25 @@ import { createElement } from "react";
 import { ReactHost } from "./ReactHost";
 import { MermaidEditor } from "../ui/MermaidEditor";
 import { renderMermaidThemed } from "./mermaidRender";
+import { detectLocale } from "./locale";
 
 export interface EditorModalHandlers {
   onSave: (newSource: string) => Promise<void> | void;
   onExportSvg?: (mermaidSource: string) => Promise<void> | void;
 }
+
+/**
+ * `app.customCss.theme` is undocumented but widely relied upon by the
+ * community-theme ecosystem (e.g. Style Settings) as the only way to read the
+ * active community theme's name from a plugin. Used only to scope the Kanban
+ * board's Transparent-theme border fix (see `.mge-theme-transparent` in
+ * `styles.src.css`) — never throws, degrades to "no match" if the shape ever
+ * changes.
+ */
+const isTransparentThemeActive = (app: App): boolean => {
+  const theme = (app as unknown as { customCss?: { theme?: string } }).customCss?.theme;
+  return typeof theme === "string" && theme.trim().toLowerCase() === "transparent";
+};
 
 /**
  * Opens the React-based GUI editor inside an Obsidian Modal. The modal owns a
@@ -33,6 +47,9 @@ export class EditorModal extends Modal {
 
   onOpen(): void {
     this.modalEl.addClass("mge-modal");
+    if (isTransparentThemeActive(this.app)) {
+      this.modalEl.addClass("mge-theme-transparent");
+    }
     this.contentEl.empty();
     this.contentEl.addClass("mge-modal-content");
     const mount = this.contentEl.createDiv({ cls: "mge-react-root" });
@@ -40,6 +57,7 @@ export class EditorModal extends Modal {
     this.host.render(
       createElement(MermaidEditor, {
         initialSource: this.initialSource,
+        locale: detectLocale(),
         onSave: async (s: string) => {
           try {
             await this.handlers.onSave(s);

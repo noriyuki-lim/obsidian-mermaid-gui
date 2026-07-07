@@ -11,6 +11,7 @@ import { parseGantt } from "../../core/gantt/parser";
 import { generateGantt } from "../../core/gantt/generator";
 import { formatGanttAxisTick } from "../../core/gantt/axis-format";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
+import { useT } from "../EditorHostContext";
 import type { GanttIR, GanttItem, GanttTask, GanttTaskStatus } from "../../core/gantt/ir-types";
 
 interface Props {
@@ -141,10 +142,7 @@ const firstExplicitDate = (items: GanttItem[]) => {
 
 // ---- axisFormat presets (goals 1 & 2) ----------------------------------
 
-const AXIS_PRESETS: { value: string; label: string }[] = [
-  { value: "%m/%d", label: "日付 (%m/%d)" },
-  { value: "%W", label: "週 (%W)" },
-];
+const AXIS_PRESET_VALUES = ["%m/%d", "%W"] as const;
 
 /** Strip a trailing weekday token like `(%a)` or `%a`, returning base + flag. */
 const splitWeekday = (fmt: string): { base: string; weekday: boolean } => {
@@ -275,6 +273,7 @@ const GanttInteractivePreview = ({
   onAxisFormatChange,
   onReorderItem,
 }: GanttPreviewProps) => {
+  const t = useT();
   const svgRef = useRef<SVGSVGElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [viewBoxWidth, setViewBoxWidth] = useState(MIN_VIEWBOX_WIDTH);
@@ -596,10 +595,9 @@ const GanttInteractivePreview = ({
             onChange={(event) => onAxisPresetChange(event.target.value)}
             title="axis"
           >
-            {AXIS_PRESETS.map((p) => (
-              <option key={p.value} value={p.value}>{p.label}</option>
-            ))}
-            <option value="custom">カスタム</option>
+            <option value="%m/%d">{t.gantt.axisPresetDate}</option>
+            <option value="%W">{t.gantt.axisPresetWeek}</option>
+            <option value="custom">{t.gantt.axisPresetCustom}</option>
           </select>
           <label className="mge-gantt-preview-check">
             <input
@@ -607,7 +605,7 @@ const GanttInteractivePreview = ({
               checked={axisWeekday}
               onChange={(event) => onAxisWeekdayChange(event.target.checked)}
             />
-            曜日
+            {t.gantt.weekday}
           </label>
           <input
             className="mge-gantt-preview-field mge-gantt-preview-axis-input"
@@ -618,7 +616,7 @@ const GanttInteractivePreview = ({
           />
           {viewport ? (
             <button className="mge-gantt-preview-btn" onClick={() => setViewport(null)}>
-              ズーム解除
+              {t.gantt.zoomReset}
             </button>
           ) : null}
           <button className="mge-gantt-preview-btn" onClick={() => onAddTask()}>
@@ -714,7 +712,7 @@ const GanttInteractivePreview = ({
 
         {baseTimeline.tasks.length === 0 ? (
           <text x={viewBoxWidth / 2} y={height / 2} className="mge-gantt-empty-preview" textAnchor="middle">
-            + task で追加、または空白をダブルクリック
+            {t.gantt.emptyPreviewHint}
           </text>
         ) : null}
 
@@ -827,14 +825,13 @@ const GanttInteractivePreview = ({
           );
         })}
       </svg>
-      <p className="mge-gantt-preview-help">
-        バーをドラッグして移動・左右端で期間変更・右端の○から別バーへドラッグで依存。端のハンドルで表示範囲をズーム。選択して Delete で削除。
-      </p>
+      <p className="mge-gantt-preview-help">{t.gantt.previewHelp}</p>
     </div>
   );
 };
 
 export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
+  const t = useT();
   const [ir, setIr] = useState<GanttIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
   const [selection, setSelection] = useState<Selection>(null);
@@ -1048,7 +1045,9 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
   // axisFormat decomposition for the settings UI (goals 1 & 2).
   const axisFormat = ir.axisFormat ?? "%m/%d";
   const { base: axisBase, weekday: axisWeekday } = splitWeekday(axisFormat);
-  const axisPreset = AXIS_PRESETS.find((p) => p.value === axisBase)?.value ?? "custom";
+  const axisPreset = (AXIS_PRESET_VALUES as readonly string[]).includes(axisBase)
+    ? axisBase
+    : "custom";
 
   const setAxisFormat = useCallback((value: string) => {
     setIr((prev) => ({ ...prev, axisFormat: value.trim() ? value : undefined }));
@@ -1319,7 +1318,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
         {field === "start" ? (
           <div className="mge-gantt-after-list">
             {afterOptions.length === 0 ? (
-              <span className="mge-gantt-picker-empty">id 付きタスクなし</span>
+              <span className="mge-gantt-picker-empty">{t.gantt.pickerEmpty}</span>
             ) : (
               afterOptions.map((id) => (
                 <button
@@ -1438,7 +1437,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
             className="mge-gantt-schedule-open"
             type="button"
             aria-label={`${field} picker`}
-            title="ピッカーを開く"
+            title={t.gantt.openPicker}
             onClick={() => openSchedulePicker(idx, field)}
           >
             ▾
@@ -1459,7 +1458,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       renderMermaid={renderMermaid}
       onSourceEdit={handleSourceEdit}
       layout="stacked"
-      sourceToggleLabel="ソースを表示"
+      sourceToggleLabel={t.common.showSource}
       previewOverride={
         <div className="mge-gantt-preview-wrap" tabIndex={0} onKeyDown={onPreviewKeyDown}>
           <GanttInteractivePreview
@@ -1506,9 +1505,9 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
             <button
               className={`mge-gantt-action ${editMode ? "active" : ""}`}
               onClick={() => setEditMode((m) => !m)}
-              title="F2 でも切替"
+              title={t.gantt.toggleModeTitle}
             >
-              {editMode ? "編集モード" : "移動モード"}
+              {editMode ? t.gantt.editMode : t.gantt.moveMode}
             </button>
             <button className="mge-gantt-action" onClick={addSection}>+ section</button>
             <button className="mge-gantt-action" onClick={() => addTask()}>+ task</button>
@@ -1527,7 +1526,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
             <span />
           </div>
           {ir.items.length === 0 ? (
-            <div className="mge-gantt-grid-empty">+ task か + section で開始。</div>
+            <div className="mge-gantt-grid-empty">{t.gantt.gridEmpty}</div>
           ) : null}
           {ir.items.map((item, idx) => {
             const task = item.type === "task" ? item : null;
@@ -1551,7 +1550,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
                   onPointerMove={moveTableRowDrag}
                   onPointerUp={endTableRowDrag}
                   onPointerCancel={endTableRowDrag}
-                  title="ドラッグして行を並べ替え"
+                  title={t.gantt.reorderRowTitle}
                 >
                   <span className="mge-gantt-table-grip" aria-hidden="true" />
                 </button>
@@ -1604,7 +1603,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
                       <option value="active">active</option>
                       <option value="milestone">milestone</option>
                     </select>
-                    <label className="mge-gantt-crit-toggle" title="crit と組み合わせ">
+                    <label className="mge-gantt-crit-toggle" title={t.gantt.critToggleTitle}>
                       <input
                         type="checkbox"
                         checked={task.modifiers.includes("crit")}

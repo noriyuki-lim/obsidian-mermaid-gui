@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { parseJourney } from "../../core/journey/parser";
 import { generateJourney } from "../../core/journey/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
+import { useT } from "../EditorHostContext";
 import type { JourneyIR, JourneyItem, JourneyTask } from "../../core/journey/ir-types";
 
 interface Props {
@@ -28,6 +29,7 @@ function seed(source: string): JourneyIR {
 }
 
 export const JourneyEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
+  const t = useT();
   const [ir, setIr] = useState<JourneyIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
 
@@ -116,7 +118,7 @@ export const JourneyEditor = ({ initialSource, onSave, onCancel, renderMermaid }
             </div>
           </div>
           {ir.items.length === 0 && (
-            <p className="mge-seq-empty">未定義。+ で追加。</p>
+            <p className="mge-seq-empty">{t.common.emptyAddHint}</p>
           )}
           {ir.items.map((item, idx) => {
             if (item.type === "section") {
