@@ -11,14 +11,14 @@ flowchart TD
     n2[n2]
     n6[n6]
   end
-  n1 --> sg_1
   n2 --> n6
+  n1 --> sg_1
+  n3 --> n4
   n3 --> n5
   n3 --> n7
-  n3 --> n4
+  n4 --> n8
   n5 --> n8
   n7 --> n8
-  n4 --> n8
   sg_1 --> n3
 ```
 
