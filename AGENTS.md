@@ -13,7 +13,7 @@
 ## リポジトリ構成
 
 ```
-mermaid-gui-obsidian/
+mermaid-gui-editor/
 ├── AGENTS.md                      ← プロジェクトルールの SSOT（本ファイル）
 ├── CLAUDE.md                      ← @AGENTS.md 参照
 ├── README.md
@@ -443,7 +443,7 @@ parser が理解できない行は `MermaidIR.rawLines` に温存され、genera
 npm run dev
 ```
 
-を回しつつ、vault の `<vault>/.obsidian/plugins/mermaid-gui-obsidian/` に対して **junction**（Windows: `New-Item -ItemType Junction`）でリポジトリ直下を貼ると、保存即反映できる。`Ctrl+R` で Obsidian をリロード。
+を回しつつ、vault の `<vault>/.obsidian/plugins/mermaid-gui-editor/` に対して **junction**（Windows: `New-Item -ItemType Junction`）でリポジトリ直下を貼ると、保存即反映できる。`Ctrl+R` で Obsidian をリロード。
 
 **`src/` を編集したら、ユーザーに動作確認を促す前に必ず `main.js` / `styles.css` が最新化されているか確認する。** `npm run dev` がバックグラウンドで動いていない状態（このセッションでは既定）で `Edit`/`Write` だけ行うと `main.js` は古いままで、Obsidian が何度リロードしても変更が反映されない（実際に発生した事故）。
 

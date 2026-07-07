@@ -128,7 +128,7 @@ flowchart LR
 Web 版は別ディレクトリに退避済みのため、本リポジトリは **Obsidian プラグイン単体構成**に再編する。`core` / `ui` / `plugin` の関心分離は維持し、将来 VS Code 拡張等への展開余地は残す。
 
 ```
-mermaid-gui-obsidian/
+mermaid-gui-editor/
 ├── manifest.json              # Obsidian プラグインマニフェスト
 ├── main.ts                    # Plugin エントリ（registerMarkdownCodeBlockProcessor 等）
 ├── esbuild.config.mjs
