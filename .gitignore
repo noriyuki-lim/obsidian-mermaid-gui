@@ -11,3 +11,6 @@ styles.css
 
 # legacy snapshot of the web app, kept for reference; not part of the plugin
 _legacy/
+
+# internal backlog / planning notes — not part of the public plugin
+backlog/
