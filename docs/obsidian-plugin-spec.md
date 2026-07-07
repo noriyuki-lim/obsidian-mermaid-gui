@@ -351,22 +351,22 @@ mermaid-gui-editor/
 | v0.3 | テーマ／i18n／パフォーマンス調整 | 未着手 |
 | v1.0 | Live Preview インライン GUI | 別企画 |
 
-### 11.1 配布方法（チーム内共有）
+### 11.1 配布方法
 
-コミュニティプラグインへの公開申請は行わない。Obsidian プラグインは `<vault>/.obsidian/plugins/<plugin-id>/` に `manifest.json` / `main.js` / `styles.css` を配置するだけで動作するため、ローカル配布で完結する。
+GitHub で公開済み（`https://github.com/noriyuki-lim/obsidian-mermaid-gui`、公開リポジトリ）。Obsidian プラグインは `<vault>/.obsidian/plugins/<plugin-id>/`（本プラグインは `mermaid-gui-editor`）に `manifest.json` / `main.js` / `styles.css` を配置すれば動作する。
 
 | 方法 | 仕組み | 適用場面 |
 | --- | --- | --- |
-| **A. zip 配布**（MVP 採用） | ビルド成果物を zip → OneDrive 等で共有 → 受領側が plugins フォルダに解凍 | 初期版・小規模配布。OneDrive がすでに稼働中なため摩擦最小 |
-| **B. BRAT 経由** | 受領側に BRAT（コミュニティプラグイン）を導入 → 社内 GitHub の private repo URL を登録 → 自動更新 | 更新頻度が上がってきた段階で移行 |
-| **C. 共有 vault** | vault 自体を Git／Obsidian Sync 等で共有している場合、`.obsidian/plugins/` ごと自動同期 | 既存の vault 共有運用に乗せられる場合 |
+| **A. GitHub Release から手動配置**（現行） | Release に添付した 3 ファイルを受領側が `plugins/mermaid-gui-editor/` に置く | 現在の配布手段 |
+| **B. BRAT 経由** | 受領側が BRAT（コミュニティプラグイン）を導入 → repo `noriyuki-lim/obsidian-mermaid-gui` を登録 → 自動更新 | 審査前のベータ配布・自動更新したいとき |
+| **C. コミュニティプラグイン**（計画） | `obsidianmd/obsidian-releases` へ PR → 審査通過後は Obsidian 内の Community plugins から検索・ワンクリック導入 | 一般公開の最終形 |
 
 **運用上の注意**:
 - 受け取り側は Obsidian の「制限モード（Restricted mode）」を OFF にする必要がある（初回のみ）。
-- BRAT は private repo に対しても GitHub Personal Access Token で対応可能。
-- バージョン管理: `manifest.json` の `version` をビルドごとに上げ、`CHANGELOG.md` を同梱する。
+- GitHub Release のタグは `manifest.json` の `version` と完全一致させる（`v` を付けない）。`main.js` / `manifest.json` / `styles.css` は zip でまとめず個別に添付する。
+- バージョン管理: リリースごとに `manifest.json` の `version` と `versions.json`（version → minAppVersion 対応表）を更新する。
 
-**推奨ライン**: MVP は **A（zip + OneDrive）** で開始。配布対象が増え更新頻度が上がった段階で **B（社内 GitHub + BRAT）** へ移行する。
+**推奨ライン**: 現在は **A（GitHub Release から手動配置）**。**C（コミュニティプラグイン申請）** を通せば一般ユーザーがワンクリックで導入できる。BRAT（B）は審査前のベータ配布や自動更新向け。
 
 ---
 
@@ -377,11 +377,11 @@ mermaid-gui-editor/
 | 複数ブロック同居 | **想定する** | §6.3（store ファクトリ化を MUST 化） |
 | `classDef` / `style` / `linkStyle` / `click` | **MVP では rawLines 継続。IR 化しない** | §5.1（段階的 IR 化パスを記載） |
 | Web 版の存続 | **不要**（別ディレクトリへ退避済み） | §6.1（モノレポ廃止、プラグイン単体構成へ） |
-| 配布形態 | **コミュニティプラグイン申請しない。チーム内ローカル配布** | §11.1（zip → BRAT への段階運用） |
+| 配布形態 | **GitHub で公開。手動配置／BRAT で配布し、コミュニティプラグイン申請を予定** | §11.1 |
 
 ### 12.1 残るオープンクエスチョン
 
-1. **plugin id の確定**: `manifest.json` の `id` を何にするか（例: `mermaid-gui-editor`）。BRAT 導入時に変更すると plugins フォルダのパスが変わるため、初版で決め切る必要がある。
+1. **plugin id の確定 → 確定済み**: `id` = `mermaid-gui-editor`（v0.1.0）。公開後に変更すると既存ユーザーのデータ（`plugins/<id>/data.json`）が孤立するため、GitHub 公開前に確定させた。
 2. **添付ファイルの保存先**: SVG エクスポート時の保存ディレクトリは Obsidian の添付設定に従うか、プラグイン独自設定を持つか。
 3. **ショートカット衝突**: `Ctrl/Cmd+Z`、`Ctrl/Cmd+E` 等が Obsidian 既定のコマンドと衝突する可能性があるため、Modal 内のみで有効化するか専用キーを割り当てるかを決める。
 4. **`linkStyle` のインデックス保護**: rawLines 継続でも、GUI でエッジを並び替えると `linkStyle 0` の指す対象がズレる。MVP では「`linkStyle` を含むブロックはエッジ並び順を変えない」制約を設けるか、警告表示で済ますか。
