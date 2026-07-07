@@ -726,9 +726,34 @@ body.mge-dragging .modal.mge-modal,
 body.mge-resizing .modal.mge-modal {
   transition: none !important;
 }
+/* Neutralise community themes' modal-open animation on our editor modal.
+   Some themes (e.g. "Transparent") animate `.modal` open with a
+   `transform: scale(0.93) -> scale(1)` keyframe. React Flow measures node &
+   handle geometry via getBoundingClientRect(), whose result INCLUDES ancestor
+   transforms — so when the flowchart canvas is measured while this modal is
+   still mid-scale, every edge-handle offset is captured at the wrong scale and
+   React Flow has no way to undo it, leaving edges visibly detached from nodes
+   until something forces a re-measure. Overriding the entrance animation with
+   an opacity-only fade (no transform) keeps the modal at 1:1 for the whole
+   open sequence, so geometry is measured correctly on the very first frame —
+   matching how the default theme (which has no scale animation) already
+   behaves. `!important` is required to beat the theme's more specific
+   `body:not(...):not(...) .modal` selector. The static `translateZ(0)` some
+   themes set on `.modal` is left intact: it never scales, so it does not
+   affect measurement. */
+@keyframes mge-modal-open {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.modal.mge-modal {
+  animation: mge-modal-open 150ms cubic-bezier(0.2, 0, 0, 1) forwards !important;
+}
 @media (prefers-reduced-motion: reduce) {
   .modal.mge-modal.mge-modal-animating {
     transition: none;
+  }
+  .modal.mge-modal {
+    animation: none !important;
   }
 }
 

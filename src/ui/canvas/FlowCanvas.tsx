@@ -6,7 +6,6 @@ import {
   MiniMap,
   MarkerType,
   ConnectionMode,
-  useUpdateNodeInternals,
   type Connection,
   type EdgeChange,
   type HandleType,
@@ -56,7 +55,6 @@ export const FlowCanvas = () => {
   const moveSubgraph = useEditorStore((s) => s.moveSubgraph);
   const recordHistorySnapshot = useEditorStore((s) => s.recordHistorySnapshot);
   const storeApi = useEditorStoreApi();
-  const updateNodeInternals = useUpdateNodeInternals();
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const flowInstance = useRef<ReactFlowInstance<FlowNode, FlowEdge> | null>(null);
@@ -341,22 +339,6 @@ export const FlowCanvas = () => {
     [addNode, setNodePosition],
   );
 
-  // React Flow only learns a node's real on-screen handle positions via a
-  // ResizeObserver on that node's own DOM box, which never re-fires from an
-  // *ancestor* transform/opacity change (e.g. the modal's opening
-  // transition) — only from the node's own border-box size changing. If the
-  // very first measurement happens mid-transition, edges route against that
-  // stale measurement and stay wrong until something explicitly forces a
-  // re-measure (dragging a node does this internally, which is why that
-  // "fixes" it). `refreshNodeMeasurements` is that explicit force, called
-  // once the modal's opening/resizing transition has settled.
-  const refreshNodeMeasurements = useCallback(() => {
-    const instance = flowInstance.current;
-    if (!instance) return;
-    const ids = instance.getNodes().map((n) => n.id);
-    if (ids.length > 0) updateNodeInternals(ids);
-  }, [updateNodeInternals]);
-
   useEffect(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
@@ -407,10 +389,7 @@ export const FlowCanvas = () => {
     };
 
     const observer = new ResizeObserver(() => {
-      requestAnimationFrame(() => {
-        updateSize();
-        refreshNodeMeasurements();
-      });
+      requestAnimationFrame(() => updateSize());
     });
     let transitionSettleTimer: number | null = null;
     const onModalTransitionEnd = () => {
@@ -418,26 +397,17 @@ export const FlowCanvas = () => {
       transitionSettleTimer = window.setTimeout(() => {
         transitionSettleTimer = null;
         updateSize({ force: true });
-        refreshNodeMeasurements();
       }, 0);
     };
     observer.observe(wrapper);
     modal?.addEventListener("transitionend", onModalTransitionEnd);
-    modal?.addEventListener("animationend", onModalTransitionEnd);
     updateSize();
-    // Covers the case where the modal's opening transition changes ancestor
-    // opacity/transform without ever resizing `wrapper`'s own border box
-    // (so the ResizeObserver above never fires) and finishes before any
-    // transitionend/animationend listener could plausibly still be pending.
-    const initialSettleTimer = window.setTimeout(refreshNodeMeasurements, 300);
     return () => {
       observer.disconnect();
       if (transitionSettleTimer !== null) window.clearTimeout(transitionSettleTimer);
-      window.clearTimeout(initialSettleTimer);
       modal?.removeEventListener("transitionend", onModalTransitionEnd);
-      modal?.removeEventListener("animationend", onModalTransitionEnd);
     };
-  }, [refreshNodeMeasurements]);
+  }, []);
 
   return (
     <div className="mge-canvas" ref={wrapperRef} onDragOver={onDragOver} onDrop={onDrop}>
