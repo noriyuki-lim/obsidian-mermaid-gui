@@ -662,9 +662,8 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
                       </select>
                       <button
                         className="mge-xy-del-btn"
-                        title={t.xychart.deleteSeriesTitle(colIdx + 1)}
                         onClick={() => deleteSeries(s.index)}
-                        aria-label={`Delete series ${colIdx + 1}`}
+                        aria-label={t.xychart.deleteSeries(colIdx + 1)}
                       >
                         ×
                       </button>
@@ -676,8 +675,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
                   <button
                     className="mge-xy-add-btn"
                     onClick={addSeries}
-                    title={t.xychart.addSeriesTitle}
-                    aria-label="Add series"
+                    aria-label={t.xychart.addSeries}
                   >
                     +
                   </button>
@@ -704,8 +702,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
                     <button
                       className="mge-xy-del-row-btn"
                       onClick={() => deleteRow(rowIdx)}
-                      title={t.xychart.deleteRowTitle(rowIdx + 1)}
-                      aria-label={`Delete row ${rowIdx + 1}`}
+                      aria-label={t.xychart.deleteRow(rowIdx + 1)}
                     >
                       ×
                     </button>
@@ -738,8 +735,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
                   <button
                     className="mge-xy-add-row-btn"
                     onClick={addRow}
-                    title={t.xychart.addRowTitle}
-                    aria-label="Add row"
+                    aria-label={t.xychart.addRow}
                   >
                     {t.xychart.addRowButton}
                   </button>

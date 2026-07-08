@@ -37,4 +37,15 @@ describe("generateKanban", () => {
     const twice = roundTrip(once);
     expect(twice).toBe(once);
   });
+
+  it("round-trips the `column` keyword form", () => {
+    const src = "kanban\n  column todo[TODO]\n    t1[Draft]";
+    expect(roundTrip(src)).toBe(src);
+  });
+
+  it("round-trips a leading frontmatter block", () => {
+    const src =
+      "---\nconfig:\n  kanban:\n    ticketBaseUrl: 'https://x/#TICKET#'\n---\nkanban\n  todo[To Do]";
+    expect(roundTrip(src)).toBe(src);
+  });
 });

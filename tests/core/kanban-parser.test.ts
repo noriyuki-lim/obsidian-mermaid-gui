@@ -53,4 +53,32 @@ describe("parseKanban", () => {
     const cols = out.ir.items.filter((i) => i.type === "column");
     expect(cols).toHaveLength(2);
   });
+
+  it("parses the `column <id>[<title>]` keyword form", () => {
+    const col = firstColumn("kanban\n  column todo[TODO]");
+    expect(col).toMatchObject({ id: "todo", title: "TODO", bracketed: true, keyword: true });
+  });
+
+  it("treats a bare title starting with the word column as plain text (no brackets = ambiguous)", () => {
+    const col = firstColumn("kanban\n  column of items");
+    expect(col).toMatchObject({ title: "column of items", bracketed: false, keyword: false });
+  });
+
+  it("strips and preserves a leading frontmatter block", () => {
+    const src = "---\nconfig:\n  kanban:\n    ticketBaseUrl: 'https://x/#TICKET#'\n---\nkanban\n  todo[To Do]";
+    const out = parseKanban(src);
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.ir.frontmatterRaw).toBe(
+      "---\nconfig:\n  kanban:\n    ticketBaseUrl: 'https://x/#TICKET#'\n---",
+    );
+    expect(out.ir.items.filter((i) => i.type === "column")).toHaveLength(1);
+  });
+
+  it("has no frontmatterRaw when the source has none", () => {
+    const out = parseKanban("kanban\n  todo[To Do]");
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.ir.frontmatterRaw).toBeUndefined();
+  });
 });

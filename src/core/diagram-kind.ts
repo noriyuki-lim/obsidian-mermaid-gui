@@ -25,6 +25,18 @@ export type DiagramKind =
 const GUI_COMMENT_RE = /^\s*%%\s+gui:/;
 const COMMENT_RE = /^\s*%%/;
 
+// Mermaid's generic `---\n...\n---` frontmatter block can precede any
+// diagram kind, but only kanban's parser currently understands it
+// (`src/core/kanban/frontmatter.ts`). Special-casing detection here — rather
+// than teaching the main loop below to skip frontmatter for every kind —
+// keeps every other kind's fallback-to-"unknown" behaviour unchanged: their
+// own parsers would otherwise receive a leading frontmatter block they can't
+// read and seed an *empty* diagram (every editor's `seed()` does this on
+// parse failure), risking silent data loss on save. Falling back to
+// SourceOnlyEditor for a frontmatter'd diagram of an unsupported kind is the
+// safe behaviour, so it stays that way.
+const FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
+
 // Ordered: more-specific patterns before shorter prefixes that could shadow them.
 // `stateDiagram-v2` must precede `stateDiagram`.
 const KIND_PATTERNS: Array<[RegExp, DiagramKind]> = [
@@ -56,6 +68,11 @@ const KIND_PATTERNS: Array<[RegExp, DiagramKind]> = [
  * then matches the first valid content line against known diagram keywords.
  */
 export const detectDiagramKind = (source: string): DiagramKind => {
+  const fm = source.match(FRONTMATTER_RE);
+  if (fm) {
+    const rest = source.slice(fm[0].length).trimStart();
+    return /^kanban(?=\s|$)/.test(rest) ? "kanban" : "unknown";
+  }
   for (const line of source.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed || GUI_COMMENT_RE.test(trimmed) || COMMENT_RE.test(trimmed)) continue;

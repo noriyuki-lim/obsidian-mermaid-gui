@@ -231,7 +231,6 @@ export const DiagramKindPicker = ({ onPick, onCancel, renderMermaid }: Props) =>
             type="button"
             className="mge-kind-picker-handle"
             aria-label={t.picker.dragReorder}
-            title={t.picker.dragReorder}
             onClick={(e) => e.stopPropagation()}
             onPointerDown={startDrag(tpl.kind)}
           >
@@ -242,7 +241,6 @@ export const DiagramKindPicker = ({ onPick, onCancel, renderMermaid }: Props) =>
             className="mge-kind-picker-star"
             aria-pressed={isPinned}
             aria-label={isPinned ? t.picker.unpin : t.picker.pin}
-            title={isPinned ? t.picker.unpin : t.picker.pin}
             onClick={(e) => {
               e.stopPropagation();
               togglePin(tpl.kind);

@@ -24,6 +24,8 @@ export interface KanbanColumn {
   title: string;
   /** True when the source wrote `[Title]`; false for a bare `Title`. */
   bracketed: boolean;
+  /** True when the source used the `column <id>[<title>]` keyword form. */
+  keyword?: boolean;
   cards: KanbanCard[];
 }
 
@@ -38,4 +40,6 @@ export type KanbanItem = KanbanColumn | KanbanRawItem;
 export interface KanbanIR {
   kind: "kanban";
   items: KanbanItem[];
+  /** Leading `---\n...\n---` frontmatter block, preserved verbatim. */
+  frontmatterRaw?: string;
 }

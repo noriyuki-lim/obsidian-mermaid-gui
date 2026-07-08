@@ -1,9 +1,12 @@
-import { useCallback, useMemo, useState, type KeyboardEvent } from "react";
+import { useCallback, useMemo, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { parseKanban } from "../../core/kanban/parser";
 import { generateKanban } from "../../core/kanban/generator";
+import { readTicketBaseUrl, writeTicketBaseUrl } from "../../core/kanban/frontmatter";
+import { readCardFields, writeCardFields, type KanbanCardFields } from "../../core/kanban/meta";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import { useT } from "../EditorHostContext";
 import { KanbanInteractivePreview, type BoardColumn } from "./KanbanInteractivePreview";
+import { KanbanOptionsPanel } from "./KanbanOptionsPanel";
 import { identityKey } from "./identity";
 import type { KanbanCard, KanbanColumn, KanbanIR, KanbanItem } from "../../core/kanban/ir-types";
 
@@ -119,6 +122,21 @@ export const KanbanEditor = ({ initialSource, onSave, onCancel }: Props) => {
     setIr((prev) => ({ ...prev, items: [...prev.items, col] }));
   }, []);
 
+  const setTicketBaseUrl = useCallback((value: string) => {
+    setIr((prev) => ({ ...prev, frontmatterRaw: writeTicketBaseUrl(prev.frontmatterRaw, value) }));
+  }, []);
+
+  const setCardField = useCallback((item: number, idx: number, field: keyof KanbanCardFields, value: string) => {
+    setIr((prev) =>
+      withColumn(prev, item, (col) => ({
+        ...col,
+        cards: col.cards.map((c, i) =>
+          i === idx ? { ...c, metaRaw: writeCardFields(c.metaRaw, { [field]: value || undefined }) } : c,
+        ),
+      })),
+    );
+  }, []);
+
   const moveColumn = useCallback((from: number, to: number) => {
     setIr((prev) => {
       if (from === to || from < 0 || to < 0 || from >= prev.items.length || to >= prev.items.length) {
@@ -142,7 +160,28 @@ export const KanbanEditor = ({ initialSource, onSave, onCancel }: Props) => {
     }
   };
 
+  // Clicking anywhere that isn't inside a card (column padding, the gap past
+  // the last column, below the board, the preview note, …) clears the
+  // selection. Checked by ancestry rather than `target === currentTarget` so
+  // it also covers space inside a column (below its cards, beside its
+  // header) — not just the wrapper's own bare background.
+  const onBoardClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (!selected) return;
+    const target = e.target as HTMLElement;
+    if (!target.closest(".mge-kanban-card")) setSelected(null);
+  };
+
   const currentSource = useMemo(() => generateKanban(ir), [ir]);
+
+  const ticketBaseUrl = useMemo(() => readTicketBaseUrl(ir.frontmatterRaw), [ir.frontmatterRaw]);
+
+  const selectedCardFields = useMemo(() => {
+    if (!selected) return null;
+    const col = ir.items[selected.col];
+    if (!col || !isColumn(col)) return null;
+    const card = col.cards[selected.card];
+    return card ? readCardFields(card.metaRaw) : null;
+  }, [ir.items, selected]);
 
   const handleSourceEdit = useCallback((next: string): SourceEditOutcome => {
     const outcome = parseKanban(next);
@@ -170,17 +209,20 @@ export const KanbanEditor = ({ initialSource, onSave, onCancel }: Props) => {
       onCancel={onCancel}
       saving={saving}
       layout="stacked"
+      sourceInitiallyOpen
       sourceToggleLabel={t.common.showSource}
       previewOverride={
         <div
           className="mge-kanban-board-wrap"
           tabIndex={-1}
           onKeyDown={onBodyKeyDown}
+          onClick={onBoardClick}
         >
           <div className="mge-kanban-preview-note">{t.kanban.previewNote}</div>
           <KanbanInteractivePreview
             columns={columns}
             selected={selected}
+            ticketBaseUrl={ticketBaseUrl}
             onMoveCard={moveCard}
             onReorderColumn={moveColumn}
             onSelectCard={(col, card) => setSelected({ col, card })}
@@ -193,12 +235,17 @@ export const KanbanEditor = ({ initialSource, onSave, onCancel }: Props) => {
           />
         </div>
       }
+      sidePanel={
+        <KanbanOptionsPanel
+          ticketBaseUrl={ticketBaseUrl}
+          onTicketBaseUrlChange={setTicketBaseUrl}
+          selectedCardFields={selectedCardFields}
+          onCardFieldChange={(field, value) =>
+            selected && setCardField(selected.col, selected.card, field, value)
+          }
+        />
+      }
       onSourceEdit={handleSourceEdit}
-    >
-      <div className="mge-kanban-body">
-        <span>{columns.length} columns</span>
-        <button className="mge-gantt-action" onClick={addColumn}>+ column</button>
-      </div>
-    </EditorShell>
+    />
   );
 };

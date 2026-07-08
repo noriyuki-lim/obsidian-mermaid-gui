@@ -1,4 +1,5 @@
 import type { ParseOutcome } from "../adapters/types";
+import { splitFrontmatter } from "./frontmatter";
 import type { KanbanCard, KanbanColumn, KanbanIR, KanbanItem } from "./ir-types";
 
 // `id[Text]` or `[Text]`, with an optional trailing `@{ ... }` metadata block.
@@ -42,7 +43,8 @@ const parseToken = (trimmed: string): ParsedToken | null => {
  * round-trip never drops user content.
  */
 export function parseKanban(source: string): ParseOutcome<KanbanIR> {
-  const lines = source.replace(/\r\n/g, "\n").split("\n");
+  const { frontmatterRaw, rest } = splitFrontmatter(source);
+  const lines = rest.replace(/\r\n/g, "\n").split("\n");
   const items: KanbanItem[] = [];
   let foundHeader = false;
   let columnIndent: number | null = null;
@@ -88,8 +90,19 @@ export function parseKanban(source: string): ParseOutcome<KanbanIR> {
       continue;
     }
 
-    // Column line: establishes (or re-confirms) the column indent.
-    const tok = parseToken(trimmed);
+    // Column line: establishes (or re-confirms) the column indent. Mermaid
+    // allows an explicit `column <id>[<title>]` keyword prefix as well as the
+    // bare shorthand; only strip it when what follows is itself a well-formed
+    // bracket token, so a bare column literally titled "column ..." (no
+    // brackets) still round-trips as plain text like it always has.
+    let body = trimmed;
+    let usesKeyword = false;
+    const keywordMatch = trimmed.match(/^column\s+(.+)$/);
+    if (keywordMatch && BRACKET_RE.test(keywordMatch[1].trim())) {
+      usesKeyword = true;
+      body = keywordMatch[1].trim();
+    }
+    const tok = parseToken(body);
     if (!tok) {
       current = null;
       items.push({ type: "raw", line: raw });
@@ -101,6 +114,7 @@ export function parseKanban(source: string): ParseOutcome<KanbanIR> {
       id: tok.id,
       title: tok.text,
       bracketed: tok.bracketed,
+      keyword: usesKeyword,
       cards: [],
     };
     items.push(column);
@@ -111,5 +125,9 @@ export function parseKanban(source: string): ParseOutcome<KanbanIR> {
     return { ok: false, message: "Missing kanban header" };
   }
 
-  return { ok: true, ir: { kind: "kanban", items }, warnings: [] };
+  return {
+    ok: true,
+    ir: { kind: "kanban", items, frontmatterRaw: frontmatterRaw ?? undefined },
+    warnings: [],
+  };
 }

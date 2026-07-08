@@ -1436,8 +1436,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
           <button
             className="mge-gantt-schedule-open"
             type="button"
-            aria-label={`${field} picker`}
-            title={t.gantt.openPicker}
+            aria-label={t.gantt.openPickerFor(field)}
             onClick={() => openSchedulePicker(idx, field)}
           >
             ▾
@@ -1545,12 +1544,11 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
                 <button
                   className="mge-gantt-table-row-handle"
                   type="button"
-                  aria-label="Reorder row"
+                  aria-label={t.gantt.reorderRow}
                   onPointerDown={startTableRowDrag(idx)}
                   onPointerMove={moveTableRowDrag}
                   onPointerUp={endTableRowDrag}
                   onPointerCancel={endTableRowDrag}
-                  title={t.gantt.reorderRowTitle}
                 >
                   <span className="mge-gantt-table-grip" aria-hidden="true" />
                 </button>

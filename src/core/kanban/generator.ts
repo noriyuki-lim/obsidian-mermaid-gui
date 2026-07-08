@@ -17,7 +17,8 @@ const renderCard = (card: KanbanCard): string => {
 };
 
 const renderColumn = (col: KanbanColumn): string[] => {
-  const lines = [COLUMN_INDENT + renderToken(col.id, col.title, col.bracketed)];
+  const head = renderToken(col.id, col.title, col.bracketed);
+  const lines = [COLUMN_INDENT + (col.keyword ? `column ${head}` : head)];
   for (const card of col.cards) lines.push(CARD_INDENT + renderCard(card));
   return lines;
 };
@@ -32,5 +33,6 @@ export function generateKanban(ir: KanbanIR): string {
     }
     lines.push(...renderColumn(item));
   }
-  return lines.join("\n");
+  const body = lines.join("\n");
+  return ir.frontmatterRaw ? `${ir.frontmatterRaw}\n${body}` : body;
 }

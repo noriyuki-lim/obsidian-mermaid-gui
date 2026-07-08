@@ -33,7 +33,6 @@ export const FlowchartCanvasControls = () => {
       <select
         className="react-flow__controls-button mge-editor-edge-select"
         aria-label="Editor edge display"
-        title="Editor edge display"
         value={editorEdgeType}
         onChange={(e) => handleEditorEdgeTypeChange(e.target.value as EditorEdgeType)}
       >

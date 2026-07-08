@@ -110,8 +110,7 @@ export const TextPane = () => {
         onPointerCancel={handleResizeEnd}
         role="separator"
         aria-orientation="horizontal"
-        aria-label="Resize source pane"
-        title="Drag to resize source pane"
+        aria-label="Drag to resize source pane"
       />
       <div className="mge-text-pane-header">
         <span>Mermaid</span>

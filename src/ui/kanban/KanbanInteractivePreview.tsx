@@ -7,7 +7,9 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import type { KanbanCard } from "../../core/kanban/ir-types";
+import { readCardFields } from "../../core/kanban/meta";
 import { useT } from "../EditorHostContext";
+import { priorityColorSlug } from "./priority";
 
 /** A column projected for the board, tagged with its index in `ir.items`. */
 export interface BoardColumn {
@@ -23,6 +25,8 @@ export interface BoardColumn {
 interface Props {
   columns: BoardColumn[];
   selected: { col: number; card: number } | null;
+  /** For rendering a card's `ticket` field as a clickable link. */
+  ticketBaseUrl: string;
   onMoveCard: (srcItem: number, srcIdx: number, dstItem: number, dstIdx: number) => void;
   onReorderColumn: (from: number, to: number) => void;
   onSelectCard: (item: number, idx: number) => void;
@@ -222,6 +226,7 @@ const measureRestRect = (el: HTMLElement): DOMRect => {
 export const KanbanInteractivePreview = ({
   columns,
   selected,
+  ticketBaseUrl,
   onMoveCard,
   onReorderColumn,
   onSelectCard,
@@ -560,8 +565,7 @@ export const KanbanInteractivePreview = ({
             <button
               className="mge-kanban-col-handle"
               type="button"
-              aria-label={t.kanban.columnHandleLabel}
-              title={t.kanban.columnHandleTitle}
+              aria-label={t.kanban.columnHandle}
               onPointerDown={startColDrag(col.itemIndex)}
             >
               <span className="mge-kanban-col-grip" aria-hidden="true" />
@@ -588,12 +592,19 @@ export const KanbanInteractivePreview = ({
               const isEditing = editing?.item === col.itemIndex && editing.idx === idx;
               const isDragging =
                 draggingCard?.col === col.itemIndex && draggingCard.idx === idx;
+              const fields = readCardFields(card.metaRaw);
+              const priorityClass = fields.priority
+                ? ` mge-kanban-card-priority-${priorityColorSlug(fields.priority)}`
+                : "";
               return (
                 <div
                   key={cardKey}
                   ref={cardFlip.register(cardKey)}
                   className={
-                    "mge-kanban-card" + (isSel ? " selected" : "") + (isDragging ? " dragging" : "")
+                    "mge-kanban-card" +
+                    (isSel ? " selected" : "") +
+                    (isDragging ? " dragging" : "") +
+                    priorityClass
                   }
                   data-kanban-card
                   data-kanban-card-col={col.itemIndex}
@@ -621,34 +632,55 @@ export const KanbanInteractivePreview = ({
                     />
                   ) : (
                     <>
-                      <button
-                        className="mge-kanban-card-handle"
-                        type="button"
-                        aria-label={t.kanban.taskHandleLabel}
-                        title={t.kanban.taskHandleTitle}
-                        onClick={(e) => e.stopPropagation()}
-                        onPointerDown={startCardDrag(col.itemIndex, idx)}
-                      >
-                        <span className="mge-kanban-card-grip" aria-hidden="true" />
-                      </button>
-                      <span className="mge-kanban-card-text">
-                        {card.text || t.kanban.emptyCardText}
-                      </span>
-                      {card.metaRaw ? (
-                        <span className="mge-kanban-card-meta" title={card.metaRaw}>
-                          ⓘ
+                      <div className="mge-kanban-card-row">
+                        <button
+                          className="mge-kanban-card-handle"
+                          type="button"
+                          aria-label={t.kanban.taskHandle}
+                          onClick={(e) => e.stopPropagation()}
+                          onPointerDown={startCardDrag(col.itemIndex, idx)}
+                        >
+                          <span className="mge-kanban-card-grip" aria-hidden="true" />
+                        </button>
+                        <span className="mge-kanban-card-text">
+                          {card.text || t.kanban.emptyCardText}
                         </span>
+                        <button
+                          className="mge-kanban-card-del"
+                          title={t.kanban.deleteCard}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteCard(col.itemIndex, idx);
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                      {fields.ticket || fields.assigned ? (
+                        <div className="mge-kanban-card-meta-row">
+                          {fields.ticket ? (
+                            ticketBaseUrl ? (
+                              <a
+                                className="mge-kanban-ticket-badge"
+                                href={ticketBaseUrl.replace("#TICKET#", fields.ticket)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title={fields.ticket}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {fields.ticket}
+                              </a>
+                            ) : (
+                              <span className="mge-kanban-ticket-badge" title={fields.ticket}>
+                                {fields.ticket}
+                              </span>
+                            )
+                          ) : null}
+                          {fields.assigned ? (
+                            <span className="mge-kanban-assignee-badge">{fields.assigned}</span>
+                          ) : null}
+                        </div>
                       ) : null}
-                      <button
-                        className="mge-kanban-card-del"
-                        title={t.kanban.deleteCard}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteCard(col.itemIndex, idx);
-                        }}
-                      >
-                        ×
-                      </button>
                     </>
                   )}
                 </div>

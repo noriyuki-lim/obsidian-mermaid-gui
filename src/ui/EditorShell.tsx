@@ -59,6 +59,13 @@ interface Props {
   /** Note shown when the host editor cannot render a preview. */
   previewUnavailableMessage?: string;
   /**
+   * Stacked-layout only: a persistent panel occupying a full-height right
+   * column alongside preview + source (its own grid area, not part of the
+   * preview/body rows). Used by editors that need settings visible at all
+   * times rather than tucked into `children` below the preview.
+   */
+  sidePanel?: ReactNode;
+  /**
    * When provided, the Mermaid source textarea becomes editable. The shell
    * keeps the user's draft visible until they blur the textarea so the
    * generator's canonical form does not stomp partial edits. Each keystroke
@@ -67,8 +74,10 @@ interface Props {
    * old IR and surfaces the error inline.
    */
   onSourceEdit?: (next: string) => SourceEditOutcome;
-  /** Main editor body — controls / form sections live here. */
-  children: ReactNode;
+  /** Main editor body — controls / form sections live here. Optional: an
+   *  editor whose controls all live in `sidePanel` (e.g. kanban) has nothing
+   *  left to put here. */
+  children?: ReactNode;
 }
 
 const clamp = (value: number, min: number, max: number) =>
@@ -97,6 +106,7 @@ export const EditorShell = ({
   renderMermaid,
   previewOverride,
   previewUnavailableMessage,
+  sidePanel,
   onSourceEdit,
   children,
 }: Props) => {
@@ -423,7 +433,7 @@ export const EditorShell = ({
   if (stacked) {
     return (
       <div
-        className={`mge-editor-shell mge-editor-shell-stacked ${sourceOpen ? "mge-source-open" : ""}`}
+        className={`mge-editor-shell mge-editor-shell-stacked ${sourceOpen ? "mge-source-open" : ""} ${sidePanel ? "mge-has-sidepanel" : ""}`}
         ref={shellRef}
         style={{
           ["--mge-side-ratio" as string]: initialSideRatio,
@@ -476,6 +486,8 @@ export const EditorShell = ({
           <div className="mge-editor-main-content">{children}</div>
           {sourceOpen ? <aside className="mge-editor-source-drawer">{sourcePane}</aside> : null}
         </section>
+
+        {sidePanel ? <aside className="mge-editor-sidepanel">{sidePanel}</aside> : null}
       </div>
     );
   }

@@ -1000,6 +1000,39 @@ body.mge-preview-resizing * {
     "body";
 }
 
+/* A persistent `sidePanel` (see EditorShell.tsx) adds a second column that
+   spans the preview/resizer/body rows, so it reads as a full-height panel
+   beside preview + source rather than living inside one of those rows. */
+.mge-editor-shell-stacked.mge-has-sidepanel {
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  grid-template-areas:
+    "toolbar toolbar"
+    "preview sidepanel"
+    "preview-resizer sidepanel"
+    "body sidepanel";
+}
+.mge-editor-sidepanel {
+  grid-area: sidepanel;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  border-left: 1px solid var(--background-modifier-border, #d6d6df);
+  background: var(--background-secondary, #fff);
+}
+/* Editors that use `sidePanel` (currently just kanban) have nothing left to
+   put in the shared `children` slot — that's the whole point of moving their
+   controls into the side panel — so collapse it and let the source drawer
+   use the full row width instead of the other stacked editors' 64/36 split. */
+.mge-editor-shell-stacked.mge-has-sidepanel .mge-editor-main-content {
+  display: none;
+}
+.mge-editor-shell-stacked.mge-has-sidepanel.mge-source-open .mge-editor-body {
+  grid-template-columns: minmax(0, 1fr);
+}
+.mge-editor-shell-stacked.mge-has-sidepanel .mge-editor-source-drawer {
+  border-left: none;
+}
+
 .mge-editor-shell-stacked .mge-editor-preview {
   grid-area: preview;
   border-bottom: 1px solid var(--background-modifier-border, #d6d6df);
@@ -2658,13 +2691,50 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
   min-height: 0;
   box-sizing: border-box;
 }
-.mge-kanban-body {
+/* Renders inside `.mge-editor-sidepanel` (EditorShell's full-height side
+   column), which already supplies the background/border — this is just the
+   internal padding + field stack. */
+.mge-kanban-options {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 10px;
   padding: 10px 12px;
-  color: var(--text-muted, #6b6b7b);
   font-size: 12px;
+}
+.mge-kanban-options h4 {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #6b6b7b);
+}
+.mge-kanban-options-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mge-kanban-options-field label {
+  font-size: 11px;
+  color: var(--text-muted, #6b6b7b);
+}
+.mge-kanban-options-field input,
+.mge-kanban-options-field select {
+  padding: 5px 7px;
+  border: 1px solid var(--background-modifier-border, #3a3a3a);
+  border-radius: 4px;
+  background: var(--background-primary, #1e1e1e);
+  color: var(--text-normal);
+  font-size: 12px;
+}
+.mge-kanban-options-field input:focus,
+.mge-kanban-options-field select:focus {
+  outline: 2px solid var(--interactive-accent, #7c5cfc);
+  outline-offset: -1px;
+}
+.mge-kanban-options-empty {
+  margin: 0;
+  color: var(--text-muted, #6b6b7b);
+  font-size: 11px;
 }
 .mge-kanban-column {
   display: flex;
@@ -2766,16 +2836,28 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
   gap: 6px;
   min-height: 24px;
 }
+/* Column direction (not a wrapping row) so a long title never pushes the
+   handle/delete button onto their own line — flexbox's line-break decision
+   for a wrapping row is based on an item's *unwrapped* content width, which
+   for a long paragraph is far wider than the card and forced a wrap even
+   though the text itself wraps fine inside its own box. Nesting the title
+   row (`.mge-kanban-card-row`) and the meta row as separate column children
+   sidesteps that entirely. */
 .mge-kanban-card {
   display: flex;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  gap: 2px;
   background: var(--background-primary, #1e1e1e);
   border: 1px solid var(--background-modifier-border, #3a3a3a);
   border-radius: 6px;
   padding: 6px 8px;
   font-size: 0.8rem;
   color: var(--text-normal);
+}
+.mge-kanban-card-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
 }
 .mge-kanban-card.selected {
   border-color: var(--interactive-accent, #7c5cfc);
@@ -2784,6 +2866,13 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
 .mge-kanban-card.dragging {
   opacity: 0.35;
 }
+/* Priority mirrors what Mermaid's own kanban renderer uses it for: a colored
+   accent, not an arbitrary color picker (Mermaid's kanban has no per-column
+   or per-card custom color config). */
+.mge-kanban-card-priority-veryhigh { border-left: 3px solid var(--text-error, #c0392b); }
+.mge-kanban-card-priority-high { border-left: 3px solid var(--text-warning, #c08400); }
+.mge-kanban-card-priority-low { border-left: 3px solid var(--text-accent, #5b6ee1); }
+.mge-kanban-card-priority-verylow { border-left: 3px solid var(--text-muted, #6b6b7b); }
 /* Task drag handle — same chromeless dot-grip treatment as the column
    handle, kept in its own dedicated hit area so grabbing it never fights
    with click-to-select / double-click-to-edit / the delete button on the
@@ -2820,7 +2909,35 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
 }
 .mge-kanban-card-handle:hover .mge-kanban-card-grip { opacity: 1; }
 .mge-kanban-card-text { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
-.mge-kanban-card-meta { flex: 0 0 auto; color: var(--text-muted); cursor: help; }
+.mge-kanban-card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.mge-kanban-ticket-badge {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--background-modifier-border, #3a3a3a);
+  color: var(--text-normal);
+  text-decoration: none;
+}
+a.mge-kanban-ticket-badge:hover { text-decoration: underline; }
+.mge-kanban-assignee-badge {
+  flex: 0 1 auto;
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--text-muted, #6b6b7b);
+}
 .mge-kanban-card-del {
   flex: 0 0 auto;
   border: none !important;
@@ -2936,6 +3053,18 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
   background: color-mix(in srgb, var(--text-normal, #1f1f2e) 10%, transparent);
   border-color: color-mix(in srgb, var(--text-normal, #1f1f2e) 34%, transparent);
 }
+/* The card `border-color` reset just above is a shorthand — it resets
+   border-left-color too, which is the only place priority is rendered
+   (a plain border-left, set by the `.mge-kanban-card-priority-*` classes
+   below). Same specificity (two classes each) means source order decides,
+   so these must come after the reset above to win back the left edge.
+   "Very Low" swaps `--text-muted` for `--text-normal` here specifically
+   because `--text-muted` is itself near-invisible under this theme (see the
+   comment above `.mge-theme-transparent .mge-kanban-column`). */
+.mge-theme-transparent .mge-kanban-card-priority-veryhigh { border-left-color: var(--text-error, #c0392b); }
+.mge-theme-transparent .mge-kanban-card-priority-high { border-left-color: var(--text-warning, #c08400); }
+.mge-theme-transparent .mge-kanban-card-priority-low { border-left-color: var(--text-accent, #5b6ee1); }
+.mge-theme-transparent .mge-kanban-card-priority-verylow { border-left-color: var(--text-normal, #1f1f2e); }
 .mge-theme-transparent .mge-kanban-ghost-column,
 .mge-theme-transparent .mge-kanban-ghost-card {
   background: color-mix(in srgb, var(--text-normal, #1f1f2e) 16%, transparent);

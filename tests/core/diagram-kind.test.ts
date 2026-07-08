@@ -77,4 +77,19 @@ flowchart LR
   A --> B`;
     expect(detectDiagramKind(src)).toBe("flowchart");
   });
+
+  it("detects kanban preceded by frontmatter", () => {
+    const src = "---\nconfig:\n  kanban:\n    ticketBaseUrl: 'x'\n---\nkanban\n  a[A]";
+    expect(detectDiagramKind(src)).toBe("kanban");
+  });
+
+  it("does not special-case frontmatter for other kinds (stays unknown, falls back safely)", () => {
+    const src = "---\ntitle: hi\n---\nflowchart TD\n  A --> B";
+    expect(detectDiagramKind(src)).toBe("unknown");
+  });
+
+  it("returns unknown for frontmatter not followed by kanban", () => {
+    const src = "---\ntheme: dark\n---\nsomethingElse\n  a";
+    expect(detectDiagramKind(src)).toBe("unknown");
+  });
 });
