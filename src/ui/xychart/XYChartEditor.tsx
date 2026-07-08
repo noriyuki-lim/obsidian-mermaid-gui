@@ -52,12 +52,29 @@ const getSeries = (items: XYItem[]): Array<{ index: number; series: XYSeriesKind
 
 type XYCell = { row: number; col: number };
 
+/**
+ * Resolve which category row (by position — see the `cat-${row}` /
+ * `data-xy-row` key note on the category loop below) the pointer currently
+ * sits over, via the closest `[data-xy-row]` ancestor. Shared by the
+ * preview's SVG drag handle and the table's row drag handle so both resolve
+ * drop targets the same way (mirrors gantt's `targetRowFromPoint`).
+ */
+const xyRowFromPoint = (clientX: number, clientY: number): number | null => {
+  const el = document.elementFromPoint(clientX, clientY);
+  const rowEl = el?.closest<Element>("[data-xy-row]");
+  const raw = rowEl?.getAttribute("data-xy-row");
+  if (raw === null || raw === undefined) return null;
+  const index = Number(raw);
+  return Number.isFinite(index) ? index : null;
+};
+
 interface XYPreviewProps {
   ir: XYChartIR;
   categories: string[];
   seriesList: Array<{ index: number; series: XYSeriesKind; values: number[] }>;
   onCategoryChange: (row: number, value: string) => void;
   onValueChange: (itemIndex: number, row: number, value: number) => void;
+  onReorderCategory: (from: number, to: number) => void;
 }
 
 const niceDomain = (ir: XYChartIR, seriesList: Array<{ values: number[] }>) => {
@@ -76,53 +93,143 @@ const XYChartInteractivePreview = ({
   seriesList,
   onCategoryChange,
   onValueChange,
+  onReorderCategory,
 }: XYPreviewProps) => {
   const t = useT();
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<{ pointerId: number; itemIndex: number; row: number } | null>(null);
+  const rowDragRef = useRef<{ pointerId: number; currentIndex: number } | null>(null);
   const [editingCategory, setEditingCategory] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState<{ itemIndex: number; row: number } | null>(null);
+  const [draggingRow, setDraggingRow] = useState<number | null>(null);
 
+  const isHorizontal = ir.orientation === "horizontal";
   const width = 960;
   const height = 320;
-  const left = 62;
+  // Margins swap emphasis by orientation: horizontal mode needs a wide left
+  // gutter for (right-aligned) category labels and only a shallow bottom
+  // gutter for the value scale; vertical mode is the reverse.
+  const left = isHorizontal ? 128 : 62;
   const right = 24;
   const top = 28;
-  const bottom = 54;
+  const bottom = isHorizontal ? 40 : 54;
   const plotW = width - left - right;
   const plotH = height - top - bottom;
   const rows = Math.max(categories.length, ...seriesList.map((s) => s.values.length), 1);
   const domain = niceDomain(ir, seriesList);
   const span = Math.max(1, domain.max - domain.min);
-  const band = plotW / rows;
   const barSeries = seriesList.filter((s) => s.series === "bar");
   const lineSeries = seriesList.filter((s) => s.series === "line");
-  const yFor = (value: number) => top + (1 - (value - domain.min) / span) * plotH;
-  const valueForClient = (clientY: number) => {
-    const rect = svgRef.current?.getBoundingClientRect();
-    if (!rect || rect.height <= 0) return null;
-    const y = ((clientY - rect.top) / rect.height) * height;
-    const ratio = 1 - Math.min(Math.max((y - top) / plotH, 0), 1);
-    const raw = domain.min + ratio * span;
-    return Math.round(raw * 100) / 100;
+
+  // ── orientation-independent coordinate helpers ──────────────────────
+  // The category axis is x in vertical mode and y in horizontal mode; the
+  // value axis is the other one. Every shape below is built from these two
+  // helpers so the JSX itself doesn't need a separate vertical/horizontal copy.
+  const categoryAxisSize = isHorizontal ? plotH : plotW;
+  const band = categoryAxisSize / rows;
+  /** Pixel coordinate (along whichever screen axis represents categories) for the center of row N. */
+  const categoryCenter = (row: number) => (isHorizontal ? top : left) + row * band + band / 2;
+  /** Pixel coordinate (along whichever screen axis represents values) for a given value. */
+  const valueCoord = (value: number) => {
+    const ratio = (value - domain.min) / span;
+    return isHorizontal ? left + ratio * plotW : top + (1 - ratio) * plotH;
+  };
+  /** Map a (row, value) pair to a screen point, respecting orientation. */
+  const pointFor = (row: number, value: number) => {
+    const c = categoryCenter(row);
+    const v = valueCoord(value);
+    return isHorizontal ? { x: v, y: c } : { x: c, y: v };
   };
 
-  const startBarDrag = (itemIndex: number, row: number) => (event: ReactPointerEvent<SVGRectElement>) => {
-    if (event.button !== 0) return;
+  const svgXForClient = (clientX: number): number | null => {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return null;
+    return ((clientX - rect.left) / rect.width) * width;
+  };
+  const svgYForClient = (clientY: number): number | null => {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect || rect.height <= 0) return null;
+    return ((clientY - rect.top) / rect.height) * height;
+  };
+  /**
+   * Convert a pointer position into the dragged value, snapped to whole
+   * units (free-form decimals are still reachable via double-click → the
+   * number input). A value's on-screen position only ever moves along the
+   * value axis, so the input axis follows orientation: horizontal charts
+   * read clientX, vertical charts read clientY.
+   */
+  const valueForClient = (client: { clientX: number; clientY: number }): number | null => {
+    if (isHorizontal) {
+      const x = svgXForClient(client.clientX);
+      if (x === null) return null;
+      const ratio = Math.min(Math.max((x - left) / plotW, 0), 1);
+      return Math.round(domain.min + ratio * span);
+    }
+    const y = svgYForClient(client.clientY);
+    if (y === null) return null;
+    const ratio = 1 - Math.min(Math.max((y - top) / plotH, 0), 1);
+    return Math.round(domain.min + ratio * span);
+  };
+
+  const beginDrag = (itemIndex: number, row: number, event: ReactPointerEvent<Element>) => {
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = { pointerId: event.pointerId, itemIndex, row };
   };
 
+  // Dragging anywhere on a bar or line point changes its value; double-click
+  // anywhere on either opens the value input for exact/decimal entry.
+  const startBarDrag = (itemIndex: number, row: number) => (event: ReactPointerEvent<SVGRectElement>) => {
+    if (event.button !== 0) return;
+    beginDrag(itemIndex, row, event);
+  };
+
+  const startPointDrag = (itemIndex: number, row: number) => (event: ReactPointerEvent<SVGCircleElement>) => {
+    if (event.button !== 0) return;
+    beginDrag(itemIndex, row, event);
+  };
+
+  /**
+   * Category (row) reorder drag, started from the dot-grip handle beside
+   * each category label. The dragged category's rows array position is
+   * `cat-${row}` keyed (position-based, not a stable id — see the render
+   * loop below), so the DOM node this pointer capture is set on keeps
+   * representing "whichever category is at this slot" for the whole drag;
+   * React never unmounts/remounts it mid-drag, so plain `setPointerCapture`
+   * survives every swap (same reasoning gantt's row-drag handle relies on).
+   */
+  const startRowDrag = (row: number) => (event: ReactPointerEvent<SVGGElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    rowDragRef.current = { pointerId: event.pointerId, currentIndex: row };
+    setDraggingRow(row);
+  };
+
   const onPointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const rowDrag = rowDragRef.current;
+    if (rowDrag && rowDrag.pointerId === event.pointerId) {
+      const target = xyRowFromPoint(event.clientX, event.clientY);
+      if (target !== null && target !== rowDrag.currentIndex) {
+        onReorderCategory(rowDrag.currentIndex, target);
+        rowDrag.currentIndex = target;
+        setDraggingRow(target);
+      }
+      return;
+    }
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    const value = valueForClient(event.clientY);
+    const value = valueForClient(event);
     if (value !== null) onValueChange(drag.itemIndex, drag.row, value);
   };
 
   const finishDrag = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (rowDragRef.current?.pointerId === event.pointerId) {
+      rowDragRef.current = null;
+      setDraggingRow(null);
+    }
     if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
   };
 
@@ -139,13 +246,21 @@ const XYChartInteractivePreview = ({
         <rect x={0} y={0} width={width} height={height} className="mge-xy-preview-bg" />
         {ir.title ? <text x={left} y={18} className="mge-xy-preview-title">{ir.title}</text> : null}
         {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
-          const y = top + ratio * plotH;
-          const value = domain.max - ratio * span;
-          return (
+          const value = domain.min + ratio * span;
+          const pos = valueCoord(value);
+          const label = Math.round(value * 100) / 100;
+          return isHorizontal ? (
             <g key={ratio}>
-              <line x1={left} y1={y} x2={width - right} y2={y} className="mge-xy-grid" />
-              <text x={left - 8} y={y + 4} className="mge-xy-axis-label" textAnchor="end">
-                {Math.round(value * 100) / 100}
+              <line x1={pos} y1={top} x2={pos} y2={top + plotH} className="mge-xy-grid" />
+              <text x={pos} y={top + plotH + 16} className="mge-xy-axis-label" textAnchor="middle">
+                {label}
+              </text>
+            </g>
+          ) : (
+            <g key={ratio}>
+              <line x1={left} y1={pos} x2={width - right} y2={pos} className="mge-xy-grid" />
+              <text x={left - 8} y={pos + 4} className="mge-xy-axis-label" textAnchor="end">
+                {label}
               </text>
             </g>
           );
@@ -154,11 +269,32 @@ const XYChartInteractivePreview = ({
         <line x1={left} y1={top + plotH} x2={width - right} y2={top + plotH} className="mge-xy-axis" />
 
         {Array.from({ length: rows }, (_, row) => {
-          const xCenter = left + row * band + band / 2;
+          const center = categoryCenter(row);
+          const label = categories[row] ?? `x${row + 1}`;
+          // Handle sits beside the label, wherever that label currently is:
+          // just below it in vertical mode (labels run along the bottom),
+          // in the left gutter in horizontal mode (labels are right-aligned
+          // there). The passive hit-rect spans the whole cross-axis so a
+          // drag anywhere in this category's band resolves to this row via
+          // `xyRowFromPoint`, not just when the cursor is over the label text.
+          const handlePos = isHorizontal ? { x: 14, y: center } : { x: center, y: height - 9 };
+          const hitRect = isHorizontal
+            ? { x: 0, y: center - band / 2, width, height: band }
+            : { x: center - band / 2, y: 0, width: band, height };
           return (
-            <g key={`cat-${row}`}>
+            <g
+              key={`cat-${row}`}
+              data-xy-row={row}
+              className={`mge-xy-category-row ${draggingRow === row ? "dragging" : ""}`}
+            >
+              <rect {...hitRect} className="mge-xy-row-hit" />
               {editingCategory === row ? (
-                <foreignObject x={xCenter - 54} y={height - 42} width={108} height={28}>
+                <foreignObject
+                  x={isHorizontal ? 4 : center - 54}
+                  y={isHorizontal ? center - 14 : height - 42}
+                  width={isHorizontal ? left - 12 : 108}
+                  height={28}
+                >
                   <input
                     className="mge-xy-inline-input"
                     value={categories[row] ?? ""}
@@ -172,34 +308,52 @@ const XYChartInteractivePreview = ({
                 </foreignObject>
               ) : (
                 <text
-                  x={xCenter}
-                  y={height - 26}
+                  x={isHorizontal ? left - 8 : center}
+                  y={isHorizontal ? center + 4 : height - 26}
                   className="mge-xy-axis-label mge-xy-category-label"
-                  textAnchor="middle"
+                  textAnchor={isHorizontal ? "end" : "middle"}
                   onDoubleClick={() => setEditingCategory(row)}
                 >
-                  {categories[row] ?? `x${row + 1}`}
+                  {label}
                 </text>
               )}
+              <g
+                className="mge-xy-row-handle-group"
+                transform={`translate(${handlePos.x}, ${handlePos.y})`}
+                onPointerDown={startRowDrag(row)}
+                aria-label={t.xychart.reorderCategory}
+              >
+                <rect x={-8} y={-9} width={16} height={18} className="mge-xy-row-hit" />
+                {[0, 1].map((dotRow) => (
+                  <g key={dotRow}>
+                    <circle cx={-2} cy={-3 + dotRow * 5} r={1.1} className="mge-xy-row-grip-dot" />
+                    <circle cx={2} cy={-3 + dotRow * 5} r={1.1} className="mge-xy-row-grip-dot" />
+                  </g>
+                ))}
+              </g>
             </g>
           );
         })}
 
         {barSeries.map((series, barIdx) => {
-          const barW = Math.min(42, Math.max(12, (band * 0.72) / Math.max(barSeries.length, 1)));
+          const barThickness = Math.min(42, Math.max(12, (band * 0.72) / Math.max(barSeries.length, 1)));
           return series.values.map((value, row) => {
-            const x = left + row * band + band / 2 - (barW * barSeries.length) / 2 + barIdx * barW;
-            const y = yFor(value);
-            const zero = yFor(0);
-            const h = Math.max(2, Math.abs(zero - y));
-            const topY = Math.min(y, zero);
+            const crossStart = categoryCenter(row) - (barThickness * barSeries.length) / 2 + barIdx * barThickness;
+            const v0 = valueCoord(0);
+            const v1 = valueCoord(value);
+            const boxStart = Math.min(v0, v1);
+            const boxLength = Math.max(2, Math.abs(v1 - v0));
+            const rectBox = isHorizontal
+              ? { x: boxStart, y: crossStart, width: boxLength, height: barThickness - 3 }
+              : { x: crossStart, y: boxStart, width: barThickness - 3, height: boxLength };
+            const crossCenter = crossStart + (barThickness - 3) / 2;
+            const editorPos = isHorizontal
+              ? { x: Math.min(width - right - 76, Math.max(v0, v1) + 8), y: crossCenter - 14 }
+              : { x: crossCenter - 36, y: Math.max(4, boxStart - 30) };
             return (
               <g key={`${series.index}-${row}`}>
                 <rect
-                  x={x}
-                  y={topY}
-                  width={barW - 3}
-                  height={h}
+                  {...rectBox}
                   rx={3}
                   className="mge-xy-bar"
                   onPointerDown={startBarDrag(series.index, row)}
@@ -209,7 +363,7 @@ const XYChartInteractivePreview = ({
                   }}
                 />
                 {editingValue?.itemIndex === series.index && editingValue.row === row ? (
-                  <foreignObject x={x - 20} y={Math.max(4, topY - 30)} width={72} height={28}>
+                  <foreignObject x={editorPos.x} y={editorPos.y} width={72} height={28}>
                     <input
                       className="mge-xy-inline-input"
                       type="number"
@@ -230,8 +384,7 @@ const XYChartInteractivePreview = ({
 
         {lineSeries.map((series, lineIdx) => {
           const points = series.values.map((value, row) => ({
-            x: left + row * band + band / 2,
-            y: yFor(value),
+            ...pointFor(row, value),
             value,
             row,
           }));
@@ -248,10 +401,19 @@ const XYChartInteractivePreview = ({
                     cy={p.y}
                     r={4}
                     className="mge-xy-point"
-                    onDoubleClick={() => setEditingValue({ itemIndex: series.index, row: p.row })}
+                    onPointerDown={startPointDrag(series.index, p.row)}
+                    onDoubleClick={(event) => {
+                      event.stopPropagation();
+                      setEditingValue({ itemIndex: series.index, row: p.row });
+                    }}
                   />
                   {editingValue?.itemIndex === series.index && editingValue.row === p.row ? (
-                    <foreignObject x={p.x - 36} y={Math.max(4, p.y - 34)} width={72} height={28}>
+                    <foreignObject
+                      x={isHorizontal ? Math.min(width - right - 76, p.x + 12) : p.x - 36}
+                      y={isHorizontal ? p.y - 14 : Math.max(4, p.y - 34)}
+                      width={72}
+                      height={28}
+                    >
                       <input
                         className="mge-xy-inline-input"
                         type="number"
@@ -393,6 +555,77 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
           : item,
       ),
     }));
+  };
+
+  /** Move the element at `from` to `to`, padding with `fill` first if needed
+   * (mirrors gantt's `reorderItem` splice pattern: `splice(from,1)` then
+   * `splice(to,0,item)`). */
+  const spliceMove = <T,>(arr: T[], from: number, to: number, fill: T): T[] => {
+    const next = arr.slice();
+    while (next.length <= Math.max(from, to)) next.push(fill);
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    return next;
+  };
+
+  /**
+   * Reorder an entire category row: the category label at `categories[from]`
+   * AND `values[from]` for every series move together to `to`, keeping row
+   * alignment intact. `categories` / `seriesList` are derived views recomputed
+   * from `ir` each render, so this mutates `ir` directly via `setIr` rather
+   * than operating on those derived arrays.
+   */
+  const reorderCategory = useCallback((from: number, to: number) => {
+    setIr(prev => {
+      const catLen = prev.xAxis?.kind === "categorical" ? prev.xAxis.categories.length : 0;
+      const seriesLen = prev.items.reduce(
+        (max, item) => (item.type === "series" ? Math.max(max, item.values.length) : max),
+        0,
+      );
+      const rowBound = Math.max(catLen, seriesLen, 1);
+      if (from === to || from < 0 || to < 0 || from >= rowBound || to >= rowBound) return prev;
+
+      const xAxis = prev.xAxis?.kind === "categorical"
+        ? { ...prev.xAxis, categories: spliceMove(prev.xAxis.categories, from, to, "") }
+        : prev.xAxis;
+      const items = prev.items.map(item =>
+        item.type === "series" ? { ...item, values: spliceMove(item.values, from, to, 0) } : item,
+      );
+      return { ...prev, xAxis, items };
+    });
+  }, []);
+
+  const tableRowDragRef = useRef<{ pointerId: number; currentIndex: number } | null>(null);
+  const [tableDraggingRow, setTableDraggingRow] = useState<number | null>(null);
+
+  const startTableRowDrag = (rowIdx: number) => (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    tableRowDragRef.current = { pointerId: event.pointerId, currentIndex: rowIdx };
+    setTableDraggingRow(rowIdx);
+  };
+
+  const moveTableRowDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const drag = tableRowDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const target = xyRowFromPoint(event.clientX, event.clientY);
+    if (target === null || target === drag.currentIndex) return;
+    reorderCategory(drag.currentIndex, target);
+    drag.currentIndex = target;
+    setTableDraggingRow(target);
+  };
+
+  const endTableRowDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!tableRowDragRef.current || tableRowDragRef.current.pointerId !== event.pointerId) return;
+    tableRowDragRef.current = null;
+    setTableDraggingRow(null);
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // pointer capture may already be released
+    }
   };
 
   /** Handle paste (TSV) into any table cell. */
@@ -569,6 +802,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
           seriesList={seriesList}
           onCategoryChange={setCategoryAt}
           onValueChange={setSeriesValueAt}
+          onReorderCategory={reorderCategory}
         />
       }
     >
@@ -617,21 +851,61 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
             {!yAutoEnabled && (
               <>
                 <span className="mge-xy-field-label">min</span>
-                <input
-                  className="mge-xy-input mge-xy-input-num"
-                  type="number"
-                  step="any"
-                  value={yMin}
-                  onChange={e => setYAxis({ min: Number(e.target.value) })}
-                />
+                <span className="mge-xy-num-field">
+                  <input
+                    className="mge-xy-input mge-xy-input-num"
+                    type="number"
+                    step="any"
+                    value={yMin}
+                    onChange={e => setYAxis({ min: Number(e.target.value) })}
+                  />
+                  <span className="mge-xy-num-stepper">
+                    <button
+                      type="button"
+                      className="mge-xy-num-stepper-btn"
+                      aria-label={t.xychart.increaseYMin}
+                      onClick={() => setYAxis({ min: yMin + 1 })}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      className="mge-xy-num-stepper-btn"
+                      aria-label={t.xychart.decreaseYMin}
+                      onClick={() => setYAxis({ min: yMin - 1 })}
+                    >
+                      ▼
+                    </button>
+                  </span>
+                </span>
                 <span className="mge-xy-field-label">max</span>
-                <input
-                  className="mge-xy-input mge-xy-input-num"
-                  type="number"
-                  step="any"
-                  value={yMax}
-                  onChange={e => setYAxis({ max: Number(e.target.value) })}
-                />
+                <span className="mge-xy-num-field">
+                  <input
+                    className="mge-xy-input mge-xy-input-num"
+                    type="number"
+                    step="any"
+                    value={yMax}
+                    onChange={e => setYAxis({ max: Number(e.target.value) })}
+                  />
+                  <span className="mge-xy-num-stepper">
+                    <button
+                      type="button"
+                      className="mge-xy-num-stepper-btn"
+                      aria-label={t.xychart.increaseYMax}
+                      onClick={() => setYAxis({ max: yMax + 1 })}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      className="mge-xy-num-stepper-btn"
+                      aria-label={t.xychart.decreaseYMax}
+                      onClick={() => setYAxis({ max: yMax - 1 })}
+                    >
+                      ▼
+                    </button>
+                  </span>
+                </span>
               </>
             )}
           </div>
@@ -685,45 +959,85 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
 
             <tbody>
               {Array.from({ length: rowCount }, (_, rowIdx) => (
-                <tr key={rowIdx} className="mge-xy-row">
+                <tr
+                  key={rowIdx}
+                  className={`mge-xy-row ${tableDraggingRow === rowIdx ? "dragging" : ""}`}
+                  data-xy-row={rowIdx}
+                >
                   {/* category cell */}
                   <td className="mge-xy-td mge-xy-td-cat">
-                    <input
-                      data-xy-cell={`${rowIdx}:0`}
-                      className="mge-xy-input mge-xy-input-cat"
-                      value={categories[rowIdx] ?? ""}
-                      onFocus={() => setSelectedCell({ row: rowIdx, col: 0 })}
-                      onKeyDown={onXYCellKeyDown(rowIdx, 0)}
-                      onChange={e => {
-                        setCategoryAt(rowIdx, e.target.value);
-                      }}
-                      placeholder={t.xychart.rowPlaceholder(rowIdx + 1)}
-                    />
-                    <button
-                      className="mge-xy-del-row-btn"
-                      onClick={() => deleteRow(rowIdx)}
-                      aria-label={t.xychart.deleteRow(rowIdx + 1)}
-                    >
-                      ×
-                    </button>
+                    <span className="mge-xy-td-cat-inner">
+                      <button
+                        className="mge-xy-table-row-handle"
+                        type="button"
+                        aria-label={t.xychart.reorderCategory}
+                        onPointerDown={startTableRowDrag(rowIdx)}
+                        onPointerMove={moveTableRowDrag}
+                        onPointerUp={endTableRowDrag}
+                        onPointerCancel={endTableRowDrag}
+                      >
+                        <span className="mge-xy-table-grip" aria-hidden="true" />
+                      </button>
+                      <input
+                        data-xy-cell={`${rowIdx}:0`}
+                        className="mge-xy-input mge-xy-input-cat"
+                        value={categories[rowIdx] ?? ""}
+                        onFocus={() => setSelectedCell({ row: rowIdx, col: 0 })}
+                        onKeyDown={onXYCellKeyDown(rowIdx, 0)}
+                        onChange={e => {
+                          setCategoryAt(rowIdx, e.target.value);
+                        }}
+                        placeholder={t.xychart.rowPlaceholder(rowIdx + 1)}
+                      />
+                      <button
+                        className="mge-xy-del-row-btn"
+                        onClick={() => deleteRow(rowIdx)}
+                        aria-label={t.xychart.deleteRow(rowIdx + 1)}
+                      >
+                        ×
+                      </button>
+                    </span>
                   </td>
                   {/* value cells */}
-                  {seriesList.map((s, colIdx) => (
-                    <td key={s.index} className="mge-xy-td mge-xy-td-val">
-                      <input
-                        data-xy-cell={`${rowIdx}:${colIdx + 1}`}
-                        className="mge-xy-input mge-xy-input-num"
-                        type="number"
-                        step="any"
-                        value={s.values[rowIdx] ?? 0}
-                        onFocus={() => setSelectedCell({ row: rowIdx, col: colIdx + 1 })}
-                        onKeyDown={onXYCellKeyDown(rowIdx, colIdx + 1)}
-                        onChange={e => {
-                          setSeriesValueAt(s.index, rowIdx, Number(e.target.value));
-                        }}
-                      />
-                    </td>
-                  ))}
+                  {seriesList.map((s, colIdx) => {
+                    const cellValue = s.values[rowIdx] ?? 0;
+                    return (
+                      <td key={s.index} className="mge-xy-td mge-xy-td-val">
+                        <span className="mge-xy-num-field">
+                          <input
+                            data-xy-cell={`${rowIdx}:${colIdx + 1}`}
+                            className="mge-xy-input mge-xy-input-num"
+                            type="number"
+                            step="any"
+                            value={cellValue}
+                            onFocus={() => setSelectedCell({ row: rowIdx, col: colIdx + 1 })}
+                            onKeyDown={onXYCellKeyDown(rowIdx, colIdx + 1)}
+                            onChange={e => {
+                              setSeriesValueAt(s.index, rowIdx, Number(e.target.value));
+                            }}
+                          />
+                          <span className="mge-xy-num-stepper">
+                            <button
+                              type="button"
+                              className="mge-xy-num-stepper-btn"
+                              aria-label={t.xychart.increaseValue}
+                              onClick={() => setSeriesValueAt(s.index, rowIdx, cellValue + 1)}
+                            >
+                              ▲
+                            </button>
+                            <button
+                              type="button"
+                              className="mge-xy-num-stepper-btn"
+                              aria-label={t.xychart.decreaseValue}
+                              onClick={() => setSeriesValueAt(s.index, rowIdx, cellValue - 1)}
+                            >
+                              ▼
+                            </button>
+                          </span>
+                        </span>
+                      </td>
+                    );
+                  })}
                   {/* empty cell under add-series col */}
                   <td className="mge-xy-td mge-xy-td-add" />
                 </tr>

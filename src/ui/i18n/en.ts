@@ -102,7 +102,7 @@ export const en: typeof ja = {
     critToggleTitle: "Combine with crit",
   },
   xychart: {
-    helpText: "Drag a bar to change its value. Double-click a bar, point, or category name to edit it.",
+    helpText: "Drag a bar or a line point to change its value by 1. Double-click anywhere on a bar, point, or category name to edit it.",
     seriesLabel: (n: number) => `Series ${n}`,
     deleteSeries: (n: number) => `Delete series ${n}`,
     addSeries: "Add series",
@@ -111,6 +111,13 @@ export const en: typeof ja = {
     addRow: "Add row",
     addRowButton: "+ Add row",
     pasteHint: "Paste a copy from Excel (TSV) into the table to import it",
+    increaseYMin: "Increase y-axis min",
+    decreaseYMin: "Decrease y-axis min",
+    increaseYMax: "Increase y-axis max",
+    decreaseYMax: "Decrease y-axis max",
+    increaseValue: "Increase value",
+    decreaseValue: "Decrease value",
+    reorderCategory: "Drag to reorder category",
   },
   quadrant: {
     pointsEmpty: "No points yet. Add one with +, or scroll the preview to the right.",

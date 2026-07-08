@@ -102,7 +102,7 @@ export const ja = {
     critToggleTitle: "crit と組み合わせ",
   },
   xychart: {
-    helpText: "棒をドラッグして値を変更。棒・点・カテゴリ名はダブルクリックで編集。",
+    helpText: "棒や折れ線の点をドラッグすると値を1単位ずつ変更。棒・点・カテゴリ名はどこでもダブルクリックで編集。",
     seriesLabel: (n: number) => `系列${n}`,
     deleteSeries: (n: number) => `系列${n} を削除`,
     addSeries: "系列を追加",
@@ -111,6 +111,13 @@ export const ja = {
     addRow: "行を追加",
     addRowButton: "+ 行を追加",
     pasteHint: "Excelからのコピー（TSV）を表内にペーストするとインポートされる",
+    increaseYMin: "y軸の最小値を増やす",
+    decreaseYMin: "y軸の最小値を減らす",
+    increaseYMax: "y軸の最大値を増やす",
+    decreaseYMax: "y軸の最大値を減らす",
+    increaseValue: "値を増やす",
+    decreaseValue: "値を減らす",
+    reorderCategory: "ドラッグしてカテゴリを並べ替え",
   },
   quadrant: {
     pointsEmpty: "ポイントが未定義。+ で追加するか、プレビューを右にスクロール。",

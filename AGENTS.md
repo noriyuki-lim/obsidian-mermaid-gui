@@ -178,7 +178,7 @@ mermaid-gui-editor/
 │   │   │   ├── QuadrantEditor.tsx
 │   │   │   └── QuadrantInteractivePreview.tsx   ← プレビュー上でポイントを直接ドラッグできる SVG エディタ
 │   │   ├── xychart/
-│   │   │   └── XYChartEditor.tsx  ← 全幅の操作可能 SVG プレビュー + 縦向き Excel ライクテーブル（カテゴリ/値の直接編集、棒ドラッグ、TSV ペースト対応）
+│   │   │   └── XYChartEditor.tsx  ← 全幅の操作可能 SVG プレビュー + 縦向き Excel ライクテーブル（カテゴリ/値の直接編集、TSV ペースト対応）。バー・折れ線ノードともどこをドラッグしても値変更でき（ダブルクリックはどこでも有効）、ドラッグでの変更幅は整数単位にスナップ、小数値はダブルクリックでの直接入力でのみ指定する。y-axis min/max と表の値セルには quadrantChart と同じ意匠のフラットな増減ステッパー（`.mge-xy-num-*`）を装備。プレビューは `ir.orientation`（vertical/horizontal）に完全追従し、`categoryCenter(row)` / `valueCoord(value)` / `pointFor(row, value)` という向き非依存の座標ヘルパー（カテゴリ軸は vertical で x、horizontal で y、値軸はその逆）を介して棒・折れ線・グリッド・ラベル・ドラッグ判定（`valueForClient` は horizontal 時に clientX、vertical 時に clientY を読む）を共通化している。カテゴリ（行）の並べ替えは gantt の `reorderItem`/`targetRowFromPoint` パターンを踏襲した `reorderCategory(from, to)`（categories と全 series の values を同時に splice-move してrow整合を保つ）で、プレビュー側のドットグリップ（`.mge-xy-row-handle-group`）とテーブル側のドラッグハンドル（`.mge-xy-table-row-handle`）の双方から共有駆動する。行のキーは `cat-${row}`（位置ベース、カテゴリ固有IDではない）ため、並べ替え中に DOM ノードが再マウントされず `setPointerCapture` がそのまま保持される
 │   │   ├── radar/
 │   │   │   └── RadarEditor.tsx
 │   │   ├── gantt/

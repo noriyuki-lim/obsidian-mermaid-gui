@@ -2263,6 +2263,34 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
 .mge-xy-category-label {
   cursor: text;
 }
+/* Category row reorder: `.mge-xy-row-hit` is the passive, transparent hit
+   target — one spanning the whole category band (so `xyRowFromPoint` /
+   `document.elementFromPoint` resolves to this row from anywhere in its
+   band, not just exactly on the label text) and a smaller one sized to the
+   grip icon's own click area. Grip dots use `--text-normal` + opacity
+   (not `--text-muted`/`--text-faint`, which render near-invisible under the
+   "Transparent" community theme) per the same convention as the numeric
+   steppers below. */
+.mge-xy-row-hit {
+  fill: transparent;
+}
+.mge-xy-category-row.dragging {
+  opacity: 0.6;
+}
+.mge-xy-row-handle-group {
+  cursor: grab;
+}
+.mge-xy-row-handle-group:active {
+  cursor: grabbing;
+}
+.mge-xy-row-grip-dot {
+  fill: var(--text-normal, #ddd);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.mge-xy-row-handle-group:hover .mge-xy-row-grip-dot {
+  opacity: 1;
+}
 .mge-xy-bar {
   fill: var(--interactive-accent, #5b6ee1);
   opacity: 0.86;
@@ -2283,7 +2311,7 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
   fill: var(--background-primary, #fff);
   stroke: var(--color-orange, #d97706);
   stroke-width: 2;
-  cursor: text;
+  cursor: ns-resize;
 }
 .mge-xy-line-series.series-1 .mge-xy-point { stroke: var(--color-green, #059669); }
 .mge-xy-line-series.series-2 .mge-xy-point { stroke: var(--color-purple, #7c3aed); }
@@ -2363,6 +2391,40 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
   width: 7rem;
   flex-shrink: 0;
 }
+/* Numeric stepper — same chromeless treatment as `.mge-quad-point-stepper`
+   (backlog 2026-06-13): border/background/box-shadow reset with `!important`
+   since Obsidian's default <button> chrome otherwise wins, `--text-normal` +
+   opacity instead of `--text-muted`/`--text-faint` (both render at
+   near-zero contrast under the "Transparent" theme), subtlety via opacity
+   rather than a hover background. */
+.mge-xy-num-field {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 2px;
+}
+.mge-xy-num-stepper {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.mge-xy-num-stepper-btn {
+  appearance: none;
+  width: 14px;
+  height: 12px;
+  padding: 0;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-normal, #ddd) !important;
+  opacity: 0.55 !important;
+  font-size: 8px;
+  line-height: 1;
+  cursor: pointer;
+}
+.mge-xy-num-stepper-btn:hover {
+  background: transparent !important;
+  opacity: 1 !important;
+}
 .mge-xy-select,
 .mge-xy-kind-select {
   background: var(--background-modifier-form-field, var(--background-secondary));
@@ -2420,7 +2482,21 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
 .mge-xy-th-label {
   color: var(--text-muted);
 }
-.mge-xy-td-cat {
+/* `.mge-xy-td-cat` marks the <td> itself (kept for backwards reference/no
+   properties), but the flex row lives on an inner <span> instead. Setting
+   `display: flex` directly on the <td> would override its UA `display:
+   table-cell` with `display: flex`, which de-classes the box from the HTML
+   table's cell grid: it then sizes to its own content instead of
+   participating in the row's shared max-height, and `vertical-align: middle`
+   (table-cell-only semantics) stops applying to it. Verified empirically
+   (headless Chromium): with flex on the <td>, its rendered height (and thus
+   its centered content's Y position) diverged from the sibling value-cell's
+   by several px in the same row — the value cell (`.mge-xy-td-val`, a plain
+   table-cell) was centered correctly against the true row height, while this
+   cell silently wasn't, throwing off row-relative vertical alignment. Same
+   fix pattern as `.mge-xy-th-series-inner`, which already keeps flex off the
+   <th> for the same reason. */
+.mge-xy-td-cat-inner {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -2433,6 +2509,45 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
 }
 .mge-xy-row:hover {
   background: var(--background-modifier-hover);
+}
+.mge-xy-row.dragging {
+  opacity: 0.5;
+}
+/* Table-side row drag handle — same chromeless treatment as
+   `.mge-xy-num-stepper-btn` above (bare <button>, so `border` / `background`
+   / `box-shadow` need `!important` to beat Obsidian's default button chrome),
+   using `--text-normal` + opacity for the grip dots. */
+.mge-xy-table-row-handle {
+  appearance: none;
+  width: 18px;
+  height: 24px;
+  padding: 0;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  cursor: grab;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.mge-xy-table-row-handle:hover {
+  background: transparent !important;
+}
+.mge-xy-table-row-handle:active {
+  cursor: grabbing;
+  background: transparent !important;
+}
+.mge-xy-table-grip {
+  width: 10px;
+  height: 15px;
+  background:
+    radial-gradient(circle, var(--text-normal, #ddd) 1.2px, transparent 1.3px) 0 0 / 5px 5px;
+  opacity: 0.45;
+  transition: opacity 0.15s;
+}
+.mge-xy-table-row-handle:hover .mge-xy-table-grip {
+  opacity: 1;
 }
 .mge-xy-add-btn,
 .mge-xy-del-btn,

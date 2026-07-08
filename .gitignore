@@ -14,3 +14,6 @@ _legacy/
 
 # internal backlog / planning notes — not part of the public plugin
 backlog/
+
+# ad-hoc distribution zips (built locally for manual handoff)
+*.zip
