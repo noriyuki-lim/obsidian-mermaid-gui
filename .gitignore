@@ -17,3 +17,9 @@ backlog/
 
 # ad-hoc distribution zips (built locally for manual handoff)
 *.zip
+
+# internal dev docs / AI-agent instructions — not part of the public plugin
+# (kept on disk locally; just no longer version-controlled/pushed)
+docs/
+AGENTS.md
+CLAUDE.md

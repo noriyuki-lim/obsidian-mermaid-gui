@@ -3,19 +3,17 @@
 Obsidian ノート内の `` ```mermaid `` フェンスをそのまま GUI で編集できるプラグイン。
 保存はあくまで **プレーンテキストの Mermaid 記法**。ノードの座標はセッション内のみ保持し、ファイルには書き出さない（標準 Mermaid 準拠）。
 
-プロジェクトのルール・アーキテクチャの SSOT は [`AGENTS.md`](./AGENTS.md)、要件・設計は [`docs/obsidian-plugin-spec.md`](./docs/obsidian-plugin-spec.md)、図種別ごとの GUI 対応状況は [`docs/mermaid-diagram-types.md`](./docs/mermaid-diagram-types.md) を参照。
-
 ## できること
 
 - Reading view の `` ```mermaid `` ブロックに「Edit」ボタンを差し込み、Modal で GUI 編集
 - コマンドパレット / 右クリックメニューから既存ブロックの編集、および新規 Mermaid ブロックの挿入
-- flowchart / sequenceDiagram / classDiagram / stateDiagram(-v2) / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta / gantt / timeline / erDiagram / mindmap / journey / architecture-beta / block-beta / kanban に専用 GUI エディタ（詳細は `docs/mermaid-diagram-types.md`）。それ以外の図種はソース編集のみのフォールバック
+- flowchart / sequenceDiagram / classDiagram / stateDiagram(-v2) / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta / gantt / timeline / erDiagram / mindmap / journey / architecture-beta / block-beta / kanban に専用 GUI エディタ。それ以外の図種はソース編集のみのフォールバック
 - 保存時に **そのフェンスの中身だけ** を `vault.modify` で書き戻し、ノートの他の行は触らない
 - 未対応の構文（`classDef` / `style` / `linkStyle` / `click` 等）は `rawLines` で素通し
 - 全エディタ共通で Undo / Redo、SVG エクスポート
 - Obsidian テーマ追従（CSS 変数を読みに行く）
 
-スコープ外（TODO）は専用ビュー、`[[wikilink]]` クリック遷移、選択範囲 → flowchart 生成コマンド、Live Preview インライン GUI など。詳細は `AGENTS.md` の「TODO／未実装メモ」を参照。
+スコープ外（TODO）は専用ビュー、`[[wikilink]]` クリック遷移、選択範囲 → flowchart 生成コマンド、Live Preview インライン GUI など。
 
 ## インストール
 
@@ -53,8 +51,6 @@ New-Item -ItemType Junction `
 
 ## ディレクトリ構成
 
-図種別ごとのアダプタ・専用エディタを含む詳細なディレクトリ構成は [`AGENTS.md`](./AGENTS.md#リポジトリ構成) を参照。要点のみ:
-
 ```
 mermaid-gui-editor/
 ├── main.ts            # Plugin エントリ（registerMarkdownCodeBlockProcessor / commands）
@@ -73,8 +69,8 @@ mermaid-gui-editor/
 
 ## 設計の要点
 
-- **IR 中心 + rawLines 温存** — 図種ごとに Mermaid テキスト ⇄ IR を変換し、パーサが理解できない行は破壊せず素通しする（`AGENTS.md` の「rawLines 戦略」）。
-- **アダプタレジストリ** — 図種の識別・parse・generate は `src/core/adapters/` に隔離。新図種の追加手順は `AGENTS.md` を参照。
+- **IR 中心 + rawLines 温存** — 図種ごとに Mermaid テキスト ⇄ IR を変換し、パーサが理解できない行は破壊せず素通しする。
+- **アダプタレジストリ** — 図種の識別・parse・generate は `src/core/adapters/` に隔離。
 - **store は 1 ブロック 1 インスタンス** — `createEditorStore()` を `useMemo` で初期化し、Modal/View のライフサイクルで生成 → 破棄。複数の mermaid ブロックを同時に開いても状態が混線しない。
 - **Obsidian 内蔵 mermaid を再利用** — `loadMermaid()` でレンダリングし、自前で mermaid をバンドルしない。
 - **CSS は `mge-` プレフィックスで隔離** — テーマや他プラグインと衝突しない。
