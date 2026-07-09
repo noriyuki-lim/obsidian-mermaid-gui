@@ -4,6 +4,9 @@
 
 export type Direction = "TD" | "TB" | "LR" | "RL" | "BT";
 
+/** Mermaid's `flowchart.curve` render setting (d3-shape curve interpolator name). */
+export type FlowchartCurve = "basis" | "linear" | "step" | "natural";
+
 export type NodeShape =
   | "rect"
   | "round"
@@ -77,22 +80,30 @@ export type SubgraphFrames = Record<string, { x: number; y: number; width: numbe
 
 export interface MermaidIR {
   direction: Direction;
+  /** `flowchart.curve` render setting. Defaults to `"basis"` (Mermaid's own default). */
+  curve: FlowchartCurve;
   nodes: IRNode[];
   edges: IREdge[];
   subgraphs: IRSubgraph[];
   /** Raw lines that the parser could not understand — kept verbatim and re-emitted */
   rawLines: string[];
+  /** `%%{init}%%`/comment lines found before the header line that the parser
+   *  doesn't understand (i.e. not the single-purpose curve directive it
+   *  recognizes) — kept verbatim and re-emitted immediately before the header. */
+  leadingRawLines: string[];
   positions: Positions;
   /** GUI-only subgraph bounds; Mermaid itself derives subgraph boxes from contents. */
   subgraphFrames: SubgraphFrames;
 }
 
-export const emptyIR = (direction: Direction = "TD"): MermaidIR => ({
+export const emptyIR = (direction: Direction = "TD", curve: FlowchartCurve = "basis"): MermaidIR => ({
   direction,
+  curve,
   nodes: [],
   edges: [],
   subgraphs: [],
   rawLines: [],
+  leadingRawLines: [],
   positions: {},
   subgraphFrames: {},
 });

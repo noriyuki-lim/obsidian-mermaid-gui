@@ -8,6 +8,7 @@ describe("parser", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.ir.direction).toBe("TD");
+    expect(r.ir.curve).toBe("basis");
     expect(r.ir.nodes).toHaveLength(2);
     expect(r.ir.edges).toHaveLength(1);
     expect(r.ir.edges[0]).toMatchObject({
@@ -16,6 +17,30 @@ describe("parser", () => {
       style: "solid",
       head: "arrow",
     });
+  });
+
+  it("parses a curve directive preceding the header", () => {
+    const src = `%%{init: {'flowchart': {'curve': 'linear'}}}%%
+flowchart TD
+  A --> B
+`;
+    const r = parseMermaid(src);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.ir.curve).toBe("linear");
+    expect(r.ir.leadingRawLines).toEqual([]);
+  });
+
+  it("preserves an unrecognized leading %% directive verbatim instead of dropping it", () => {
+    const src = `%%{init: {"theme":"dark"}}%%
+flowchart TD
+  A --> B
+`;
+    const r = parseMermaid(src);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.ir.curve).toBe("basis");
+    expect(r.ir.leadingRawLines).toEqual([`%%{init: {"theme":"dark"}}%%`]);
   });
 
   it("recognises every shape bracket", () => {

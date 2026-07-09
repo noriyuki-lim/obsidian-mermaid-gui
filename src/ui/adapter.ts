@@ -2,6 +2,7 @@ import type { Edge, Node } from "@xyflow/react";
 import type {
   Direction,
   EdgeHandleId,
+  FlowchartCurve,
   IREdge,
   IRNode,
   IRSubgraph,
@@ -10,9 +11,22 @@ import type {
   SubgraphFrames,
 } from "../core/ir-types";
 import { NODE_SIZE } from "../core/dagre";
-import type { EditorEdgeType } from "../core/store-factory";
 
 /* Bridge between IR and ReactFlow's node/edge model. */
+
+// Approximates Mermaid's `flowchart.curve` with ReactFlow's built-in edge
+// types. Edges here are fixed handle-to-handle (2-point) segments, so
+// basis/natural/catmullRom-family curves all degenerate to the same geometry
+// as a 2-point spline — the only visually distinct groups are "smooth",
+// "straight" and "right-angle step", which the built-ins cover without a
+// custom SVG path component. `"default"` (not `"bezier"`, which isn't a
+// registered ReactFlow edge type key) renders as BezierEdge.
+const CURVE_TO_FLOW_EDGE_TYPE: Record<FlowchartCurve, string> = {
+  basis: "default",
+  linear: "straight",
+  step: "step",
+  natural: "simplebezier",
+};
 
 const SG_PREFIX = ":sg:";
 export const isSubgraphFlowId = (id: string): boolean => id.startsWith(SG_PREFIX);
@@ -187,8 +201,8 @@ const computeSubgraphBboxes = (
 export const irToFlow = (
   ir: MermaidIR,
   positions: Positions,
-  edgeType: EditorEdgeType = "bezier",
 ): { nodes: FlowNode[]; edges: FlowEdge[] } => {
+  const edgeType = CURVE_TO_FLOW_EDGE_TYPE[ir.curve];
   const bboxes = computeSubgraphBboxes(ir.nodes, ir.subgraphs, positions, ir.subgraphFrames);
 
   // Subgraph backdrop nodes — purely visual, render below regular nodes.

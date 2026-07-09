@@ -30,6 +30,13 @@ export type ParseOutcome = ParseResult | ParseError;
 const ID_RE = /^[A-Za-z0-9_][\w-]*/;
 const DIRECTIONS: Direction[] = ["TD", "TB", "LR", "RL", "BT"];
 
+// Recognizes only our own single-purpose curve directive shape. Anything else
+// starting with `%%` (other init keys, unknown curve values, malformed
+// directives) is preserved verbatim via `leadingRawLines` instead of being
+// silently dropped.
+const CURVE_INIT_RE =
+  /^%%\{\s*init\s*:\s*\{\s*['"]flowchart['"]\s*:\s*\{\s*['"]curve['"]\s*:\s*['"](basis|linear|step|natural)['"]\s*\}\s*\}\s*\}%%\s*$/;
+
 const stripInlineComment = (s: string): string => {
   // Mermaid: `%%` starts a line comment. Don't strip inside quoted labels.
   let inQuote = false;
@@ -223,11 +230,24 @@ export const parseMermaid = (source: string): ParseOutcome => {
   const stripped = source.replace(/^```\s*mermaid\s*\n/m, "").replace(/\n```\s*$/m, "");
   const rawLines = stripped.split(/\r?\n/);
 
-  // Find header: first non-blank, non-comment line.
+  // Find header: first non-blank, non-comment line. Comment-only lines before
+  // it are either our own curve directive (consumed into ir.curve) or
+  // preserved verbatim in ir.leadingRawLines so nothing is silently dropped.
   let headerIdx = -1;
   for (let i = 0; i < rawLines.length; i++) {
-    const t = stripInlineComment(rawLines[i]).trim();
-    if (t.length === 0) continue;
+    const original = rawLines[i];
+    const t = stripInlineComment(original).trim();
+    if (t.length === 0) {
+      if (original.includes("%%")) {
+        const curveMatch = CURVE_INIT_RE.exec(original.trim());
+        if (curveMatch) {
+          ir.curve = curveMatch[1] as MermaidIR["curve"];
+        } else {
+          ir.leadingRawLines.push(original);
+        }
+      }
+      continue;
+    }
     headerIdx = i;
     break;
   }

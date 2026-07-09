@@ -1,93 +1,103 @@
-# Mermaid GUI for Obsidian
+# Mermaid GUI Editor for Obsidian
 
-Obsidian ノート内の `` ```mermaid `` フェンスをそのまま GUI で編集できるプラグイン。
-保存はあくまで **プレーンテキストの Mermaid 記法**。ノードの座標はセッション内のみ保持し、ファイルには書き出さない（標準 Mermaid 準拠）。
+Edit Mermaid diagrams — flowcharts, sequence diagrams, class diagrams, Gantt charts, kanban boards, and more — with a visual GUI editor, right inside your Obsidian notes. Everything is saved back as **plain Mermaid text**, so your notes stay portable and readable with any other Markdown/Mermaid tool.
 
-## できること
+## What it does
 
-- Reading view の `` ```mermaid `` ブロックに「Edit」ボタンを差し込み、Modal で GUI 編集
-- コマンドパレット / 右クリックメニューから既存ブロックの編集、および新規 Mermaid ブロックの挿入
-- flowchart / sequenceDiagram / classDiagram / stateDiagram(-v2) / pie / sankey-beta / quadrantChart / xychart-beta / radar-beta / gantt / timeline / erDiagram / mindmap / journey / architecture-beta / block-beta / kanban に専用 GUI エディタ。それ以外の図種はソース編集のみのフォールバック
-- 保存時に **そのフェンスの中身だけ** を `vault.modify` で書き戻し、ノートの他の行は触らない
-- 未対応の構文（`classDef` / `style` / `linkStyle` / `click` 等）は `rawLines` で素通し
-- 全エディタ共通で Undo / Redo、SVG エクスポート
-- Obsidian テーマ追従（CSS 変数を読みに行く）
+This plugin adds an **Edit** button to every `` ```mermaid `` code block — in Reading view, in Live Preview, and in Source mode. Clicking it opens a modal with a diagram-specific GUI editor: some diagram types (flowchart, Gantt, kanban, quadrant, XY chart) get a fully interactive canvas you drag and drop directly; the rest (sequence, class, pie, and so on) get a structured form editor next to a live preview that updates as you type. Either way, no hand-written Mermaid syntax is required. Live Preview is where most people will use this day to day, since it's Obsidian's default editing view.
 
-スコープ外（TODO）は専用ビュー、`[[wikilink]]` クリック遷移、選択範囲 → flowchart 生成コマンド、Live Preview インライン GUI など。
+Saving writes back **only the fence content that was edited**; the rest of the note is untouched. Node coordinates and other GUI-only state live for the session only and are never written to the file, so the Mermaid source stays exactly what you'd expect from standard Mermaid — no proprietary metadata, no lock-in.
 
-## インストール
+## Features
 
-現状は下記手順でローカルにインストールして利用する。Obsidian コミュニティプラグインとしての公開に向けて準備中。
+- **Edit button on every mermaid block**, in Reading view, Live Preview, and Source mode alike, plus a command-palette / right-click action to edit the block under your cursor
+- **Insert new diagram** — pick a diagram type from a template picker and start building with the GUI immediately (command palette or editor context menu)
+- Diagram-specific GUI editors: interactive canvas for flowcharts, draggable bars for Gantt, a full drag-and-drop board for kanban, direct point-dragging for quadrant/XY charts, and structured form editors with a live preview for the rest
+- **Non-destructive round-trip** — syntax the parser doesn't understand yet (`classDef`, `style`, `linkStyle`, `click`, …) is preserved verbatim instead of being dropped
+- Undo / Redo and SVG export, consistent across every editor
+- Follows your Obsidian theme (light/dark, and community themes) automatically
+- Unsupported diagram types still get a plain source-text editor as a fallback, so nothing is ever locked out of editing
 
-1. このリポジトリで `npm run build`
-2. ビルドで生成された `main.js`、リポジトリ直下の `manifest.json`、`styles.css` の 3 ファイルを<br>
-   `<vault>/.obsidian/plugins/mermaid-gui-editor/` にコピー
-3. Obsidian の **Settings → Community plugins** で「制限モード」を OFF にし、
-   `Mermaid GUI Editor` を有効化
+## Supported diagram types
 
-zip 配布する場合は上記 3 ファイル＋`README.md`/`CHANGELOG.md` をまとめて配る。
+| Diagram type | Keyword | GUI editor |
+| --- | --- | --- |
+| Flowchart | `flowchart` / `graph` | ✅ Interactive canvas |
+| Quadrant chart | `quadrantChart` | ✅ Interactive canvas |
+| XY chart | `xychart-beta` | ✅ Interactive canvas |
+| Gantt chart | `gantt` | ✅ Interactive canvas |
+| Kanban board | `kanban` | ✅ Interactive canvas |
+| Sequence diagram | `sequenceDiagram` | ✅ Form + live preview |
+| Class diagram | `classDiagram` | ✅ Form + live preview |
+| State diagram | `stateDiagram-v2` / `stateDiagram` | ✅ Form + live preview |
+| Pie chart | `pie` | ✅ Form + live preview |
+| Sankey diagram | `sankey-beta` | ✅ Form + live preview |
+| Timeline | `timeline` | ✅ Form + live preview |
+| ER diagram | `erDiagram` | ✅ Form + live preview |
+| Mindmap | `mindmap` | ✅ Form + live preview |
+| User journey | `journey` | ✅ Form + live preview |
+| Architecture diagram | `architecture-beta` | ✅ Form + live preview |
+| Block diagram | `block-beta` | ✅ Form + live preview |
+| Radar chart | `radar-beta` | ✅ Form, but no live preview (Obsidian's bundled Mermaid doesn't render it) |
+| Treemap / Venn diagram | `treemap-beta` / `venn-beta` | ⚠️ Source-only (structured data, no visual canvas or form yet) |
+| Anything else | — | ⚠️ Plain source-text editor |
 
-## 開発
+## How to use
+
+**Edit an existing diagram**
+1. Open a note containing a `` ```mermaid `` block — Reading view, Live Preview, and Source mode all work.
+2. Click the **Edit** button that appears over the diagram (or its rendered position in Live Preview) — or, with your cursor inside the block, right-click and choose **Edit**, or run **"Edit current Mermaid block"** from the command palette.
+3. Make your changes in the GUI editor, then **Save**. Only that block is rewritten.
+
+**Create a new diagram**
+1. Open the command palette and run **"Insert new Mermaid diagram (GUI)"**, or right-click in the editor and pick the same action.
+2. Choose a diagram type from the template picker.
+3. Build it with the GUI, then **Save** to insert a new `` ```mermaid `` fence at your cursor.
+
+## Installation
+
+This plugin is not yet in the Obsidian community plugin directory. Until it's listed, install it manually:
+
+1. Clone this repository and run `npm install && npm run build` (see [Development](#development)) to produce `main.js` and `styles.css`.
+2. Copy `main.js`, `styles.css`, and `manifest.json` into `<vault>/.obsidian/plugins/mermaid-gui-editor/`.
+3. In Obsidian, go to **Settings → Community plugins**, turn off Restricted Mode if needed, and enable **Mermaid GUI Editor**.
+
+## Privacy & safety
+
+- **No network access.** The plugin never sends any data anywhere — it only reads and writes the note you're editing, locally.
+- **Scoped writes.** Saving only rewrites the exact fence you opened; before writing, the plugin re-verifies the fence's start/end lines so a note edited elsewhere while the modal was open can't be corrupted.
+- **No proprietary state in your files.** Node positions and other GUI-only data exist only for the editing session and are never persisted to the note — what's saved is standard Mermaid text, nothing else.
+
+## Known limitations
+
+- Desktop only (`isDesktopOnly: true`) — not available on Obsidian Mobile.
+- `radar-beta` has a GUI editor, but Obsidian's bundled Mermaid doesn't render that diagram type, so no live preview is shown. `treemap-beta` and `venn-beta` are source-only editors (no visual canvas) for the same underlying reason.
+- Editing always opens a modal — there's no fully inline, in-place GUI woven directly into the Live Preview text yet (it would have to contend with CM6 for control of the editor, IME composition, and undo history).
+- Index-based `linkStyle N` declarations aren't tracked structurally, so reordering edges can shift which style applies to which edge.
+- The flowchart **Curve** setting (`%%{init: {"flowchart": {"curve": "..."}}}%%`) may not visibly affect rendering, depending on the Mermaid version bundled with your Obsidian install. This is a known, currently unresolved upstream Mermaid bug in the flowchart-v2/dagre-wrapper renderer ([mermaid-js/mermaid#6193](https://github.com/mermaid-js/mermaid/issues/6193), fix in progress via PR #6408) — the Mermaid saved by this plugin is correct either way, and the setting will take visible effect once Obsidian ships a Mermaid version with the upstream fix.
+
+## Development
 
 ```bash
 npm install
-npm run dev          # esbuild watch — main.js を更新したら Obsidian で Cmd+R
-npm run build        # 本番ビルド（typecheck + minify）
+npm run dev        # esbuild watch — reload Obsidian after main.js/styles.css rebuild
+npm run build       # typecheck + production bundle
 npm run typecheck
 npm run test
 npm run test:watch
 ```
 
-Obsidian で動作確認するときは vault に直接出力するシンボリックリンクを張ると速い:
+For local testing, symlink the repo into your vault's plugins folder instead of copying files on every change:
 
 ```bash
-# Windows (PowerShell, 管理者)
+# Windows (PowerShell, run as Administrator)
 New-Item -ItemType Junction `
   -Path "<vault>\.obsidian\plugins\mermaid-gui-editor" `
   -Target "<repo>\."
 ```
 
-リポジトリ側で `npm run dev` を回しつつ Obsidian で `Cmd/Ctrl+R` すれば反映される。
+Run `npm run dev` in the repo and reload Obsidian (`Ctrl/Cmd+R`) to pick up changes.
 
-## ディレクトリ構成
+## License
 
-```
-mermaid-gui-editor/
-├── main.ts            # Plugin エントリ（registerMarkdownCodeBlockProcessor / commands）
-├── manifest.json       # Obsidian プラグインマニフェスト
-├── esbuild.config.mjs  # main.ts → main.js、styles.src.css → styles.css の concat
-├── styles.src.css      # 著者管理の CSS（mge-* プレフィックス）
-├── src/
-│   ├── core/           # IO 非依存の中核ロジック（Obsidian / React 非依存）。図種ごとに ir-types / parser / generator
-│   ├── ui/              # React コンポーネント（Obsidian 非依存）。図種ごとに専用エディタ
-│   └── obsidian/        # Obsidian API を呼ぶレイヤ（Modal / postProcessor / commands / io）
-└── tests/
-    └── core/, ui/       # vitest（パーサ・ジェネレータのラウンドトリップ、ストア、UI 射影ロジック）
-```
-
-`main.js` / `styles.css` はビルド成果物のため Git 管理外。`_legacy/web/` は旧 Web 版の痕跡で、プラグインのビルドからは除外している。
-
-## 設計の要点
-
-- **IR 中心 + rawLines 温存** — 図種ごとに Mermaid テキスト ⇄ IR を変換し、パーサが理解できない行は破壊せず素通しする。
-- **アダプタレジストリ** — 図種の識別・parse・generate は `src/core/adapters/` に隔離。
-- **store は 1 ブロック 1 インスタンス** — `createEditorStore()` を `useMemo` で初期化し、Modal/View のライフサイクルで生成 → 破棄。複数の mermaid ブロックを同時に開いても状態が混線しない。
-- **Obsidian 内蔵 mermaid を再利用** — `loadMermaid()` でレンダリングし、自前で mermaid をバンドルしない。
-- **CSS は `mge-` プレフィックスで隔離** — テーマや他プラグインと衝突しない。
-- **書き戻しは fence 検証つき** — `vault.modify` の前に開始/終了 fence のシグネチャを再検証して、ノートの他の行を破壊しない。
-- **ノード座標はセッション内のみ** — ファイルには書き出さない（標準 Mermaid 準拠）。
-
-## テスト
-
-```bash
-npm run test
-```
-
-パーサ・ジェネレータのラウンドトリップは `tests/core/`、UI の射影ロジックは `tests/ui/` に集中している。Mermaid シリアライズ・座標・パーサ対応を変更したときは必ずラウンドトリップテストを追加する。
-
-## 既知の制約
-
-- モバイル（Obsidian Mobile）は対象外（`isDesktopOnly: true`）
-- radar-beta / venn-beta は Obsidian 内蔵 Mermaid が非対応のため GUI 編集は可能だがプレビューは描画されない。treemap-beta / venn-beta は GUI 編集自体が未対応でソース編集のみ
-- Live Preview のインラインで GUI を直接表示する案は実装していない（CM6 と主導権を取り合うため、Modal 先行）
-- `linkStyle 0` などインデックス参照のスタイルは IR 化していないため、エッジを並び替えると指し先がズレる可能性あり
+[MIT](LICENSE)

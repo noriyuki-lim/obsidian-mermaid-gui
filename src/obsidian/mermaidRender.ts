@@ -22,13 +22,29 @@ const detectTheme = (): MermaidTheme => {
   return document.body.classList.contains("theme-dark") ? "dark" : "default";
 };
 
+// Matches only our own canonical curve directive (src/core/generator.ts),
+// emitted as the source's first line whenever `ir.curve !== "basis"`.
+const CURVE_DIRECTIVE_RE =
+  /^%%\{init: \{"flowchart": \{"curve": "([a-z]+)"\}\}\}%%\r?\n/;
+
 /**
  * Prepend a `%%{init: ... }%%` directive so Mermaid applies the theme to this
- * one render only. The directive must come before any diagram syntax; existing
- * sources never start with their own `%%{init}%%` in our pipeline (the GUI
- * generators don't emit one), so blind prepend is safe.
+ * one render only. The directive must come before any diagram syntax, and
+ * Mermaid only reliably honors a single `%%{init}%%` per diagram — a second,
+ * separately stacked directive is silently ignored rather than merged. A
+ * flowchart with a non-default `curve` already emits its own leading
+ * `%%{init: {"flowchart": {"curve": ...}}}%%` line, so instead of stacking a
+ * second directive on top (which would make the curve setting disappear from
+ * the actual render — the theme directive was overwriting the curve one),
+ * fold the curve into the same directive object.
  */
 const withThemeDirective = (source: string, theme: MermaidTheme): string => {
+  const curveMatch = CURVE_DIRECTIVE_RE.exec(source);
+  if (curveMatch) {
+    const rest = source.slice(curveMatch[0].length);
+    const merged = `%%{init: {"theme":"${theme}","flowchart":{"curve":"${curveMatch[1]}"}}}%%`;
+    return `${merged}\n${rest}`;
+  }
   const directive = `%%{init: {"theme":"${theme}"}}%%`;
   return `${directive}\n${source}`;
 };

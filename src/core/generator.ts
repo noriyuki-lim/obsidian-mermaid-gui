@@ -65,6 +65,10 @@ const buildSubgraphTree = (subgraphs: IRSubgraph[]) => {
 export const generateMermaid = (ir: MermaidIR, opts: RenderOptions = {}): string => {
   const inferBareNodes = opts.inferBareNodes ?? true;
   const lines: string[] = [];
+  for (const raw of ir.leadingRawLines) lines.push(raw);
+  if (ir.curve !== "basis") {
+    lines.push(`%%{init: {"flowchart": {"curve": "${ir.curve}"}}}%%`);
+  }
   lines.push(`flowchart ${ir.direction}`);
 
   const nodeById = new Map(ir.nodes.map((n) => [n.id, n] as const));

@@ -2,6 +2,7 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 import {
   emptyIR,
   type Direction,
+  type FlowchartCurve,
   type IREdge,
   type IRNode,
   type IRSubgraph,
@@ -25,8 +26,6 @@ export interface Selection {
   subgraphIds: string[];
 }
 
-export type EditorEdgeType = "smoothstep" | "bezier";
-
 /* IR projections — kept as plain shapes here; UI wraps them into ReactFlow nodes. */
 export interface FlowProjection {
   nodes: MermaidIR["nodes"];
@@ -45,7 +44,6 @@ export interface EditorState {
   isTextDirty: boolean;
   /* selection */
   selection: Selection;
-  editorEdgeType: EditorEdgeType;
   /* history */
   past: MermaidIR[];
   future: MermaidIR[];
@@ -55,7 +53,7 @@ export interface EditorState {
   commitText: () => void;
   applyIR: (ir: MermaidIR, opts?: { layout?: boolean; recordHistory?: boolean }) => void;
   setDirection: (d: Direction) => void;
-  setEditorEdgeType: (edgeType: EditorEdgeType) => void;
+  setCurve: (c: FlowchartCurve) => void;
   addNode: (shape: NodeShape, label?: string) => string;
   updateNode: (id: string, patch: Partial<IRNode>, opts?: { recordHistory?: boolean }) => void;
   updateSubgraph: (
@@ -102,10 +100,12 @@ const HISTORY_LIMIT = 100;
 
 const cloneIR = (ir: MermaidIR): MermaidIR => ({
   direction: ir.direction,
+  curve: ir.curve,
   nodes: ir.nodes.map((n) => ({ ...n })),
   edges: ir.edges.map((e) => ({ ...e })),
   subgraphs: ir.subgraphs.map((s) => ({ ...s })),
   rawLines: [...ir.rawLines],
+  leadingRawLines: [...ir.leadingRawLines],
   positions: { ...ir.positions },
   subgraphFrames: { ...ir.subgraphFrames },
 });
@@ -327,7 +327,6 @@ export const createEditorStore = (): EditorStoreApi =>
       warnings: [],
       isTextDirty: false,
       selection: { nodeIds: [], edgeIds: [], subgraphIds: [] },
-      editorEdgeType: "bezier",
       past: [],
       future: [],
 
@@ -354,7 +353,11 @@ export const createEditorStore = (): EditorStoreApi =>
         commit({ ...cloneIR(cur), direction: d }, { layout: true });
       },
 
-      setEditorEdgeType: (edgeType) => set({ editorEdgeType: edgeType }),
+      setCurve: (c) => {
+        if (!ensureTextCommitted()) return;
+        const cur = get().ir;
+        commit({ ...cloneIR(cur), curve: c });
+      },
 
       addNode: (shape, label) => {
         if (!ensureTextCommitted()) return "";

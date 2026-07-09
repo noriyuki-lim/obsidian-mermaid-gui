@@ -4,6 +4,7 @@ import type { MermaidIR } from "../../src/core/ir-types";
 
 const baseIR = (direction: MermaidIR["direction"]): MermaidIR => ({
   direction,
+  curve: "basis",
   nodes: [
     { id: "A", shape: "rect", label: "A", subgraph: null },
     { id: "B", shape: "rect", label: "B", subgraph: null },
@@ -11,6 +12,7 @@ const baseIR = (direction: MermaidIR["direction"]): MermaidIR => ({
   edges: [{ id: "e1", source: "A", target: "B", style: "solid", head: "arrow", length: 2 }],
   subgraphs: [],
   rawLines: [],
+  leadingRawLines: [],
   positions: { A: { x: 0, y: 0 }, B: { x: 220, y: 0 } },
   subgraphFrames: {},
 });
@@ -53,11 +55,13 @@ describe("irToFlow edge handles", () => {
     });
   });
 
-  it("uses the requested editor edge type", () => {
+  it("maps each flowchart curve to its closest built-in ReactFlow edge type", () => {
     const ir = baseIR("TD");
 
-    expect(irToFlow(ir, ir.positions, "bezier").edges[0].type).toBe("bezier");
-    expect(irToFlow(ir, ir.positions, "smoothstep").edges[0].type).toBe("smoothstep");
+    expect(irToFlow({ ...ir, curve: "basis" }, ir.positions).edges[0].type).toBe("default");
+    expect(irToFlow({ ...ir, curve: "linear" }, ir.positions).edges[0].type).toBe("straight");
+    expect(irToFlow({ ...ir, curve: "step" }, ir.positions).edges[0].type).toBe("step");
+    expect(irToFlow({ ...ir, curve: "natural" }, ir.positions).edges[0].type).toBe("simplebezier");
   });
 
   it("prefers stored GUI handles over direction defaults", () => {

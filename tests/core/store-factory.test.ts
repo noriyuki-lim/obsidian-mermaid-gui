@@ -19,6 +19,7 @@ const applyIRWithExactPositions = (
 
 const groupedIR = (): MermaidIR => ({
   direction: "TD",
+  curve: "basis",
   nodes: [
     { id: "A", shape: "rect", label: "A", subgraph: "S1" },
     { id: "B", shape: "rect", label: "B", subgraph: null },
@@ -26,20 +27,22 @@ const groupedIR = (): MermaidIR => ({
   edges: [{ id: "e1", source: "A", target: "B", style: "solid", head: "arrow", length: 2 }],
   subgraphs: [{ id: "S1", label: "Group", parent: null }],
   rawLines: [],
+  leadingRawLines: [],
   positions: { A: { x: 10, y: 20 }, B: { x: 200, y: 20 } },
   subgraphFrames: { S1: { x: 0, y: 0, width: 180, height: 120 } },
 });
 
 describe("subgraph editing store commands", () => {
-  it("changes editor edge display without changing Mermaid text", () => {
+  it("changes flowchart curve and writes it to Mermaid text as an undoable step", () => {
     const store = createEditorStore();
     const before = store.getState().text;
 
-    store.getState().setEditorEdgeType("smoothstep");
+    store.getState().setCurve("linear");
 
-    expect(store.getState().editorEdgeType).toBe("smoothstep");
-    expect(store.getState().text).toBe(before);
-    expect(store.getState().past).toEqual([]);
+    expect(store.getState().ir.curve).toBe("linear");
+    expect(store.getState().text).toContain('%%{init: {"flowchart": {"curve": "linear"}}}%%');
+    expect(store.getState().text).not.toBe(before);
+    expect(store.getState().past).toHaveLength(1);
   });
 
   it("updates subgraph labels without changing grouped nodes", () => {
@@ -185,6 +188,7 @@ describe("subgraph editing store commands", () => {
     store.getState().applyIR(
       {
         direction: "TD",
+        curve: "basis",
         nodes: [
           { id: "C", shape: "round", label: "C", subgraph: null },
           { id: "A", shape: "round", label: "A", subgraph: null },
@@ -196,6 +200,7 @@ describe("subgraph editing store commands", () => {
         ],
         subgraphs: [],
         rawLines: [],
+        leadingRawLines: [],
         positions: {
           A: { x: 0, y: 0 },
           B: { x: 200, y: 0 },
@@ -226,6 +231,7 @@ describe("subgraph editing store commands", () => {
     const store = createEditorStore();
     applyIRWithExactPositions(store, {
       direction: "TD",
+      curve: "basis",
       nodes: [
         { id: "R", shape: "round", label: "R", subgraph: null },
         { id: "N1", shape: "rect", label: "N1", subgraph: null },
@@ -243,6 +249,7 @@ describe("subgraph editing store commands", () => {
       ],
       subgraphs: [],
       rawLines: [],
+      leadingRawLines: [],
       positions: {
         R: { x: 100, y: 0 },
         // Same rank (all children of R, all parents of M) but y is jittered
@@ -276,6 +283,7 @@ describe("subgraph editing store commands", () => {
     const store = createEditorStore();
     applyIRWithExactPositions(store, {
       direction: "TD",
+      curve: "basis",
       nodes: [
         { id: "n1", shape: "rect", label: "n1", subgraph: null },
         { id: "n2", shape: "rect", label: "n2", subgraph: "sg_1" },
@@ -299,6 +307,7 @@ describe("subgraph editing store commands", () => {
       ],
       subgraphs: [{ id: "sg_1", label: "sg_1", parent: null, direction: "LR" }],
       rawLines: [],
+      leadingRawLines: [],
       positions: {
         n1: { x: 400, y: 0 },
         n2: { x: 360, y: 130 },
@@ -335,6 +344,7 @@ describe("subgraph editing store commands", () => {
     const store = createEditorStore();
     applyIRWithExactPositions(store, {
       direction: "LR",
+      curve: "basis",
       nodes: [
         { id: "R", shape: "round", label: "R", subgraph: null },
         { id: "N1", shape: "rect", label: "N1", subgraph: null },
@@ -352,6 +362,7 @@ describe("subgraph editing store commands", () => {
       ],
       subgraphs: [],
       rawLines: [],
+      leadingRawLines: [],
       positions: {
         R: { x: 0, y: 100 },
         // Same rank, but x (the LR primary axis) is jittered (96/100/104)
@@ -385,6 +396,7 @@ describe("subgraph editing store commands", () => {
     const store = createEditorStore();
     applyIRWithExactPositions(store, {
       direction: "BT",
+      curve: "basis",
       nodes: [
         { id: "R", shape: "round", label: "R", subgraph: null },
         { id: "N1", shape: "rect", label: "N1", subgraph: null },
@@ -402,6 +414,7 @@ describe("subgraph editing store commands", () => {
       ],
       subgraphs: [],
       rawLines: [],
+      leadingRawLines: [],
       positions: {
         // BT flows bottom-to-top, so the root sits at the largest y.
         R: { x: 100, y: 220 },
