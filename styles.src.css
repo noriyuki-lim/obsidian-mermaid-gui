@@ -735,6 +735,13 @@ body.mge-text-pane-resizing * {
      concurrent grippers fighting over the same SE corner. */
   overflow: hidden;
 }
+/* Obsidian's default modal close ("X") button is redundant here — every
+   editor already has explicit Save/Cancel buttons in its toolbar — so hide
+   it on our modal specifically (not globally, to avoid touching other
+   plugins' modals). */
+.modal.mge-modal .modal-close-button {
+  display: none;
+}
 .modal.mge-modal.mge-modal-animating {
   transition:
     left 160ms cubic-bezier(0.2, 0, 0, 1),

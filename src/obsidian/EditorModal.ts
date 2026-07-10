@@ -25,6 +25,30 @@ const isTransparentThemeActive = (app: App): boolean => {
 };
 
 /**
+ * `isEditableShortcutTarget` only checks the element itself (tag name /
+ * contentEditable) — it has no idea whether that element lives inside this
+ * modal. `document.activeElement` is a *global*, page-wide property: opening
+ * this Modal does not blur whatever had focus in the background (Obsidian
+ * doesn't steal focus into the modal unless something inside it explicitly
+ * calls `.focus()`), so the background note's CodeMirror content div
+ * (`.cm-content`, always `contentEditable="true"`) commonly stays
+ * `document.activeElement` for the modal's entire lifetime whenever the user
+ * hasn't yet clicked into a text field inside our own React tree. Checking
+ * `isEditableShortcutTarget(document.activeElement)` alone therefore matched
+ * that unrelated background element and permanently blocked `close()` —
+ * Save and Cancel both did nothing, with no error, because `document
+ * .activeElement` never was and never became something outside the modal.
+ * Reproduced via `obsidian eval` clicking Save/Cancel with dev tooling: both
+ * left `.mge-modal` in the DOM every time, confirming this is unconditional,
+ * not a rare focus race. The guard must only fire for editable elements that
+ * are actually *inside* this modal.
+ */
+const isEditableWithinModal = (modalEl: HTMLElement): boolean => {
+  const active = document.activeElement;
+  return !!active && modalEl.contains(active) && isEditableShortcutTarget(active);
+};
+
+/**
  * Opens the React-based GUI editor inside an Obsidian Modal. The modal owns a
  * single ReactHost so React + the editor store live for the modal's lifetime;
  * `onClose` always tears them down.
@@ -51,6 +75,29 @@ export class EditorModal extends Modal {
     if (isTransparentThemeActive(this.app)) {
       this.modalEl.addClass("mge-theme-transparent");
     }
+    // The `close()` override below defers to whichever element currently has
+    // focus, so Escape can hand off to that field's own cancel logic instead
+    // of the modal swallowing it. That's fine for Escape specifically — the
+    // keypress itself never moves focus — but it's wrong for clicks on
+    // anything that ISN'T a text field, most importantly Obsidian's own
+    // close ("X") button: unlike our own <button>s, it doesn't necessarily
+    // shift focus away from a previously-focused input on click, so
+    // `document.activeElement` can still point at that input at the moment
+    // the X button's handler calls `this.close()`, and our guard would then
+    // incorrectly block a completely unambiguous "please close" click. Blur
+    // proactively on mousedown for anything that isn't itself an editable
+    // field, so focus is already cleared before any such click's own handler
+    // (including Obsidian's internal one) runs.
+    this.modalEl.addEventListener(
+      "mousedown",
+      (evt) => {
+        const target = evt.target as HTMLElement | null;
+        if (target && !isEditableShortcutTarget(target) && isEditableWithinModal(this.modalEl)) {
+          (document.activeElement as HTMLElement | null)?.blur();
+        }
+      },
+      true,
+    );
     // Obsidian's default Modal behaviour is to close unconditionally on
     // Escape. Every inline text field inside the editors (category/series
     // rename, xychart value edit, gantt task edit, table cells, ...) also
@@ -63,7 +110,7 @@ export class EditorModal extends Modal {
     // native keydown continue to that field's own onKeyDown, which does the
     // actual cancelling) instead of closing.
     this.scope.register([], "Escape", () => {
-      if (isEditableShortcutTarget(document.activeElement)) return false;
+      if (isEditableWithinModal(this.modalEl)) return false;
       this.close();
     });
     this.contentEl.empty();
@@ -102,16 +149,24 @@ export class EditorModal extends Modal {
    * has to end up calling this public `close()` method — so intercepting
    * *here* doesn't depend on guessing that mechanism's dispatch order the
    * way the `scope.register` attempt does. If Escape reaches here while an
-   * inline edit field still has focus (its own onKeyDown hasn't blurred it
-   * yet — this runs synchronously in the same keydown, before React gets a
-   * turn, when Obsidian's handler is registered higher up in capture phase),
-   * swallow the close instead of tearing down the whole editor. Save/Cancel
-   * always reach here via a button click, which browsers already move focus
-   * to before this runs, so `document.activeElement` is the button, not an
-   * editable field — this can't accidentally swallow a real save/cancel.
+   * inline edit field *inside this modal* still has focus (its own
+   * onKeyDown hasn't blurred it yet — this runs synchronously in the same
+   * keydown, before React gets a turn, when Obsidian's handler is registered
+   * higher up in capture phase), swallow the close instead of tearing down
+   * the whole editor. Save/Cancel always reach here via a button click
+   * inside the modal, which browsers already move focus to before this
+   * runs — so `isEditableWithinModal` sees the button (not editable), or
+   * whatever unrelated element the *background* note editor still has
+   * focused (not *within* this modal either) — neither blocks a real
+   * save/cancel. (`isEditableWithinModal` scoping to `modalEl` matters here:
+   * checking `document.activeElement` alone, with no containment check, used
+   * to match the background note's always-`contentEditable` CodeMirror div
+   * whenever the modal never stole focus into itself, permanently blocking
+   * Save *and* Cancel with no error shown — see `isEditableWithinModal`'s
+   * doc comment above.)
    */
   close(): void {
-    if (isEditableShortcutTarget(document.activeElement)) return;
+    if (isEditableWithinModal(this.modalEl)) return;
     super.close();
   }
 
