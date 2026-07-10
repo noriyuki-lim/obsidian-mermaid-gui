@@ -2259,6 +2259,18 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
   background: var(--background-primary, #fff);
   touch-action: none;
 }
+/* Focusable so F2 (see `onPreviewKeyDown`) can open the value editor for the
+   currently selected bar. `:focus-visible` (not `:focus`) keeps the outline
+   from flashing on every ordinary bar click — the click-cycle already
+   `.focus()`es the SVG programmatically, which browsers don't treat as a
+   focus-visible trigger. */
+.mge-xy-preview-svg:focus {
+  outline: none;
+}
+.mge-xy-preview-svg:focus-visible {
+  outline: 2px solid var(--interactive-accent, #5b6ee1);
+  outline-offset: 1px;
+}
 .mge-xy-preview-bg {
   fill: var(--background-primary, #fff);
 }
@@ -2311,31 +2323,53 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
 .mge-xy-row-handle-group:hover .mge-xy-row-grip-dot {
   opacity: 1;
 }
+/* Shared color-by-declaration-order palette, mirroring real xychart-beta's
+   `plotColorPalette` theme variable: every `bar`/`line` plot — regardless of
+   type — takes the next color in sequence, in declaration order. `.mge-xy-bar`
+   / `.mge-xy-line` / `.mge-xy-point` all read `--xy-series-color`, set by
+   whichever `.mge-xy-series-N` class (N = that series' position among ALL
+   series, bar and line combined) is applied to the element/its ancestor. */
+.mge-xy-series-0 { --xy-series-color: var(--interactive-accent, #5b6ee1); }
+.mge-xy-series-1 { --xy-series-color: var(--color-orange, #d97706); }
+.mge-xy-series-2 { --xy-series-color: var(--color-green, #059669); }
+.mge-xy-series-3 { --xy-series-color: var(--color-purple, #7c3aed); }
+.mge-xy-series-4 { --xy-series-color: var(--color-cyan, #0891b2); }
 .mge-xy-bar {
-  fill: var(--interactive-accent, #5b6ee1);
+  fill: var(--xy-series-color, var(--interactive-accent, #5b6ee1));
   opacity: 0.86;
   cursor: ns-resize;
+}
+.mge-xy-preview-horizontal .mge-xy-bar {
+  cursor: ew-resize;
 }
 .mge-xy-bar:hover {
   opacity: 1;
 }
+/* Highlights whichever bar series the overlap click-cycle currently has
+   active (see `startBarStackDrag`). Drawn as its own top-of-stack overlay
+   (not a class on the bar itself) so it stays visible even when the active
+   series is shorter than — and therefore fully covered by — a bar series
+   declared after it. */
+.mge-xy-bar-active-outline {
+  fill: none;
+  stroke: var(--text-normal, #ddd);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+}
 .mge-xy-line {
   fill: none;
-  stroke: var(--color-orange, #d97706);
+  stroke: var(--xy-series-color, var(--color-orange, #d97706));
   stroke-width: 2;
 }
-.mge-xy-line-series.series-1 .mge-xy-line { stroke: var(--color-green, #059669); }
-.mge-xy-line-series.series-2 .mge-xy-line { stroke: var(--color-purple, #7c3aed); }
-.mge-xy-line-series.series-3 .mge-xy-line { stroke: var(--color-cyan, #0891b2); }
 .mge-xy-point {
   fill: var(--background-primary, #fff);
-  stroke: var(--color-orange, #d97706);
+  stroke: var(--xy-series-color, var(--color-orange, #d97706));
   stroke-width: 2;
   cursor: ns-resize;
 }
-.mge-xy-line-series.series-1 .mge-xy-point { stroke: var(--color-green, #059669); }
-.mge-xy-line-series.series-2 .mge-xy-point { stroke: var(--color-purple, #7c3aed); }
-.mge-xy-line-series.series-3 .mge-xy-point { stroke: var(--color-cyan, #0891b2); }
+.mge-xy-preview-horizontal .mge-xy-point {
+  cursor: ew-resize;
+}
 .mge-xy-inline-input {
   width: 100%;
   height: 24px;
@@ -2455,6 +2489,9 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
   font-size: 0.75rem;
   cursor: pointer;
 }
+.mge-xy-kind-select {
+  min-width: 3.6rem;
+}
 .mge-xy-table-wrap {
   overflow: auto;
   flex: 1;
@@ -2482,7 +2519,7 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
   text-align: left;
 }
 .mge-xy-th-series {
-  min-width: 7rem;
+  min-width: 8rem;
 }
 .mge-xy-th-add {
   width: 2rem;
@@ -2492,12 +2529,71 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
 .mge-xy-th-series-inner {
   display: flex;
   align-items: center;
-  gap: 4px;
-  justify-content: space-between;
+  gap: 8px;
+}
+.mge-xy-th-series.dragging {
+  opacity: 0.5;
 }
 .mge-xy-col-label {
   color: var(--text-muted);
+  flex: 1 1 0;
+  min-width: 3rem;
+  text-align: center;
+}
+/* The series title label doubles as the column drag handle (no separate
+   handle button — it ate too much width) and as the rename trigger
+   (double-click), mirroring the category label's grip+dblclick split but
+   collapsed onto one element since series headers are already tight. It
+   grows to fill the header's leftover width (so bar/line select + sort +
+   delete end up flush against the right edge, with nothing after them), and
+   its text centers within that grown box. `.mge-xy-col-title-input` shares
+   the exact same `flex`/`min-width` so the box is the same size whether
+   showing the label or the edit input — mismatched min-width between the two
+   (the original bug here) is what made the column jitter on entering/leaving
+   edit mode. */
+.mge-xy-col-label-draggable {
+  cursor: grab;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mge-xy-col-label-draggable:active {
+  cursor: grabbing;
+}
+.mge-xy-col-title-input {
+  flex: 1 1 0;
+  min-width: 3rem;
+  text-align: center;
+}
+/* Sort-by-series toggle — a single button showing both triangles (stacked,
+   like a spreadsheet sort glyph) rather than two separate buttons; clicking
+   it alternates ascending/descending each time. Same chromeless treatment as
+   `.mge-xy-num-stepper-btn`. */
+.mge-xy-sort-btn {
+  appearance: none;
+  width: 14px;
+  height: 20px;
+  padding: 0;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-normal, #ddd) !important;
+  opacity: 0.55 !important;
+  cursor: pointer;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+.mge-xy-sort-btn:hover {
+  background: transparent !important;
+  opacity: 1 !important;
+}
+.mge-xy-sort-tri {
+  font-size: 7px;
+  line-height: 1;
 }
 .mge-xy-th-label {
   color: var(--text-muted);

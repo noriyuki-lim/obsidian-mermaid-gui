@@ -102,7 +102,7 @@ export const ja = {
     critToggleTitle: "crit と組み合わせ",
   },
   xychart: {
-    helpText: "棒や折れ線の点をドラッグすると値を1単位ずつ変更。棒・点・カテゴリ名はどこでもダブルクリックで編集。",
+    helpText: "棒や折れ線の点をドラッグすると値を1単位ずつ変更。棒・点・カテゴリ名はどこでもダブルクリックで編集。選択中の棒はF2キーでも値を編集できる。",
     seriesLabel: (n: number) => `系列${n}`,
     deleteSeries: (n: number) => `系列${n} を削除`,
     addSeries: "系列を追加",
@@ -118,6 +118,7 @@ export const ja = {
     increaseValue: "値を増やす",
     decreaseValue: "値を減らす",
     reorderCategory: "ドラッグしてカテゴリを並べ替え",
+    sortBySeries: (n: number) => `系列${n}の値でカテゴリを並べ替え（昇順⇄降順）`,
   },
   quadrant: {
     pointsEmpty: "ポイントが未定義。+ で追加するか、プレビューを右にスクロール。",

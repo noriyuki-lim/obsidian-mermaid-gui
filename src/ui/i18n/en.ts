@@ -102,7 +102,7 @@ export const en: typeof ja = {
     critToggleTitle: "Combine with crit",
   },
   xychart: {
-    helpText: "Drag a bar or a line point to change its value by 1. Double-click anywhere on a bar, point, or category name to edit it.",
+    helpText: "Drag a bar or a line point to change its value by 1. Double-click anywhere on a bar, point, or category name to edit it. With a bar selected, F2 also opens its value editor.",
     seriesLabel: (n: number) => `Series ${n}`,
     deleteSeries: (n: number) => `Delete series ${n}`,
     addSeries: "Add series",
@@ -118,6 +118,7 @@ export const en: typeof ja = {
     increaseValue: "Increase value",
     decreaseValue: "Decrease value",
     reorderCategory: "Drag to reorder category",
+    sortBySeries: (n: number) => `Sort categories by series ${n} (ascending ⇄ descending)`,
   },
   quadrant: {
     pointsEmpty: "No points yet. Add one with +, or scroll the preview to the right.",

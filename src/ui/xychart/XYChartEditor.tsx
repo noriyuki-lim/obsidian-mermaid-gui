@@ -15,6 +15,7 @@ import type {
   XYChartIR,
   XYItem,
   XYOrientation,
+  XYSeriesItem,
   XYSeriesKind,
 } from "../../core/xychart/ir-types";
 
@@ -25,6 +26,9 @@ interface Props {
   renderMermaid?: (source: string) => Promise<string>;
 }
 
+/** Number of `.mge-xy-series-N` colors defined in styles.src.css. */
+const SERIES_PALETTE_SIZE = 5;
+
 // ──────────────────────────────────────────────
 // helpers
 // ──────────────────────────────────────────────
@@ -32,7 +36,7 @@ interface Props {
 const seed = (initialSource: string): XYChartIR => {
   const outcome = parseXYChart(initialSource);
   if (outcome.ok) return outcome.ir;
-  return { kind: "xychart-beta", orientation: "vertical", items: [] };
+  return { kind: "xychart-beta", orientation: "vertical", items: [], leadingRawLines: [] };
 };
 
 /** Extract categories from the xAxis (categorical) or return an empty array. */
@@ -42,10 +46,12 @@ const getCategories = (ir: XYChartIR): string[] => {
 };
 
 /** Extract only the series items (no raw items) in order. */
-const getSeries = (items: XYItem[]): Array<{ index: number; series: XYSeriesKind; values: number[] }> => {
-  const out: Array<{ index: number; series: XYSeriesKind; values: number[] }> = [];
+const getSeries = (
+  items: XYItem[],
+): Array<{ index: number; series: XYSeriesKind; values: number[]; title?: string }> => {
+  const out: Array<{ index: number; series: XYSeriesKind; values: number[]; title?: string }> = [];
   items.forEach((item, index) => {
-    if (item.type === "series") out.push({ index, series: item.series, values: item.values });
+    if (item.type === "series") out.push({ index, series: item.series, values: item.values, title: item.title });
   });
   return out;
 };
@@ -63,6 +69,17 @@ const xyRowFromPoint = (clientX: number, clientY: number): number | null => {
   const el = document.elementFromPoint(clientX, clientY);
   const rowEl = el?.closest<Element>("[data-xy-row]");
   const raw = rowEl?.getAttribute("data-xy-row");
+  if (raw === null || raw === undefined) return null;
+  const index = Number(raw);
+  return Number.isFinite(index) ? index : null;
+};
+
+/** Same lookup as `xyRowFromPoint`, but for the series (column) drag handle
+ * in the table header — resolves the nearest ancestor with `[data-xy-col]`. */
+const xyColFromPoint = (clientX: number, clientY: number): number | null => {
+  const el = document.elementFromPoint(clientX, clientY);
+  const colEl = el?.closest<Element>("[data-xy-col]");
+  const raw = colEl?.getAttribute("data-xy-col");
   if (raw === null || raw === undefined) return null;
   const index = Number(raw);
   return Number.isFinite(index) ? index : null;
@@ -97,11 +114,27 @@ const XYChartInteractivePreview = ({
 }: XYPreviewProps) => {
   const t = useT();
   const svgRef = useRef<SVGSVGElement>(null);
-  const dragRef = useRef<{ pointerId: number; itemIndex: number; row: number } | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    itemIndex: number;
+    row: number;
+    kind: "bar" | "point";
+    startX: number;
+    startY: number;
+    moved: boolean;
+  } | null>(null);
   const rowDragRef = useRef<{ pointerId: number; currentIndex: number } | null>(null);
+  /**
+   * Overlapping-bar click-cycle state (Figma-style: repeated plain clicks at
+   * the same row step front→back through the bar series stacked there). Kept
+   * in a ref (not state) because `finishDrag` needs to read/write it
+   * synchronously without waiting for a re-render.
+   */
+  const barCycleRef = useRef<{ row: number; order: number[]; pointer: number; lastWasClick: boolean } | null>(null);
   const [editingCategory, setEditingCategory] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState<{ itemIndex: number; row: number } | null>(null);
   const [draggingRow, setDraggingRow] = useState<number | null>(null);
+  const [activeBarSelection, setActiveBarSelection] = useState<{ row: number; itemIndex: number } | null>(null);
 
   const isHorizontal = ir.orientation === "horizontal";
   const width = 960;
@@ -120,6 +153,16 @@ const XYChartInteractivePreview = ({
   const span = Math.max(1, domain.max - domain.min);
   const barSeries = seriesList.filter((s) => s.series === "bar");
   const lineSeries = seriesList.filter((s) => s.series === "line");
+  /**
+   * Color index by declaration order across ALL series (bar and line alike),
+   * mirroring real xychart-beta's `plotColorPalette` theme variable: the
+   * first-declared plot gets the first color, the second the next, and so on
+   * regardless of whether it's a bar or a line (confirmed via mermaid-js
+   * Discussion #5207 / #5491). `seriesList` already preserves that order.
+   */
+  const seriesColorIndex = new Map(seriesList.map((s, i) => [s.index, i]));
+  const colorClassFor = (itemIndex: number) =>
+    `mge-xy-series-${(seriesColorIndex.get(itemIndex) ?? 0) % SERIES_PALETTE_SIZE}`;
 
   // ── orientation-independent coordinate helpers ──────────────────────
   // The category axis is x in vertical mode and y in horizontal mode; the
@@ -139,6 +182,28 @@ const XYChartInteractivePreview = ({
     const c = categoryCenter(row);
     const v = valueCoord(value);
     return isHorizontal ? { x: v, y: c } : { x: c, y: v };
+  };
+
+  /**
+   * Bar geometry for one (row, value) pair. Real xychart-beta doesn't cluster
+   * multiple bar series side by side — they all render at the *same* full-band
+   * position, later-declared series drawn on top (mermaid-js Discussion
+   * #5326; confirmed against Obsidian's renderer). So every bar series shares
+   * this one full-width box per row instead of splitting `band` by series
+   * count, and `barSeries.map` below renders in declaration order so SVG's
+   * own paint order (later element = on top) matches that.
+   */
+  const barThickness = Math.min(42, Math.max(12, band * 0.72));
+  const barGeometry = (row: number, value: number) => {
+    const crossStart = categoryCenter(row) - barThickness / 2;
+    const v0 = valueCoord(0);
+    const v1 = valueCoord(value);
+    const boxStart = Math.min(v0, v1);
+    const boxLength = Math.max(2, Math.abs(v1 - v0));
+    const rectBox = isHorizontal
+      ? { x: boxStart, y: crossStart, width: boxLength, height: barThickness - 3 }
+      : { x: crossStart, y: boxStart, width: barThickness - 3, height: boxLength };
+    return { rectBox, v0, v1, boxStart, crossStart };
   };
 
   const svgXForClient = (clientX: number): number | null => {
@@ -171,23 +236,72 @@ const XYChartInteractivePreview = ({
     return Math.round(domain.min + ratio * span);
   };
 
-  const beginDrag = (itemIndex: number, row: number, event: ReactPointerEvent<Element>) => {
+  const beginDrag = (itemIndex: number, row: number, kind: "bar" | "point", event: ReactPointerEvent<Element>) => {
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = { pointerId: event.pointerId, itemIndex, row };
+    dragRef.current = {
+      pointerId: event.pointerId,
+      itemIndex,
+      row,
+      kind,
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+    };
   };
 
-  // Dragging anywhere on a bar or line point changes its value; double-click
-  // anywhere on either opens the value input for exact/decimal entry.
-  const startBarDrag = (itemIndex: number, row: number) => (event: ReactPointerEvent<SVGRectElement>) => {
-    if (event.button !== 0) return;
-    beginDrag(itemIndex, row, event);
-  };
-
+  // Dragging anywhere on a line point changes its value; double-click opens
+  // the value input for exact/decimal entry. (Bars use `startBarStackDrag`
+  // below instead — see its doc comment.)
   const startPointDrag = (itemIndex: number, row: number) => (event: ReactPointerEvent<SVGCircleElement>) => {
     if (event.button !== 0) return;
-    beginDrag(itemIndex, row, event);
+    beginDrag(itemIndex, row, "point", event);
+  };
+
+  /**
+   * Bar series fully overlap at a row (see `barGeometry`), so a plain
+   * pointerdown can only ever land on the topmost (last-declared) one — the
+   * DOM physically can't deliver it to a covered rect. To make every series
+   * still reachable, a *plain click* (press+release with no drag) at the same
+   * row cycles which series the next press targets, front→back, Figma-style:
+   * a repeated click on the same spot steps to the next series underneath. A
+   * click that turns into a drag (the user actually changes a value) does NOT
+   * advance the cycle — the series being dragged just stays selected, and
+   * cycling resumes from there on the next plain click. Switching to a
+   * different row always restarts at the frontmost series.
+   */
+  const startBarStackDrag = (row: number) => (event: ReactPointerEvent<SVGRectElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+
+    const frontToBack = [...barSeries].reverse().map((s) => s.index);
+    const prevCycle = barCycleRef.current;
+    let pointer: number;
+    if (prevCycle && prevCycle.row === row && prevCycle.lastWasClick) {
+      pointer = (prevCycle.pointer + 1) % frontToBack.length;
+    } else if (prevCycle && prevCycle.row === row) {
+      pointer = Math.min(prevCycle.pointer, frontToBack.length - 1);
+    } else {
+      pointer = 0;
+    }
+    const itemIndex = frontToBack[pointer];
+    barCycleRef.current = { row, order: frontToBack, pointer, lastWasClick: false };
+    dragRef.current = {
+      pointerId: event.pointerId,
+      itemIndex,
+      row,
+      kind: "bar",
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+    };
+    setActiveBarSelection({ row, itemIndex });
+    // So a follow-up F2 (see `onPreviewKeyDown`) works without the user
+    // having to click into the SVG separately first.
+    svgRef.current?.focus({ preventScroll: true });
   };
 
   /**
@@ -221,6 +335,9 @@ const XYChartInteractivePreview = ({
     }
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
+    if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 3) {
+      drag.moved = true;
+    }
     const value = valueForClient(event);
     if (value !== null) onValueChange(drag.itemIndex, drag.row, value);
   };
@@ -230,20 +347,80 @@ const XYChartInteractivePreview = ({
       rowDragRef.current = null;
       setDraggingRow(null);
     }
-    if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
+    const drag = dragRef.current;
+    if (drag?.pointerId === event.pointerId) {
+      if (drag.kind === "bar" && barCycleRef.current?.row === drag.row) {
+        barCycleRef.current.lastWasClick = !drag.moved;
+      }
+      dragRef.current = null;
+    }
+  };
+
+  /** Clears the overlapping-bar selection/cycle when the user presses
+   * somewhere that isn't a bar (e.g. empty background) — otherwise a stale
+   * highlight from a different row could linger indefinitely. */
+  const clearBarSelection = () => {
+    barCycleRef.current = null;
+    setActiveBarSelection(null);
+  };
+
+  /**
+   * A dblclick event is always preceded by exactly two plain-click
+   * pointerdowns at the same row (each of which independently advanced the
+   * overlap cycle by one via `startBarStackDrag`) — that's just how the DOM
+   * fires click/click/dblclick. Left uncorrected, double-clicking to open the
+   * value editor would land two steps further round the stack than whatever
+   * was actually selected right before the double-click, which reads as the
+   * double-click randomly "stealing" the selection. So on dblclick we rewind
+   * the cycle by two (wrapping) before resolving which series to edit, and
+   * write the corrected pointer back so the highlight snaps back in sync too.
+   * Falls back to `fallback` (the topmost series) if the row was never
+   * cycled — a real pointerdown/dblclick can only ever land on the topmost
+   * bar rect in the first place.
+   */
+  const rewindBarCycleForDoubleClick = (row: number, fallback: number): number => {
+    const cycle = barCycleRef.current;
+    if (!cycle || cycle.row !== row) return fallback;
+    const len = cycle.order.length;
+    const restored = ((cycle.pointer - 2) % len + len) % len;
+    cycle.pointer = restored;
+    const itemIndex = cycle.order[restored] ?? fallback;
+    setActiveBarSelection({ row, itemIndex });
+    return itemIndex;
+  };
+
+  /** F2 opens the value editor for whichever bar the overlap click-cycle
+   * currently has active — the keyboard equivalent of double-clicking a bar,
+   * for when a series further back in the stack is already selected and the
+   * user doesn't want to reach for the mouse again. Scoped to the SVG's own
+   * keydown (not a document-level listener) so it can't fire while focus is
+   * actually in the table, which binds F2 to a different action (edit mode). */
+  const onPreviewKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
+    if (event.key !== "F2" || !activeBarSelection) return;
+    event.preventDefault();
+    setEditingValue({ itemIndex: activeBarSelection.itemIndex, row: activeBarSelection.row });
   };
 
   return (
-    <div className="mge-xy-preview">
+    <div className={`mge-xy-preview ${isHorizontal ? "mge-xy-preview-horizontal" : ""}`}>
       <svg
         ref={svgRef}
         className="mge-xy-preview-svg"
         viewBox={`0 0 ${width} ${height}`}
+        tabIndex={0}
         onPointerMove={onPointerMove}
         onPointerUp={finishDrag}
         onPointerCancel={finishDrag}
+        onKeyDown={onPreviewKeyDown}
       >
-        <rect x={0} y={0} width={width} height={height} className="mge-xy-preview-bg" />
+        <rect
+          x={0}
+          y={0}
+          width={width}
+          height={height}
+          className="mge-xy-preview-bg"
+          onPointerDown={clearBarSelection}
+        />
         {ir.title ? <text x={left} y={18} className="mge-xy-preview-title">{ir.title}</text> : null}
         {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
           const value = domain.min + ratio * span;
@@ -335,31 +512,23 @@ const XYChartInteractivePreview = ({
           );
         })}
 
-        {barSeries.map((series, barIdx) => {
-          const barThickness = Math.min(42, Math.max(12, (band * 0.72) / Math.max(barSeries.length, 1)));
+        {barSeries.map((series) => {
           return series.values.map((value, row) => {
-            const crossStart = categoryCenter(row) - (barThickness * barSeries.length) / 2 + barIdx * barThickness;
-            const v0 = valueCoord(0);
-            const v1 = valueCoord(value);
-            const boxStart = Math.min(v0, v1);
-            const boxLength = Math.max(2, Math.abs(v1 - v0));
-            const rectBox = isHorizontal
-              ? { x: boxStart, y: crossStart, width: boxLength, height: barThickness - 3 }
-              : { x: crossStart, y: boxStart, width: barThickness - 3, height: boxLength };
+            const { rectBox, v0, boxStart, crossStart } = barGeometry(row, value);
             const crossCenter = crossStart + (barThickness - 3) / 2;
             const editorPos = isHorizontal
-              ? { x: Math.min(width - right - 76, Math.max(v0, v1) + 8), y: crossCenter - 14 }
+              ? { x: Math.min(width - right - 76, Math.max(v0, valueCoord(value)) + 8), y: crossCenter - 14 }
               : { x: crossCenter - 36, y: Math.max(4, boxStart - 30) };
             return (
               <g key={`${series.index}-${row}`}>
                 <rect
                   {...rectBox}
                   rx={3}
-                  className="mge-xy-bar"
-                  onPointerDown={startBarDrag(series.index, row)}
+                  className={`mge-xy-bar ${colorClassFor(series.index)}`}
+                  onPointerDown={startBarStackDrag(row)}
                   onDoubleClick={(event) => {
                     event.stopPropagation();
-                    setEditingValue({ itemIndex: series.index, row });
+                    setEditingValue({ itemIndex: rewindBarCycleForDoubleClick(row, series.index), row });
                   }}
                 />
                 {editingValue?.itemIndex === series.index && editingValue.row === row ? (
@@ -372,6 +541,11 @@ const XYChartInteractivePreview = ({
                       onChange={(event) => onValueChange(series.index, row, Number(event.target.value))}
                       onBlur={() => setEditingValue(null)}
                       onKeyDown={(event) => {
+                        // Escape must not bubble to Obsidian's Modal, which
+                        // registers a global Escape-to-close handler — without
+                        // stopPropagation, cancelling this inline edit also
+                        // closes the whole editor.
+                        if (event.key === "Escape") event.stopPropagation();
                         if (event.key === "Enter" || event.key === "Escape") setEditingValue(null);
                       }}
                     />
@@ -382,6 +556,21 @@ const XYChartInteractivePreview = ({
           });
         })}
 
+        {(() => {
+          if (!activeBarSelection || barSeries.length <= 1) return null;
+          const activeSeries = barSeries.find((s) => s.index === activeBarSelection.itemIndex);
+          const value = activeSeries?.values[activeBarSelection.row];
+          if (!activeSeries || value === undefined) return null;
+          return (
+            <rect
+              {...barGeometry(activeBarSelection.row, value).rectBox}
+              rx={3}
+              className="mge-xy-bar-active-outline"
+              pointerEvents="none"
+            />
+          );
+        })()}
+
         {lineSeries.map((series, lineIdx) => {
           const points = series.values.map((value, row) => ({
             ...pointFor(row, value),
@@ -389,7 +578,7 @@ const XYChartInteractivePreview = ({
             row,
           }));
           return (
-            <g key={`line-${series.index}`} className={`mge-xy-line-series series-${lineIdx % 4}`}>
+            <g key={`line-${series.index}`} className={`mge-xy-line-series ${colorClassFor(series.index)}`}>
               <polyline
                 points={points.map((p) => `${p.x},${p.y}`).join(" ")}
                 className="mge-xy-line"
@@ -422,6 +611,7 @@ const XYChartInteractivePreview = ({
                         onChange={(event) => onValueChange(series.index, p.row, Number(event.target.value))}
                         onBlur={() => setEditingValue(null)}
                         onKeyDown={(event) => {
+                          if (event.key === "Escape") event.stopPropagation();
                           if (event.key === "Enter" || event.key === "Escape") setEditingValue(null);
                         }}
                       />
@@ -448,6 +638,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
   const [saving, setSaving] = useState(false);
   const [selectedCell, setSelectedCell] = useState<XYCell>({ row: 0, col: 0 });
   const [editMode, setEditMode] = useState(false);
+  const [editingSeriesTitle, setEditingSeriesTitle] = useState<number | null>(null);
   const tableRef = useRef<HTMLTableElement>(null);
 
   // ── derived views ──────────────────────────
@@ -504,6 +695,21 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
       items: prev.items.map((item, i) =>
         i === itemIdx && item.type === "series"
           ? ({ ...item, series: kind } as XYItem)
+          : item,
+      ),
+    }));
+  };
+
+  /** Rename the GUI-only convenience label for the series at `itemIdx` (falls
+   * back to the auto-numbered "Series N" label when cleared). Persisted as a
+   * trailing `%% gui:seriesTitle ...` comment — see `XYSeriesItem.title`. */
+  const setSeriesTitle = (itemIdx: number, title: string) => {
+    const trimmed = title.trim();
+    setIr(prev => ({
+      ...prev,
+      items: prev.items.map((item, i) =>
+        i === itemIdx && item.type === "series"
+          ? ({ ...item, title: trimmed || undefined } as XYItem)
           : item,
       ),
     }));
@@ -595,6 +801,81 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
     });
   }, []);
 
+  /**
+   * Reorder the series themselves (e.g. swap Series 1 and Series 2), leaving
+   * any interspersed raw items in their original absolute slot. Only the
+   * series-typed entries are extracted (in series order), permuted, and
+   * written back into the same set of item-array positions they already
+   * occupied — so a raw line sitting between two series never moves.
+   */
+  const reorderSeries = useCallback((from: number, to: number) => {
+    setIr(prev => {
+      const seriesEntries = prev.items
+        .map((item, index) => ({ item, index }))
+        .filter((e): e is { item: XYSeriesItem; index: number } => e.item.type === "series");
+      if (from === to || from < 0 || to < 0 || from >= seriesEntries.length || to >= seriesEntries.length) {
+        return prev;
+      }
+      const slots = seriesEntries.map(e => e.index);
+      const seriesObjs = seriesEntries.map(e => e.item);
+      const [moved] = seriesObjs.splice(from, 1);
+      seriesObjs.splice(to, 0, moved);
+      const items = prev.items.slice();
+      slots.forEach((slot, i) => {
+        items[slot] = seriesObjs[i];
+      });
+      return { ...prev, items };
+    });
+  }, []);
+
+  /**
+   * Sort every category (row) by the values of one series, ascending or
+   * descending. Categories and every series' values move together via a
+   * shared index permutation so row alignment is preserved — the same
+   * invariant `reorderCategory` maintains for a single manual drag, just
+   * applied to the whole table at once. `Array.prototype.sort` is stable, so
+   * categories with equal values under the sorted series keep their original
+   * relative order.
+   */
+  const sortCategoriesBySeries = useCallback((itemIndex: number, direction: "asc" | "desc") => {
+    setIr(prev => {
+      const target = prev.items[itemIndex];
+      if (!target || target.type !== "series") return prev;
+      const catLen = prev.xAxis?.kind === "categorical" ? prev.xAxis.categories.length : 0;
+      const seriesLen = prev.items.reduce(
+        (max, item) => (item.type === "series" ? Math.max(max, item.values.length) : max),
+        0,
+      );
+      const rowBound = Math.max(catLen, seriesLen);
+      if (rowBound === 0) return prev;
+
+      const order = Array.from({ length: rowBound }, (_, i) => i);
+      order.sort((a, b) => {
+        const va = target.values[a] ?? 0;
+        const vb = target.values[b] ?? 0;
+        return direction === "asc" ? va - vb : vb - va;
+      });
+
+      const cats = prev.xAxis?.kind === "categorical" ? prev.xAxis.categories : [];
+      const newCats = order.map(i => cats[i] ?? "");
+      const xAxis = prev.xAxis?.kind === "categorical" ? { ...prev.xAxis, categories: newCats } : prev.xAxis;
+      const items = prev.items.map(item =>
+        item.type === "series" ? { ...item, values: order.map(i => item.values[i] ?? 0) } : item,
+      );
+      return { ...prev, xAxis, items };
+    });
+  }, []);
+
+  /** Ephemeral per-series toggle: tracks only which direction the sort
+   * button should apply *next* (asc/desc alternate on each click). Not
+   * displayed anywhere, so a plain ref is enough — no re-render needed. */
+  const seriesSortDirRef = useRef<Record<number, "asc" | "desc">>({});
+  const toggleSortBySeries = (itemIndex: number) => {
+    const next: "asc" | "desc" = seriesSortDirRef.current[itemIndex] === "asc" ? "desc" : "asc";
+    seriesSortDirRef.current[itemIndex] = next;
+    sortCategoriesBySeries(itemIndex, next);
+  };
+
   const tableRowDragRef = useRef<{ pointerId: number; currentIndex: number } | null>(null);
   const [tableDraggingRow, setTableDraggingRow] = useState<number | null>(null);
 
@@ -621,6 +902,41 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
     if (!tableRowDragRef.current || tableRowDragRef.current.pointerId !== event.pointerId) return;
     tableRowDragRef.current = null;
     setTableDraggingRow(null);
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // pointer capture may already be released
+    }
+  };
+
+  // Series (column) drag — same continuous-swap-under-cursor pattern as the
+  // row drag above, just resolved via `data-xy-col` / `xyColFromPoint`.
+  const tableColDragRef = useRef<{ pointerId: number; currentIndex: number } | null>(null);
+  const [tableDraggingCol, setTableDraggingCol] = useState<number | null>(null);
+
+  const startTableColDrag = (colIdx: number) => (event: ReactPointerEvent<HTMLSpanElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    tableColDragRef.current = { pointerId: event.pointerId, currentIndex: colIdx };
+    setTableDraggingCol(colIdx);
+  };
+
+  const moveTableColDrag = (event: ReactPointerEvent<HTMLSpanElement>) => {
+    const drag = tableColDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const target = xyColFromPoint(event.clientX, event.clientY);
+    if (target === null || target === drag.currentIndex) return;
+    reorderSeries(drag.currentIndex, target);
+    drag.currentIndex = target;
+    setTableDraggingCol(target);
+  };
+
+  const endTableColDrag = (event: ReactPointerEvent<HTMLSpanElement>) => {
+    if (!tableColDragRef.current || tableColDragRef.current.pointerId !== event.pointerId) return;
+    tableColDragRef.current = null;
+    setTableDraggingCol(null);
     try {
       event.currentTarget.releasePointerCapture(event.pointerId);
     } catch {
@@ -922,9 +1238,43 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
                 </th>
                 {/* series col headers */}
                 {seriesList.map((s, colIdx) => (
-                  <th key={s.index} className="mge-xy-th mge-xy-th-series">
+                  <th
+                    key={s.index}
+                    className={`mge-xy-th mge-xy-th-series ${tableDraggingCol === colIdx ? "dragging" : ""}`}
+                    data-xy-col={colIdx}
+                  >
                     <div className="mge-xy-th-series-inner">
-                      <span className="mge-xy-col-label">{t.xychart.seriesLabel(colIdx + 1)}</span>
+                      {editingSeriesTitle === s.index ? (
+                        <input
+                          className="mge-xy-input mge-xy-col-title-input"
+                          autoFocus
+                          defaultValue={s.title ?? ""}
+                          placeholder={t.xychart.seriesLabel(colIdx + 1)}
+                          onBlur={e => {
+                            setSeriesTitle(s.index, e.target.value);
+                            setEditingSeriesTitle(null);
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") {
+                              setSeriesTitle(s.index, e.currentTarget.value);
+                              setEditingSeriesTitle(null);
+                            } else if (e.key === "Escape") {
+                              setEditingSeriesTitle(null);
+                            }
+                          }}
+                        />
+                      ) : (
+                        <span
+                          className="mge-xy-col-label mge-xy-col-label-draggable"
+                          onPointerDown={startTableColDrag(colIdx)}
+                          onPointerMove={moveTableColDrag}
+                          onPointerUp={endTableColDrag}
+                          onPointerCancel={endTableColDrag}
+                          onDoubleClick={() => setEditingSeriesTitle(s.index)}
+                        >
+                          {s.title ?? t.xychart.seriesLabel(colIdx + 1)}
+                        </span>
+                      )}
                       <select
                         className="mge-xy-kind-select"
                         value={s.series}
@@ -934,6 +1284,15 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
                         <option value="bar">bar</option>
                         <option value="line">line</option>
                       </select>
+                      <button
+                        className="mge-xy-sort-btn"
+                        type="button"
+                        onClick={() => toggleSortBySeries(s.index)}
+                        aria-label={t.xychart.sortBySeries(colIdx + 1)}
+                      >
+                        <span className="mge-xy-sort-tri" aria-hidden="true">▲</span>
+                        <span className="mge-xy-sort-tri" aria-hidden="true">▼</span>
+                      </button>
                       <button
                         className="mge-xy-del-btn"
                         onClick={() => deleteSeries(s.index)}
