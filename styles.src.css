@@ -2334,16 +2334,24 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
 .mge-xy-series-2 { --xy-series-color: var(--color-green, #059669); }
 .mge-xy-series-3 { --xy-series-color: var(--color-purple, #7c3aed); }
 .mge-xy-series-4 { --xy-series-color: var(--color-cyan, #0891b2); }
+/* fill-opacity (not the `opacity` shorthand) so the outline stays fully
+   opaque and readable even though the fill is washed out — the whole point
+   is to let a bar drawn *behind* another (same full-band-width footprint,
+   see barGeometry) show through the front one's fill, while every bar's own
+   edge (including the very backmost one, otherwise fully covered) stays
+   traceable via its stroke regardless of paint order. */
 .mge-xy-bar {
   fill: var(--xy-series-color, var(--interactive-accent, #5b6ee1));
-  opacity: 0.86;
+  fill-opacity: 0.55;
+  stroke: var(--xy-series-color, var(--interactive-accent, #5b6ee1));
+  stroke-width: 1.5;
   cursor: ns-resize;
 }
 .mge-xy-preview-horizontal .mge-xy-bar {
   cursor: ew-resize;
 }
 .mge-xy-bar:hover {
-  opacity: 1;
+  fill-opacity: 0.8;
 }
 /* Highlights whichever bar series the overlap click-cycle currently has
    active (see `startBarStackDrag`). Drawn as its own top-of-stack overlay
@@ -2492,6 +2500,39 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
 .mge-xy-kind-select {
   min-width: 3.6rem;
 }
+/* Per-series color override swatch. `appearance: none` strips the native
+   button-like chrome most browsers draw around <input type="color">, so it
+   reads as a plain color chip rather than a form control. */
+.mge-xy-color-swatch {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--background-modifier-border, #555);
+  border-radius: 3px;
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.mge-xy-color-swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.mge-xy-color-swatch::-webkit-color-swatch {
+  border: none;
+  border-radius: 2px;
+}
+.mge-xy-btn-reset-colors {
+  background: transparent;
+  border: 1px solid var(--background-modifier-border, #555);
+  border-radius: 3px;
+  color: var(--text-normal);
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.mge-xy-btn-reset-colors:hover {
+  background: var(--background-modifier-hover);
+}
 .mge-xy-table-wrap {
   overflow: auto;
   flex: 1;
@@ -2519,7 +2560,7 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
   text-align: left;
 }
 .mge-xy-th-series {
-  min-width: 8rem;
+  min-width: 8.75rem;
 }
 .mge-xy-th-add {
   width: 2rem;

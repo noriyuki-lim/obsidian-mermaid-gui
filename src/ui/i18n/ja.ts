@@ -119,6 +119,8 @@ export const ja = {
     decreaseValue: "値を減らす",
     reorderCategory: "ドラッグしてカテゴリを並べ替え",
     sortBySeries: (n: number) => `系列${n}の値でカテゴリを並べ替え（昇順⇄降順）`,
+    seriesColor: (n: number) => `系列${n}の色`,
+    resetColors: "色をリセット",
   },
   quadrant: {
     pointsEmpty: "ポイントが未定義。+ で追加するか、プレビューを右にスクロール。",

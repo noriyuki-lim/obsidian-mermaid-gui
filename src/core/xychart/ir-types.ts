@@ -34,4 +34,11 @@ export interface XYChartIR {
    *  doesn't understand (i.e. not the single-purpose orientation directive it
    *  recognizes) — kept verbatim and re-emitted immediately before the header. */
   leadingRawLines: string[];
+  /** Per-series color override, positional by declaration order across
+   *  bar+line (index i = the i-th `bar`/`line` item, same order as
+   *  `colorClassFor` in the editor). Mirrors real xychart-beta's
+   *  `plotColorPalette` theme variable — undefined/omitted means every
+   *  series uses the editor's own theme-adaptive default colors, and nothing
+   *  is written to the Mermaid source. */
+  plotColorPalette?: string[];
 }

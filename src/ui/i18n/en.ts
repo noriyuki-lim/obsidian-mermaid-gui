@@ -119,6 +119,8 @@ export const en: typeof ja = {
     decreaseValue: "Decrease value",
     reorderCategory: "Drag to reorder category",
     sortBySeries: (n: number) => `Sort categories by series ${n} (ascending ⇄ descending)`,
+    seriesColor: (n: number) => `Series ${n} color`,
+    resetColors: "Reset colors",
   },
   quadrant: {
     pointsEmpty: "No points yet. Add one with +, or scroll the preview to the right.",

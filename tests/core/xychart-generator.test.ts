@@ -107,6 +107,30 @@ describe("generateXYChart", () => {
     };
     expect(generateXYChart(ir)).not.toContain("gui:seriesTitle");
   });
+
+  it("emits plotColorPalette as a leading %%{init}%% directive", () => {
+    const ir: XYChartIR = {
+      kind: "xychart-beta",
+      orientation: "vertical",
+      items: [],
+      leadingRawLines: [],
+      plotColorPalette: ["#000000", "#0000FF", "#00FF00"],
+    };
+    expect(generateXYChart(ir)).toContain(
+      '%%{init: {"themeVariables": {"xyChart": {"plotColorPalette": "#000000, #0000FF, #00FF00"}}}}%%',
+    );
+  });
+
+  it("omits the palette directive when plotColorPalette is unset or empty", () => {
+    const ir: XYChartIR = {
+      kind: "xychart-beta",
+      orientation: "vertical",
+      items: [],
+      leadingRawLines: [],
+    };
+    expect(generateXYChart(ir)).not.toContain("plotColorPalette");
+    expect(generateXYChart({ ...ir, plotColorPalette: [] })).not.toContain("plotColorPalette");
+  });
 });
 
 describe("xychart parse → generate → parse round-trip", () => {
@@ -167,5 +191,15 @@ describe("xychart parse → generate → parse round-trip", () => {
     if (!second.ok) return;
     const barSeries = second.ir.items.find(i => i.type === "series" && i.series === "bar");
     expect((barSeries as { title?: string } | undefined)?.title).toBe("Revenue");
+  });
+
+  it("keeps a custom plotColorPalette across a save + reopen (parse → generate → parse)", () => {
+    const first = parseXYChart(src);
+    if (!first.ok) return;
+    const recolored = { ...first.ir, plotColorPalette: ["#111111", "#222222"] };
+    const second = parseXYChart(generateXYChart(recolored));
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    expect(second.ir.plotColorPalette).toEqual(["#111111", "#222222"]);
   });
 });

@@ -27,6 +27,15 @@ import type { XYAxis, XYChartIR, XYItem, XYOrientation } from "./ir-types";
 const ORIENTATION_INIT_RE =
   /^%%\{\s*init\s*:\s*\{\s*['"]xyChart['"]\s*:\s*\{\s*['"]chartOrientation['"]\s*:\s*['"](horizontal|vertical)['"]\s*\}\s*\}\s*\}%%\s*$/;
 
+// Real xychart-beta's per-series color override, set via the `plotColorPalette`
+// theme variable (confirmed against mermaid-js Discussion #5207 / #5491):
+// colors are consumed in declaration order across bar+line together.
+const PALETTE_INIT_RE =
+  /^%%\{\s*init\s*:\s*\{\s*['"]themeVariables['"]\s*:\s*\{\s*['"]xyChart['"]\s*:\s*\{\s*['"]plotColorPalette['"]\s*:\s*['"]([^'"]*)['"]\s*\}\s*\}\s*\}\s*\}%%\s*$/;
+
+const parseColorList = (s: string): string[] =>
+  s.split(",").map((c) => c.trim()).filter(Boolean);
+
 export const parseXYChart = (source: string): ParseOutcome<XYChartIR> => {
   const stripped = source
     .replace(/^```\s*mermaid\s*\n/m, "")
@@ -35,17 +44,24 @@ export const parseXYChart = (source: string): ParseOutcome<XYChartIR> => {
 
   let headerIdx = -1;
   let orientationFromInit: XYOrientation | null = null;
+  let plotColorPalette: string[] | undefined;
   const leadingRawLines: string[] = [];
   for (let i = 0; i < rawLines.length; i++) {
     const t = rawLines[i].trim();
     if (!t) continue;
     if (/^%%/.test(t)) {
-      const m = ORIENTATION_INIT_RE.exec(t);
-      if (m) {
-        orientationFromInit = m[1] as XYOrientation;
-      } else {
-        leadingRawLines.push(rawLines[i]);
+      const orientationMatch = ORIENTATION_INIT_RE.exec(t);
+      if (orientationMatch) {
+        orientationFromInit = orientationMatch[1] as XYOrientation;
+        continue;
       }
+      const paletteMatch = PALETTE_INIT_RE.exec(t);
+      if (paletteMatch) {
+        const colors = parseColorList(paletteMatch[1]);
+        if (colors.length > 0) plotColorPalette = colors;
+        continue;
+      }
+      leadingRawLines.push(rawLines[i]);
       continue;
     }
     headerIdx = i;
@@ -70,6 +86,7 @@ export const parseXYChart = (source: string): ParseOutcome<XYChartIR> => {
     orientation,
     items: [],
     leadingRawLines,
+    ...(plotColorPalette ? { plotColorPalette } : {}),
   };
 
   for (let i = headerIdx + 1; i < rawLines.length; i++) {

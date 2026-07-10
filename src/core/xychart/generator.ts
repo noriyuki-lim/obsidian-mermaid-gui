@@ -35,6 +35,11 @@ const renderItem = (item: XYItem): string => {
 
 export const generateXYChart = (ir: XYChartIR): string => {
   const lines: string[] = [];
+  if (ir.plotColorPalette && ir.plotColorPalette.length > 0) {
+    lines.push(
+      `%%{init: {"themeVariables": {"xyChart": {"plotColorPalette": "${ir.plotColorPalette.join(", ")}"}}}}%%`,
+    );
+  }
   for (const raw of ir.leadingRawLines) lines.push(raw);
   lines.push(ir.orientation === "horizontal" ? "xychart-beta horizontal" : "xychart-beta");
 

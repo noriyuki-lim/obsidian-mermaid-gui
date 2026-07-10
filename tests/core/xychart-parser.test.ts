@@ -35,6 +35,23 @@ describe("parseXYChart", () => {
     expect(result.ir.leadingRawLines).toEqual(['%%{init: {"xyChart": {"width": 900}}}%%']);
   });
 
+  it("parses plotColorPalette from a leading %%{init}%% directive", () => {
+    const result = parseXYChart(
+      '%%{init: {"themeVariables": {"xyChart": {"plotColorPalette": "#000000, #0000FF, #00FF00"}}}}%%\nxychart-beta\n',
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.ir.plotColorPalette).toEqual(["#000000", "#0000FF", "#00FF00"]);
+    expect(result.ir.leadingRawLines).toEqual([]);
+  });
+
+  it("leaves plotColorPalette undefined when there is no directive", () => {
+    const result = parseXYChart("xychart-beta\n");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.ir.plotColorPalette).toBeUndefined();
+  });
+
   it("returns error when header is missing", () => {
     expect(parseXYChart("flowchart TD\n").ok).toBe(false);
   });

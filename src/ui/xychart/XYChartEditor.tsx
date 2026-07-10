@@ -30,6 +30,16 @@ interface Props {
 /** Number of `.mge-xy-series-N` colors defined in styles.src.css. */
 const SERIES_PALETTE_SIZE = 5;
 
+/** Fallback hex for each `.mge-xy-series-N` default (matches the `var(--x,
+ * fallback)` values in styles.src.css). Used only to seed the `<input
+ * type="color">` swatch's displayed value before a series has an explicit
+ * `plotColorPalette` override — the actual default *rendering* color still
+ * comes from the theme-adaptive CSS variable, not this array, so the swatch
+ * may not pixel-match a community theme's accent color until the user
+ * actually picks something (at which point it becomes a real override and
+ * both agree). */
+const DEFAULT_SERIES_COLOR_HEX = ["#5b6ee1", "#d97706", "#059669", "#7c3aed", "#0891b2"];
+
 // ──────────────────────────────────────────────
 // helpers
 // ──────────────────────────────────────────────
@@ -164,6 +174,16 @@ const XYChartInteractivePreview = ({
   const seriesColorIndex = new Map(seriesList.map((s, i) => [s.index, i]));
   const colorClassFor = (itemIndex: number) =>
     `mge-xy-series-${(seriesColorIndex.get(itemIndex) ?? 0) % SERIES_PALETTE_SIZE}`;
+  /** Inline override for `--xy-series-color`, only when `ir.plotColorPalette`
+   * has an explicit entry at this series' position — inline style beats the
+   * class-based CSS variable above (same property, higher specificity), so
+   * omitting it here (returning undefined) cleanly falls back to the
+   * theme-adaptive default with no special-casing needed. */
+  const colorStyleFor = (itemIndex: number): React.CSSProperties | undefined => {
+    const i = seriesColorIndex.get(itemIndex) ?? 0;
+    const override = ir.plotColorPalette?.[i];
+    return override ? ({ ["--xy-series-color" as string]: override } as React.CSSProperties) : undefined;
+  };
 
   // ── orientation-independent coordinate helpers ──────────────────────
   // The category axis is x in vertical mode and y in horizontal mode; the
@@ -526,6 +546,7 @@ const XYChartInteractivePreview = ({
                   {...rectBox}
                   rx={3}
                   className={`mge-xy-bar ${colorClassFor(series.index)}`}
+                  style={colorStyleFor(series.index)}
                   onPointerDown={startBarStackDrag(row)}
                   onDoubleClick={(event) => {
                     event.stopPropagation();
@@ -579,7 +600,11 @@ const XYChartInteractivePreview = ({
             row,
           }));
           return (
-            <g key={`line-${series.index}`} className={`mge-xy-line-series ${colorClassFor(series.index)}`}>
+            <g
+              key={`line-${series.index}`}
+              className={`mge-xy-line-series ${colorClassFor(series.index)}`}
+              style={colorStyleFor(series.index)}
+            >
               <polyline
                 points={points.map((p) => `${p.x},${p.y}`).join(" ")}
                 className="mge-xy-line"
@@ -651,6 +676,13 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
     seriesList.forEach(s => { if (s.values.length > max) max = s.values.length; });
     return max;
   }, [categories, seriesList]);
+  /** Declaration-order position of each series' item-array index — same
+   * indexing `colorClassFor`/`colorStyleFor` use in the preview, needed here
+   * too so color edits/reorders/deletes address the right palette slot. */
+  const seriesColorIndex = useMemo(
+    () => new Map(seriesList.map((s, i) => [s.index, i])),
+    [seriesList],
+  );
 
   // ── IR mutation helpers ────────────────────
 
@@ -716,6 +748,33 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
     }));
   };
 
+  /** Set an explicit color override for the series at `itemIdx`, persisted as
+   * a leading `%%{init: {"themeVariables": {"xyChart": {"plotColorPalette":
+   * ...}}}}%%` directive (real xychart-beta's own theme-variable mechanism —
+   * see `src/core/xychart/parser.ts`). The array is positional by
+   * declaration order, so setting an index beyond the current palette length
+   * pads the gap with the same default colors the un-overridden preview
+   * already shows for those series, keeping every *other* series' effective
+   * color unchanged. */
+  const setSeriesColor = (itemIdx: number, hex: string) => {
+    const position = seriesColorIndex.get(itemIdx) ?? 0;
+    setIr(prev => {
+      const next = prev.plotColorPalette ? [...prev.plotColorPalette] : [];
+      while (next.length <= position) {
+        next.push(DEFAULT_SERIES_COLOR_HEX[next.length % DEFAULT_SERIES_COLOR_HEX.length]);
+      }
+      next[position] = hex;
+      return { ...prev, plotColorPalette: next };
+    });
+  };
+
+  /** Clear all color overrides, reverting every series to the editor's
+   * theme-adaptive default colors and removing the directive from the saved
+   * source entirely. */
+  const resetSeriesColors = () => {
+    setIr(prev => ({ ...prev, plotColorPalette: undefined }));
+  };
+
   /** Add a new series column (bar by default). */
   const addSeries = () => {
     setIr(prev => ({
@@ -727,9 +786,18 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
     }));
   };
 
-  /** Delete a series column (by items-array index). */
+  /** Delete a series column (by items-array index). Also drops that
+   * series' slot from `plotColorPalette` (if customized) so the remaining
+   * series' colors don't shift by one position. */
   const deleteSeries = (itemIdx: number) => {
-    setIr(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== itemIdx) }));
+    const position = seriesColorIndex.get(itemIdx);
+    setIr(prev => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== itemIdx),
+      plotColorPalette: prev.plotColorPalette && position !== undefined
+        ? prev.plotColorPalette.filter((_, i) => i !== position)
+        : prev.plotColorPalette,
+    }));
   };
 
   /** Add a new x-category row. */
@@ -825,7 +893,18 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
       slots.forEach((slot, i) => {
         items[slot] = seriesObjs[i];
       });
-      return { ...prev, items };
+      // Move the customized color along with its series, same as the series
+      // object itself above — otherwise a picked color stays pinned to the
+      // old position and silently jumps to whichever series ends up there.
+      const plotColorPalette = prev.plotColorPalette && prev.plotColorPalette.length > 0
+        ? spliceMove(
+            prev.plotColorPalette,
+            from,
+            to,
+            DEFAULT_SERIES_COLOR_HEX[prev.plotColorPalette.length % DEFAULT_SERIES_COLOR_HEX.length],
+          )
+        : prev.plotColorPalette;
+      return { ...prev, items, plotColorPalette };
     });
   }, []);
 
@@ -1155,6 +1234,15 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
               <option value="horizontal">horizontal</option>
             </select>
           </label>
+          {ir.plotColorPalette && ir.plotColorPalette.length > 0 ? (
+            <button
+              type="button"
+              className="mge-xy-btn-reset-colors"
+              onClick={resetSeriesColors}
+            >
+              {t.xychart.resetColors}
+            </button>
+          ) : null}
 
           {/* compact y-axis row */}
           <div className="mge-xy-yaxis-row">
@@ -1262,6 +1350,15 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
                         <input
                           className="mge-xy-input mge-xy-col-title-input"
                           autoFocus
+                          // Bare <input> defaults to HTML's size="20", which
+                          // (unlike the <span> it replaces) contributes a much
+                          // larger intrinsic width to the table's own
+                          // table-layout:auto column-sizing — independent of
+                          // the flex/min-width CSS below, which only governs
+                          // layout *inside* whatever width the table algorithm
+                          // picks. That mismatch, not the CSS, is what widened
+                          // the column on entering edit mode.
+                          size={4}
                           defaultValue={s.title ?? ""}
                           placeholder={t.xychart.seriesLabel(colIdx + 1)}
                           onBlur={e => {
@@ -1289,6 +1386,14 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
                           {s.title ?? t.xychart.seriesLabel(colIdx + 1)}
                         </span>
                       )}
+                      <input
+                        type="color"
+                        className="mge-xy-color-swatch"
+                        value={ir.plotColorPalette?.[colIdx] ?? DEFAULT_SERIES_COLOR_HEX[colIdx % DEFAULT_SERIES_COLOR_HEX.length]}
+                        onChange={e => setSeriesColor(s.index, e.target.value)}
+                        onKeyDown={blurOnEscape}
+                        aria-label={t.xychart.seriesColor(colIdx + 1)}
+                      />
                       <select
                         className="mge-xy-kind-select"
                         value={s.series}
