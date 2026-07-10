@@ -10,6 +10,10 @@ export interface XYSeriesItem {
   type: "series";
   series: XYSeriesKind;
   values: number[];
+  /** GUI-only convenience label (e.g. "Revenue" instead of "Series 1"),
+   *  persisted as a trailing `%% gui:seriesTitle ...` comment on the same
+   *  line since real xychart-beta syntax has no per-series name field. */
+  title?: string;
 }
 
 export interface XYRawItem {
@@ -26,4 +30,8 @@ export interface XYChartIR {
   xAxis?: XYAxis;
   yAxis?: XYAxis;
   items: XYItem[];
+  /** `%%{init}%%`/comment lines found before the header line that the parser
+   *  doesn't understand (i.e. not the single-purpose orientation directive it
+   *  recognizes) — kept verbatim and re-emitted immediately before the header. */
+  leadingRawLines: string[];
 }

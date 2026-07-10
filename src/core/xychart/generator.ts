@@ -24,8 +24,10 @@ const renderAxis = (kind: "x-axis" | "y-axis", axis: XYAxis): string => {
 
 const renderItem = (item: XYItem): string => {
   switch (item.type) {
-    case "series":
-      return `  ${item.series} [${item.values.join(", ")}]`;
+    case "series": {
+      const titleComment = item.title ? ` %% gui:seriesTitle ${item.title}` : "";
+      return `  ${item.series} [${item.values.join(", ")}]${titleComment}`;
+    }
     case "raw":
       return item.line;
   }
@@ -33,6 +35,7 @@ const renderItem = (item: XYItem): string => {
 
 export const generateXYChart = (ir: XYChartIR): string => {
   const lines: string[] = [];
+  for (const raw of ir.leadingRawLines) lines.push(raw);
   lines.push(ir.orientation === "horizontal" ? "xychart-beta horizontal" : "xychart-beta");
 
   if (ir.title !== undefined) lines.push(renderTitle(ir.title));

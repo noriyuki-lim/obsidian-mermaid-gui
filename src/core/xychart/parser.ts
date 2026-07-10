@@ -1,5 +1,5 @@
 import type { ParseOutcome } from "../adapters/types";
-import type { XYAxis, XYChartIR, XYItem } from "./ir-types";
+import type { XYAxis, XYChartIR, XYItem, XYOrientation } from "./ir-types";
 
 /**
  * Parse an xychart-beta Mermaid source into XYChartIR.
@@ -18,6 +18,15 @@ import type { XYAxis, XYChartIR, XYItem } from "./ir-types";
  *
  * Anything else is preserved as RawItem.
  */
+
+// Recognizes only our own single-purpose orientation directive shape (the
+// documented Mermaid alternative to the `xychart-beta horizontal` inline
+// keyword). Anything else starting with `%%` before the header (other init
+// keys, unrelated comments) is preserved verbatim via `leadingRawLines`
+// instead of being silently dropped.
+const ORIENTATION_INIT_RE =
+  /^%%\{\s*init\s*:\s*\{\s*['"]xyChart['"]\s*:\s*\{\s*['"]chartOrientation['"]\s*:\s*['"](horizontal|vertical)['"]\s*\}\s*\}\s*\}%%\s*$/;
+
 export const parseXYChart = (source: string): ParseOutcome<XYChartIR> => {
   const stripped = source
     .replace(/^```\s*mermaid\s*\n/m, "")
@@ -25,9 +34,20 @@ export const parseXYChart = (source: string): ParseOutcome<XYChartIR> => {
   const rawLines = stripped.split(/\r?\n/);
 
   let headerIdx = -1;
+  let orientationFromInit: XYOrientation | null = null;
+  const leadingRawLines: string[] = [];
   for (let i = 0; i < rawLines.length; i++) {
     const t = rawLines[i].trim();
-    if (!t || /^%%/.test(t)) continue;
+    if (!t) continue;
+    if (/^%%/.test(t)) {
+      const m = ORIENTATION_INIT_RE.exec(t);
+      if (m) {
+        orientationFromInit = m[1] as XYOrientation;
+      } else {
+        leadingRawLines.push(rawLines[i]);
+      }
+      continue;
+    }
     headerIdx = i;
     break;
   }
@@ -41,12 +61,15 @@ export const parseXYChart = (source: string): ParseOutcome<XYChartIR> => {
   }
 
   const headerLine = rawLines[headerIdx].trim();
-  const orientation = /\bhorizontal\b/.test(headerLine) ? "horizontal" : "vertical";
+  const orientation: XYOrientation = /\bhorizontal\b/.test(headerLine)
+    ? "horizontal"
+    : orientationFromInit ?? "vertical";
 
   const ir: XYChartIR = {
     kind: "xychart-beta",
     orientation,
     items: [],
+    leadingRawLines,
   };
 
   for (let i = headerIdx + 1; i < rawLines.length; i++) {
@@ -83,10 +106,16 @@ export const parseXYChart = (source: string): ParseOutcome<XYChartIR> => {
       }
     }
 
-    if ((m = /^(bar|line)\s*\[\s*(.*)\s*\]\s*$/.exec(line))) {
+    if ((m = /^(bar|line)\s*\[\s*(.*)\s*\]\s*(?:%%\s*gui:seriesTitle\s+(.*?)\s*)?$/.exec(line))) {
       const values = parseNumericList(m[2]);
       if (values) {
-        ir.items.push({ type: "series", series: m[1] as "bar" | "line", values });
+        const title = m[3]?.trim();
+        ir.items.push({
+          type: "series",
+          series: m[1] as "bar" | "line",
+          values,
+          ...(title ? { title } : {}),
+        });
         continue;
       }
     }

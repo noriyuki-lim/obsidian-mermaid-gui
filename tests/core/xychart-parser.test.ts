@@ -17,6 +17,24 @@ describe("parseXYChart", () => {
     expect(result.ir.orientation).toBe("horizontal");
   });
 
+  it("detects horizontal orientation from a leading %%{init}%% directive", () => {
+    const result = parseXYChart(
+      '%%{init: {"xyChart": {"chartOrientation": "horizontal"}}}%%\nxychart-beta\n',
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.ir.orientation).toBe("horizontal");
+    expect(result.ir.leadingRawLines).toEqual([]);
+  });
+
+  it("preserves an unrecognized leading %% directive instead of dropping it", () => {
+    const result = parseXYChart('%%{init: {"xyChart": {"width": 900}}}%%\nxychart-beta\n');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.ir.orientation).toBe("vertical");
+    expect(result.ir.leadingRawLines).toEqual(['%%{init: {"xyChart": {"width": 900}}}%%']);
+  });
+
   it("returns error when header is missing", () => {
     expect(parseXYChart("flowchart TD\n").ok).toBe(false);
   });
@@ -93,6 +111,22 @@ describe("parseXYChart", () => {
       if (!result.ok) return;
       const series = result.ir.items.filter((i) => i.type === "series");
       expect(series[0]).toMatchObject({ series: "line", values: [1.3, 0.6, 2.4, -0.34] });
+    });
+
+    it("parses a series title from a trailing %% gui:seriesTitle comment", () => {
+      const result = parseXYChart("xychart-beta\n  bar [30, 50, 45] %% gui:seriesTitle Revenue\n");
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const series = result.ir.items.filter((i) => i.type === "series");
+      expect(series[0]).toMatchObject({ series: "bar", values: [30, 50, 45], title: "Revenue" });
+    });
+
+    it("leaves title undefined when there is no trailing comment", () => {
+      const result = parseXYChart("xychart-beta\n  bar [30, 50, 45]\n");
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const series = result.ir.items.filter((i) => i.type === "series");
+      expect((series[0] as { title?: string }).title).toBeUndefined();
     });
 
     it("preserves multiple series in order", () => {

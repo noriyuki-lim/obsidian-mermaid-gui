@@ -5,12 +5,12 @@ import type { XYChartIR } from "../../src/core/xychart/ir-types";
 
 describe("generateXYChart", () => {
   it("emits bare header for empty IR", () => {
-    const ir: XYChartIR = { kind: "xychart-beta", orientation: "vertical", items: [] };
+    const ir: XYChartIR = { kind: "xychart-beta", orientation: "vertical", items: [], leadingRawLines: [] };
     expect(generateXYChart(ir)).toBe("xychart-beta\n");
   });
 
   it("emits horizontal orientation", () => {
-    const ir: XYChartIR = { kind: "xychart-beta", orientation: "horizontal", items: [] };
+    const ir: XYChartIR = { kind: "xychart-beta", orientation: "horizontal", items: [], leadingRawLines: [] };
     expect(generateXYChart(ir).startsWith("xychart-beta horizontal")).toBe(true);
   });
 
@@ -20,6 +20,7 @@ describe("generateXYChart", () => {
       orientation: "vertical",
       title: "Monthly Sales",
       items: [],
+      leadingRawLines: [],
     };
     expect(generateXYChart(ir)).toContain('title "Monthly Sales"');
   });
@@ -30,6 +31,7 @@ describe("generateXYChart", () => {
       orientation: "vertical",
       xAxis: { kind: "categorical", title: "Months", categories: ["Jan", "Feb"] },
       items: [],
+      leadingRawLines: [],
     };
     expect(generateXYChart(ir)).toContain('  x-axis "Months" [Jan, Feb]');
   });
@@ -40,6 +42,7 @@ describe("generateXYChart", () => {
       orientation: "vertical",
       xAxis: { kind: "categorical", categories: ["Jan", "Feb 2024"] },
       items: [],
+      leadingRawLines: [],
     };
     expect(generateXYChart(ir)).toContain('[Jan, "Feb 2024"]');
   });
@@ -50,6 +53,7 @@ describe("generateXYChart", () => {
       orientation: "vertical",
       yAxis: { kind: "numeric", title: "Revenue", min: 0, max: 100 },
       items: [],
+      leadingRawLines: [],
     };
     expect(generateXYChart(ir)).toContain('  y-axis "Revenue" 0 --> 100');
   });
@@ -59,6 +63,7 @@ describe("generateXYChart", () => {
       kind: "xychart-beta",
       orientation: "vertical",
       items: [{ type: "series", series: "bar", values: [1, 2, 3] }],
+      leadingRawLines: [],
     };
     expect(generateXYChart(ir)).toContain("  bar [1, 2, 3]");
   });
@@ -68,8 +73,39 @@ describe("generateXYChart", () => {
       kind: "xychart-beta",
       orientation: "vertical",
       items: [{ type: "raw", line: "  %% custom" }],
+      leadingRawLines: [],
     };
     expect(generateXYChart(ir)).toContain("  %% custom");
+  });
+
+  it("emits leadingRawLines before the header", () => {
+    const ir: XYChartIR = {
+      kind: "xychart-beta",
+      orientation: "vertical",
+      items: [],
+      leadingRawLines: ["%% kept comment"],
+    };
+    expect(generateXYChart(ir)).toBe("%% kept comment\nxychart-beta\n");
+  });
+
+  it("emits a series title as a trailing %% gui:seriesTitle comment", () => {
+    const ir: XYChartIR = {
+      kind: "xychart-beta",
+      orientation: "vertical",
+      items: [{ type: "series", series: "bar", values: [1, 2, 3], title: "Revenue" }],
+      leadingRawLines: [],
+    };
+    expect(generateXYChart(ir)).toContain("  bar [1, 2, 3] %% gui:seriesTitle Revenue");
+  });
+
+  it("omits the title comment when no title is set", () => {
+    const ir: XYChartIR = {
+      kind: "xychart-beta",
+      orientation: "vertical",
+      items: [{ type: "series", series: "bar", values: [1, 2, 3] }],
+      leadingRawLines: [],
+    };
+    expect(generateXYChart(ir)).not.toContain("gui:seriesTitle");
   });
 });
 
@@ -101,5 +137,35 @@ describe("xychart parse → generate → parse round-trip", () => {
     expect(second.ir.xAxis).toEqual(first.ir.xAxis);
     expect(second.ir.yAxis).toEqual(first.ir.yAxis);
     expect(second.ir.items.length).toBe(first.ir.items.length);
+  });
+
+  it("keeps orientation horizontal when the source used a %%{init}%% directive instead of the inline keyword", () => {
+    const initSrc = '%%{init: {"xyChart": {"chartOrientation": "horizontal"}}}%%\nxychart-beta\n  bar [1, 2, 3]\n';
+    const first = parseXYChart(initSrc);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    expect(first.ir.orientation).toBe("horizontal");
+
+    const regenerated = generateXYChart(first.ir);
+    const second = parseXYChart(regenerated);
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    expect(second.ir.orientation).toBe("horizontal");
+  });
+
+  it("keeps a renamed series title across a save + reopen (parse → generate → parse)", () => {
+    const first = parseXYChart(src);
+    if (!first.ok) return;
+    const renamed = {
+      ...first.ir,
+      items: first.ir.items.map(item =>
+        item.type === "series" && item.series === "bar" ? { ...item, title: "Revenue" } : item,
+      ),
+    };
+    const second = parseXYChart(generateXYChart(renamed));
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    const barSeries = second.ir.items.find(i => i.type === "series" && i.series === "bar");
+    expect((barSeries as { title?: string } | undefined)?.title).toBe("Revenue");
   });
 });
