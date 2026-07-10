@@ -4,6 +4,7 @@ import { ReactHost } from "./ReactHost";
 import { MermaidEditor } from "../ui/MermaidEditor";
 import { renderMermaidThemed } from "./mermaidRender";
 import { detectLocale } from "./locale";
+import { isEditableShortcutTarget } from "../ui/keyboard";
 
 export interface EditorModalHandlers {
   onSave: (newSource: string) => Promise<void> | void;
@@ -50,6 +51,21 @@ export class EditorModal extends Modal {
     if (isTransparentThemeActive(this.app)) {
       this.modalEl.addClass("mge-theme-transparent");
     }
+    // Obsidian's default Modal behaviour is to close unconditionally on
+    // Escape. Every inline text field inside the editors (category/series
+    // rename, xychart value edit, gantt task edit, table cells, ...) also
+    // treats Escape as "cancel this edit", but the two aren't in conflict by
+    // default — Obsidian's Escape-to-close still fires regardless, closing
+    // the whole modal instead of just cancelling the inline edit. Registering
+    // our own handler for the same key takes Escape over entirely for this
+    // modal, so while an editable field is focused we return `false` (per
+    // `KeymapEventListener`'s docs, this means "not handled by me" — let the
+    // native keydown continue to that field's own onKeyDown, which does the
+    // actual cancelling) instead of closing.
+    this.scope.register([], "Escape", () => {
+      if (isEditableShortcutTarget(document.activeElement)) return false;
+      this.close();
+    });
     this.contentEl.empty();
     this.contentEl.addClass("mge-modal-content");
     const mount = this.contentEl.createDiv({ cls: "mge-react-root" });
@@ -77,6 +93,26 @@ export class EditorModal extends Modal {
     const modalState = createModalPlacementState();
     this.dragCleanup = installToolbarDrag(this.modalEl, this.contentEl, modalState);
     this.resizeCleanup = installCornerResize(this.modalEl, modalState);
+  }
+
+  /**
+   * Last-resort guard against Obsidian's Escape-to-close, layered on top of
+   * the `scope.register` override in `onOpen()` above. Whatever internal
+   * mechanism Obsidian actually uses to wire Escape to closing a Modal, it
+   * has to end up calling this public `close()` method — so intercepting
+   * *here* doesn't depend on guessing that mechanism's dispatch order the
+   * way the `scope.register` attempt does. If Escape reaches here while an
+   * inline edit field still has focus (its own onKeyDown hasn't blurred it
+   * yet — this runs synchronously in the same keydown, before React gets a
+   * turn, when Obsidian's handler is registered higher up in capture phase),
+   * swallow the close instead of tearing down the whole editor. Save/Cancel
+   * always reach here via a button click, which browsers already move focus
+   * to before this runs, so `document.activeElement` is the button, not an
+   * editable field — this can't accidentally swallow a real save/cancel.
+   */
+  close(): void {
+    if (isEditableShortcutTarget(document.activeElement)) return;
+    super.close();
   }
 
   onClose(): void {
