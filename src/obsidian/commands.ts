@@ -90,7 +90,7 @@ export const openModalForBlock = (
   }
   new EditorModal(plugin.app, block.source, {
     onSave: async (newSource) => {
-      await writeBlockBack(plugin.app, file.path, block, newSource);
+      await writeBlockBack(plugin.app, file.path, block, newSource, block.source);
     },
     onExportSvg: async (src) => {
       await exportSvgToVault(plugin.app, file.path, src);
