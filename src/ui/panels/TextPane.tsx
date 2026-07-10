@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useEditorStore } from "../EditorContext";
+import { blurOnEscape } from "../keyboard";
 import { FLOWCHART_TEXT_PANE_HEIGHT_KEY, loadNumber, saveNumber } from "../layoutPrefs";
 
 const COMMIT_DEBOUNCE_MS = 700;
@@ -128,6 +129,7 @@ export const TextPane = () => {
         value={text}
         onChange={handleChange}
         onBlur={handleBlur}
+        onKeyDown={blurOnEscape}
         spellCheck={false}
         wrap="off"
       />

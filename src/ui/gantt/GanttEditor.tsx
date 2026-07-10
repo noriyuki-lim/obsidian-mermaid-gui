@@ -12,6 +12,7 @@ import { generateGantt } from "../../core/gantt/generator";
 import { formatGanttAxisTick } from "../../core/gantt/axis-format";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import { useT } from "../EditorHostContext";
+import { blurOnEscape } from "../keyboard";
 import type { GanttIR, GanttItem, GanttTask, GanttTaskStatus } from "../../core/gantt/ir-types";
 
 interface Props {
@@ -1131,6 +1132,14 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       return;
     }
 
+    // Plain, live-bound cell (no draft/picker to close) — blur so a second
+    // Escape reaches EditorModal's close() instead of doing nothing (its
+    // close() override defers to whichever field is currently focused).
+    if (event.key === "Escape") {
+      event.currentTarget.blur();
+      return;
+    }
+
     // F2 toggles navigation vs cell-edit mode (goal 7).
     if (event.key === "F2") {
       event.preventDefault();
@@ -1414,6 +1423,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
           aria-label={`${field} type`}
           value={valueType}
           onChange={(event) => setType(event.target.value as ScheduleValueType)}
+          onKeyDown={blurOnEscape}
         >
           <option value="date">date</option>
           {field === "start" ? <option value="after">after</option> : <option value="duration">dur</option>}
@@ -1488,6 +1498,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
               className="mge-gantt-field"
               value={ir.title ?? ""}
               onChange={(event) => setIr({ ...ir, title: event.target.value || undefined })}
+              onKeyDown={blurOnEscape}
               placeholder="(no title)"
             />
           </label>
@@ -1497,6 +1508,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
               className="mge-gantt-field"
               value={ir.dateFormat ?? ""}
               onChange={(event) => setIr({ ...ir, dateFormat: event.target.value || undefined })}
+              onKeyDown={blurOnEscape}
               placeholder="YYYY-MM-DD"
             />
           </label>
@@ -1610,6 +1622,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
                             modifiers: composeModifiers(primaryStatus(task.modifiers), event.target.checked),
                           })
                         }
+                        onKeyDown={blurOnEscape}
                       />
                       crit
                     </label>

@@ -3,6 +3,7 @@ import { parseSequence } from "../../core/sequence/parser";
 import { generateSequence } from "../../core/sequence/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import { useT } from "../EditorHostContext";
+import { blurOnEscape } from "../keyboard";
 import type {
   ActorItem,
   ActivationItem,
@@ -110,7 +111,7 @@ export const SequenceEditor = ({ initialSource, onSave, onCancel, renderMermaid 
   }, [saving, currentSource, onSave]);
 
   const participantSelect = (value: string, onChange: (v: string) => void) => (
-    <select className="mge-seq-select" value={value} onChange={(e) => onChange(e.target.value)}>
+    <select className="mge-seq-select" value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={blurOnEscape}>
       {aliases.map((a) => (
         <option key={a} value={a}>
           {a}
@@ -162,6 +163,7 @@ export const SequenceEditor = ({ initialSource, onSave, onCancel, renderMermaid 
                   className="mge-seq-input"
                   value={item.alias}
                   onChange={(e) => updateAt(idx, { alias: e.target.value })}
+                  onKeyDown={blurOnEscape}
                   placeholder="alias"
                 />
                 <span className="mge-seq-row-label">as</span>
@@ -169,6 +171,7 @@ export const SequenceEditor = ({ initialSource, onSave, onCancel, renderMermaid 
                   className="mge-seq-input mge-seq-input-wide"
                   value={item.label ?? ""}
                   onChange={(e) => updateAt(idx, { label: e.target.value || undefined })}
+                  onKeyDown={blurOnEscape}
                   placeholder="label (optional)"
                 />
                 <button
@@ -215,6 +218,7 @@ export const SequenceEditor = ({ initialSource, onSave, onCancel, renderMermaid 
                     className="mge-seq-select mge-seq-arrow-select"
                     value={item.arrow}
                     onChange={(e) => updateAt(idx, { arrow: e.target.value as ArrowType })}
+                    onKeyDown={blurOnEscape}
                   >
                     <option value="solid-arrow">-&gt;&gt;</option>
                     <option value="dotted-arrow">--&gt;&gt;</option>
@@ -225,6 +229,7 @@ export const SequenceEditor = ({ initialSource, onSave, onCancel, renderMermaid 
                     className="mge-seq-input mge-seq-input-wide"
                     value={item.text}
                     onChange={(e) => updateAt(idx, { text: e.target.value })}
+                    onKeyDown={blurOnEscape}
                     placeholder="message text"
                   />
                   <button
@@ -245,6 +250,7 @@ export const SequenceEditor = ({ initialSource, onSave, onCancel, renderMermaid 
                     className="mge-seq-select"
                     value={item.position}
                     onChange={(e) => updateAt(idx, { position: e.target.value as NotePosition })}
+                    onKeyDown={blurOnEscape}
                   >
                     <option value="over">over</option>
                     <option value="right of">right of</option>
@@ -261,6 +267,7 @@ export const SequenceEditor = ({ initialSource, onSave, onCancel, renderMermaid 
                           .filter(Boolean),
                       })
                     }
+                    onKeyDown={blurOnEscape}
                     placeholder={t.sequence.actorsPlaceholder}
                   />
                   <span className="mge-seq-row-label">:</span>
@@ -268,6 +275,7 @@ export const SequenceEditor = ({ initialSource, onSave, onCancel, renderMermaid 
                     className="mge-seq-input mge-seq-input-wide"
                     value={item.text}
                     onChange={(e) => updateAt(idx, { text: e.target.value })}
+                    onKeyDown={blurOnEscape}
                     placeholder="note text"
                   />
                   <button

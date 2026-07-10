@@ -10,6 +10,7 @@ import { parseXYChart } from "../../core/xychart/parser";
 import { generateXYChart } from "../../core/xychart/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import { useT } from "../EditorHostContext";
+import { blurOnEscape } from "../keyboard";
 import type {
   XYAxis,
   XYChartIR,
@@ -1068,6 +1069,13 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
       setEditMode((mode) => !mode);
       return;
     }
+    // Plain, live-bound cell — blur so a second Escape reaches EditorModal's
+    // close() instead of doing nothing (its close() override defers to
+    // whichever field is currently focused).
+    if (event.key === "Escape") {
+      event.currentTarget.blur();
+      return;
+    }
     if (editMode && (event.key === "ArrowLeft" || event.key === "ArrowRight")) return;
     if (editMode && col > 0 && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
       event.preventDefault();
@@ -1131,6 +1139,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
               className="mge-xy-input mge-xy-input-wide"
               value={ir.title ?? ""}
               onChange={e => setIr(prev => ({ ...prev, title: e.target.value || undefined }))}
+              onKeyDown={blurOnEscape}
               placeholder="(no title)"
             />
           </label>
@@ -1140,6 +1149,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
               className="mge-xy-select"
               value={ir.orientation}
               onChange={e => setIr(prev => ({ ...prev, orientation: e.target.value as XYOrientation }))}
+              onKeyDown={blurOnEscape}
             >
               <option value="vertical">vertical</option>
               <option value="horizontal">horizontal</option>
@@ -1153,6 +1163,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
               className="mge-xy-input"
               value={yTitle}
               onChange={e => setYAxis({ title: e.target.value })}
+              onKeyDown={blurOnEscape}
               placeholder="label"
               style={{ width: "8rem" }}
             />
@@ -1161,6 +1172,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
                 type="checkbox"
                 checked={yAutoEnabled}
                 onChange={e => setYAxis({ auto: e.target.checked })}
+                onKeyDown={blurOnEscape}
               />
               auto
             </label>
@@ -1174,6 +1186,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
                     step="any"
                     value={yMin}
                     onChange={e => setYAxis({ min: Number(e.target.value) })}
+                    onKeyDown={blurOnEscape}
                   />
                   <span className="mge-xy-num-stepper">
                     <button
@@ -1202,6 +1215,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
                     step="any"
                     value={yMax}
                     onChange={e => setYAxis({ max: Number(e.target.value) })}
+                    onKeyDown={blurOnEscape}
                   />
                   <span className="mge-xy-num-stepper">
                     <button
@@ -1279,6 +1293,7 @@ export const XYChartEditor = ({ initialSource, onSave, onCancel, renderMermaid }
                         className="mge-xy-kind-select"
                         value={s.series}
                         onChange={e => setSeriesKind(s.index, e.target.value as XYSeriesKind)}
+                        onKeyDown={blurOnEscape}
                         title="bar / line"
                       >
                         <option value="bar">bar</option>

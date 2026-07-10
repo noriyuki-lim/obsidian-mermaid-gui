@@ -15,7 +15,7 @@ import { PropertyPanel } from "./panels/PropertyPanel";
 import { TextPane } from "./panels/TextPane";
 import { FlowCanvas } from "./canvas/FlowCanvas";
 import { EditorStoreProvider } from "./EditorContext";
-import { isEditableShortcutTarget, shouldRemoveSelectionFromKey } from "./keyboard";
+import { blurFocusedEditableOnEscape, isEditableShortcutTarget, shouldRemoveSelectionFromKey } from "./keyboard";
 
 export interface FlowchartEditorProps {
   /** Raw text from inside ```mermaid fences (without the fences themselves). */
@@ -120,6 +120,7 @@ export const FlowchartEditor = ({
           ref={shellRef}
           tabIndex={-1}
           onMouseDownCapture={focusShell}
+          onKeyDownCapture={blurFocusedEditableOnEscape}
         >
           <Toolbar
             onSave={handleSave}

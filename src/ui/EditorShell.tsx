@@ -7,7 +7,7 @@ import {
 } from "react";
 import { EditorActions } from "./EditorActions";
 import { useEditorHost, useT } from "./EditorHostContext";
-import { isEditableShortcutTarget } from "./keyboard";
+import { blurFocusedEditableOnEscape, blurOnEscape, isEditableShortcutTarget } from "./keyboard";
 import type { DiagramKind } from "../core/diagram-kind";
 import { loadNumber, previewRatioKey, saveNumber, sideRatioKey } from "./layoutPrefs";
 
@@ -408,6 +408,7 @@ export const EditorShell = ({
               }
             : undefined
         }
+        onKeyDown={editable ? blurOnEscape : undefined}
         onBlur={
           editable
             ? () => {
@@ -435,6 +436,7 @@ export const EditorShell = ({
       <div
         className={`mge-editor-shell mge-editor-shell-stacked ${sourceOpen ? "mge-source-open" : ""} ${sidePanel ? "mge-has-sidepanel" : ""}`}
         ref={shellRef}
+        onKeyDownCapture={blurFocusedEditableOnEscape}
         style={{
           ["--mge-side-ratio" as string]: initialSideRatio,
           ["--mge-preview-ratio" as string]: initialPreviewRatio,
@@ -496,6 +498,7 @@ export const EditorShell = ({
     <div
       className="mge-editor-shell"
       ref={shellRef}
+      onKeyDownCapture={blurFocusedEditableOnEscape}
       style={{
         ["--mge-side-ratio" as string]: initialSideRatio,
         ["--mge-preview-ratio" as string]: initialPreviewRatio,
