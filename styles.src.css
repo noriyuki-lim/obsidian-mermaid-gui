@@ -1663,12 +1663,12 @@ body.theme-dark .mge-seq-badge-raw {
 }
 /* Narrower than the old left-form column, so each row gets its own compact
    card (rather than reusing the bare bottom-border `.mge-seq-row` look) —
-   gives `.selected` a clear box to highlight, and lets name/x/y/delete wrap
-   onto two lines instead of squeezing onto one. */
+   gives `.selected` a clear box to highlight. Two explicit sub-rows (not a
+   single wrapping flex row) so the name+delete line and the x/y line are
+   always exactly where expected regardless of available width. */
 .mge-quad-points-row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
   gap: 4px;
   padding: 5px 6px;
   border: 1px solid transparent;
@@ -1682,8 +1682,23 @@ body.theme-dark .mge-seq-badge-raw {
   border-color: var(--interactive-accent, #7c5cfc);
   box-shadow: 0 0 0 1px var(--interactive-accent, #7c5cfc) inset;
 }
-.mge-quad-points-row .mge-seq-input-wide {
-  flex-basis: 100%;
+.mge-quad-points-row-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.mge-quad-points-row-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+/* Shrinks to make room for the delete button beside it on the same line
+   (was full-width on its own line before, pushing the row to 3 lines at
+   this panel's ~220px width). */
+.mge-quad-points-name-input {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /* ---------- Source-only textarea ---------- */

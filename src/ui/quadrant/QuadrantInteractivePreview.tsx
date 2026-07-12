@@ -7,6 +7,7 @@ interface Props {
   selected: number | null;
   onPointMove: (index: number, x: number, y: number) => void;
   onSelectPoint: (index: number | null) => void;
+  onFocusPointName: (index: number) => void;
 }
 
 const clamp01 = (n: number) => Math.min(Math.max(n, 0), 1);
@@ -34,7 +35,13 @@ const POINT_RADIUS = 1.3;
  * (matching Mermaid's quadrantChart contract), so we flip y when projecting
  * onto the SVG.
  */
-export const QuadrantInteractivePreview = ({ ir, selected, onPointMove, onSelectPoint }: Props) => {
+export const QuadrantInteractivePreview = ({
+  ir,
+  selected,
+  onPointMove,
+  onSelectPoint,
+  onFocusPointName,
+}: Props) => {
   const t = useT();
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<{ index: number; pointerId: number } | null>(null);
@@ -190,7 +197,7 @@ export const QuadrantInteractivePreview = ({ ir, selected, onPointMove, onSelect
             .filter(Boolean)
             .join(" ");
           return (
-            <g key={index} className={cls}>
+            <g key={index} className={cls} onDoubleClick={() => onFocusPointName(index)}>
               <circle
                 cx={cx}
                 cy={cy}
