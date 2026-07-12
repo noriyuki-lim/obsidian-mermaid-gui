@@ -1155,34 +1155,31 @@ body.mge-dragging .mge-seq-toolbar { cursor: grabbing; }
 .mge-source-only-toolbar button:hover { background: #ffffff20; }
 .mge-source-only-toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* Chromeless button — shared by the "+ item" / delete-row buttons across all
+/* "+ item" add-button base — shared bordered/filled button across all
    `.mge-seq-*`-based editors (sequence/class/state/pie/sankey/quadrant/er/
-   mindmap/journey/architecture/block/radar/timeline). Same treatment as the
-   quadrant/xychart numeric steppers: border/background/box-shadow/color/
-   opacity all need `!important` to beat Obsidian's default `<button>` chrome;
-   `--text-normal`/`--text-error` (not `--text-muted`/`--text-faint`, which
-   render near-invisible under the "Transparent" theme) + opacity for
-   de-emphasis instead of a filled/bordered box. Click area (padding) is
-   unchanged — only the visible box goes away. */
+   mindmap/journey/architecture/block/radar/timeline). Kept as a normal boxed
+   button by request (only the delete/danger variant below goes chromeless) —
+   uses theme-aware tokens rather than the old hardcoded #fff/#ffffff40,
+   which read as white-on-white (near-invisible) once this button started
+   rendering on `.mge-seq-section`'s light-theme `--background-secondary`
+   instead of the dark toolbar it was originally designed against. */
 .mge-seq-btn {
   padding: 5px 12px;
-  border: none !important;
+  border: 1px solid var(--background-modifier-border, #3a3a3a);
   border-radius: 4px;
-  background: transparent !important;
-  box-shadow: none !important;
-  color: var(--text-normal, #1f1f2e) !important;
-  opacity: 0.7 !important;
+  background: var(--background-secondary, transparent);
+  color: var(--text-normal, #1f1f2e);
   cursor: pointer;
   font: inherit;
   font-size: 13px;
-  transition: opacity 0.1s;
+  transition: background 0.1s, border-color 0.1s;
 }
 .mge-seq-btn:hover {
-  background: transparent !important;
-  opacity: 1 !important;
+  background: var(--background-modifier-hover, rgba(0, 0, 0, 0.05));
+  border-color: var(--interactive-accent, #7c5cfc);
 }
 .mge-seq-btn:disabled {
-  opacity: 0.35 !important;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -1190,8 +1187,21 @@ body.mge-dragging .mge-seq-toolbar { cursor: grabbing; }
   padding: 3px 8px;
   font-size: 12px;
 }
+/* Delete/danger buttons are the one variant that stays chromeless (per
+   feedback — see the "chromeless button" note in the CSS お作法 section of
+   AGENTS.md): border/background/box-shadow/color/opacity all `!important` so
+   they don't inherit `.mge-seq-btn`'s box regardless of cascade order. */
 .mge-seq-btn-danger {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
   color: var(--text-error, #c0392b) !important;
+  opacity: 0.7 !important;
+}
+.mge-seq-btn-danger:hover {
+  background: transparent !important;
+  border-color: transparent !important;
+  opacity: 1 !important;
 }
 
 /* ---------- Sequence editor body ---------- */
