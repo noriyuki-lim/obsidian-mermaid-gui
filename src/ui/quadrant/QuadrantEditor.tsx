@@ -76,10 +76,12 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
 
   const addPoint = () => {
     const next = ir.items.filter((i) => i.type === "point").length + 1;
+    const newIndex = ir.items.length;
     setIr((prev) => ({
       ...prev,
       items: [...prev.items, { type: "point", name: `Point ${next}`, x: 0.5, y: 0.5 }],
     }));
+    focusPointName(newIndex);
   };
 
   const currentSource = useMemo(() => generateQuadrant(ir), [ir]);

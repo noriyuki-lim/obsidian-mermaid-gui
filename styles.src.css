@@ -1136,9 +1136,12 @@ body.mge-preview-resizing * {
 body.mge-dragging .mge-source-only .mge-source-only-toolbar,
 body.mge-dragging .mge-seq-toolbar { cursor: grabbing; }
 
-/* Generic button — used outside the toolbar's white-text context */
-.mge-source-only-toolbar button,
-.mge-seq-btn {
+/* `.mge-source-only-toolbar` no longer exists in any component (SourceOnlyEditor
+   was refactored onto the shared EditorShell) — kept as a harmless dead
+   selector rather than chasing it down, but no longer combined with
+   `.mge-seq-btn` below so it can't leak its old white-on-dark-toolbar styling
+   into the chromeless treatment. */
+.mge-source-only-toolbar button {
   padding: 5px 12px;
   border: 1px solid #ffffff40;
   border-radius: 4px;
@@ -1149,26 +1152,47 @@ body.mge-dragging .mge-seq-toolbar { cursor: grabbing; }
   font-size: 13px;
   transition: background 0.1s;
 }
-.mge-source-only-toolbar button:hover,
-.mge-seq-btn:hover { background: #ffffff20; }
-.mge-source-only-toolbar button:disabled,
-.mge-seq-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.mge-source-only-toolbar button:hover { background: #ffffff20; }
+.mge-source-only-toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.mge-seq-btn-primary {
-  background: #fff !important;
-  color: var(--mge-brand, #2b245c) !important;
-  border-color: #fff !important;
-  font-weight: 600;
+/* Chromeless button — shared by the "+ item" / delete-row buttons across all
+   `.mge-seq-*`-based editors (sequence/class/state/pie/sankey/quadrant/er/
+   mindmap/journey/architecture/block/radar/timeline). Same treatment as the
+   quadrant/xychart numeric steppers: border/background/box-shadow/color/
+   opacity all need `!important` to beat Obsidian's default `<button>` chrome;
+   `--text-normal`/`--text-error` (not `--text-muted`/`--text-faint`, which
+   render near-invisible under the "Transparent" theme) + opacity for
+   de-emphasis instead of a filled/bordered box. Click area (padding) is
+   unchanged — only the visible box goes away. */
+.mge-seq-btn {
+  padding: 5px 12px;
+  border: none !important;
+  border-radius: 4px;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-normal, #1f1f2e) !important;
+  opacity: 0.7 !important;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  transition: opacity 0.1s;
 }
+.mge-seq-btn:hover {
+  background: transparent !important;
+  opacity: 1 !important;
+}
+.mge-seq-btn:disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed;
+}
+
 .mge-seq-btn-sm {
   padding: 3px 8px;
   font-size: 12px;
 }
 .mge-seq-btn-danger {
-  border-color: rgba(192, 57, 43, 0.5) !important;
-  color: #c0392b !important;
+  color: var(--text-error, #c0392b) !important;
 }
-.mge-seq-btn-danger:hover { background: rgba(192, 57, 43, 0.12) !important; }
 
 /* ---------- Sequence editor body ---------- */
 .mge-seq-body {
