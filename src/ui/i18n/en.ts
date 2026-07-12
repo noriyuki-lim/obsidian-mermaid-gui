@@ -123,12 +123,12 @@ export const en: typeof ja = {
     resetColors: "Reset colors",
   },
   quadrant: {
-    pointsEmpty: "No points yet. Add one with +, or scroll the preview to the right.",
+    pointsEmpty: "No points yet. Add one with +.",
     increaseX: "Increase x",
     decreaseX: "Decrease x",
     increaseY: "Increase y",
     decreaseY: "Decrease y",
-    dragHint: "Drag a point to edit its position",
+    dragHint: "Drag a point to edit its position. Click to select, Delete/Backspace to remove.",
   },
   architecture: {
     groupsEmpty: "No groups defined.",

@@ -123,12 +123,12 @@ export const ja = {
     resetColors: "色をリセット",
   },
   quadrant: {
-    pointsEmpty: "ポイントが未定義。+ で追加するか、プレビューを右にスクロール。",
+    pointsEmpty: "ポイントが未定義。+ で追加。",
     increaseX: "x を増やす",
     decreaseX: "x を減らす",
     increaseY: "y を増やす",
     decreaseY: "y を減らす",
-    dragHint: "ポイントをドラッグして位置を編集",
+    dragHint: "ポイントをドラッグして位置を編集。クリックで選択、Delete/Backspaceで削除。",
   },
   architecture: {
     groupsEmpty: "グループ未定義。",

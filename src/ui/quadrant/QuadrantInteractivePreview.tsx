@@ -4,7 +4,9 @@ import { useT } from "../EditorHostContext";
 
 interface Props {
   ir: QuadrantIR;
+  selected: number | null;
   onPointMove: (index: number, x: number, y: number) => void;
+  onSelectPoint: (index: number | null) => void;
 }
 
 const clamp01 = (n: number) => Math.min(Math.max(n, 0), 1);
@@ -32,7 +34,7 @@ const POINT_RADIUS = 1.3;
  * (matching Mermaid's quadrantChart contract), so we flip y when projecting
  * onto the SVG.
  */
-export const QuadrantInteractivePreview = ({ ir, onPointMove }: Props) => {
+export const QuadrantInteractivePreview = ({ ir, selected, onPointMove, onSelectPoint }: Props) => {
   const t = useT();
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<{ index: number; pointerId: number } | null>(null);
@@ -75,6 +77,7 @@ export const QuadrantInteractivePreview = ({ ir, onPointMove }: Props) => {
     (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
     dragRef.current = { index, pointerId: e.pointerId };
     setDragging(index);
+    onSelectPoint(index);
   };
 
   const onPointerMove = (e: React.PointerEvent<SVGElement>) => {
@@ -182,8 +185,12 @@ export const QuadrantInteractivePreview = ({ ir, onPointMove }: Props) => {
           const cx = item.x * 100;
           const cy = (1 - item.y) * 100;
           const isActive = dragging === index;
+          const isSelected = selected === index;
+          const cls = ["mge-quad-point", isActive && "active", isSelected && "selected"]
+            .filter(Boolean)
+            .join(" ");
           return (
-            <g key={index} className={isActive ? "mge-quad-point active" : "mge-quad-point"}>
+            <g key={index} className={cls}>
               <circle
                 cx={cx}
                 cy={cy}

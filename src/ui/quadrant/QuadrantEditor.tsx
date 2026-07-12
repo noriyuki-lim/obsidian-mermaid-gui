@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { parseQuadrant } from "../../core/quadrant/parser";
 import { generateQuadrant } from "../../core/quadrant/generator";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import { useT } from "../EditorHostContext";
+import { shouldRemoveSelectionFromKey } from "../keyboard";
 import { QuadrantInteractivePreview } from "./QuadrantInteractivePreview";
 import type {
   QuadrantIR,
@@ -41,6 +42,7 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
   const t = useT();
   const [ir, setIr] = useState<QuadrantIR>(() => seed(initialSource));
   const [saving, setSaving] = useState(false);
+  const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
 
   const updateItem = (index: number, patch: Partial<QuadrantItem>) => {
     setIr((prev) => ({
@@ -64,6 +66,11 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
 
   const deleteItem = (index: number) => {
     setIr((prev) => ({ ...prev, items: prev.items.filter((_, i) => i !== index) }));
+    setSelectedPoint((prev) => {
+      if (prev === null) return null;
+      if (prev === index) return null;
+      return prev > index ? prev - 1 : prev;
+    });
   };
 
   const addPoint = () => {
@@ -80,8 +87,23 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
     const outcome = parseQuadrant(next);
     if (!outcome.ok) return { ok: false, error: outcome.message };
     setIr(outcome.ir);
+    setSelectedPoint(null);
     return { ok: true };
   }, []);
+
+  const onPreviewKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (selectedPoint === null || !shouldRemoveSelectionFromKey(e)) return;
+    e.preventDefault();
+    deleteItem(selectedPoint);
+  };
+
+  const onPreviewClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (selectedPoint === null) return;
+    const target = e.target as HTMLElement;
+    if (!target.closest(".mge-quad-point") && !target.closest(".mge-quad-points-row")) {
+      setSelectedPoint(null);
+    }
+  };
 
   const handleSave = useCallback(async () => {
     if (saving) return;
@@ -96,13 +118,131 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
   return (
     <EditorShell
       diagramKind="quadrantChart"
-      defaultSideRatio={0.55}
+      defaultSideRatio={0.62}
       defaultPreviewRatio={0.68}
       currentSource={currentSource}
       onSave={handleSave}
       onCancel={onCancel}
       saving={saving}
-      previewOverride={<QuadrantInteractivePreview ir={ir} onPointMove={movePoint} />}
+      previewOverride={
+        <div
+          className="mge-quad-preview-wrap"
+          tabIndex={-1}
+          onKeyDown={onPreviewKeyDown}
+          onClick={onPreviewClick}
+        >
+          <QuadrantInteractivePreview
+            ir={ir}
+            selected={selectedPoint}
+            onPointMove={movePoint}
+            onSelectPoint={setSelectedPoint}
+          />
+          <div className="mge-quad-points-panel">
+            <div className="mge-seq-section-header">
+              <span className="mge-seq-section-title">Points</span>
+              <div className="mge-seq-add-btns">
+                <button className="mge-seq-btn mge-seq-btn-sm" onClick={addPoint}>
+                  + point
+                </button>
+              </div>
+            </div>
+            {ir.items.filter((i) => i.type === "point").length === 0 && (
+              <p className="mge-seq-empty">{t.quadrant.pointsEmpty}</p>
+            )}
+            {ir.items.map((item, idx) => {
+              if (item.type === "point") {
+                const isSelected = selectedPoint === idx;
+                return (
+                  <div
+                    key={idx}
+                    className={"mge-quad-points-row" + (isSelected ? " selected" : "")}
+                    onClick={() => setSelectedPoint(idx)}
+                  >
+                    <input
+                      className="mge-seq-input mge-seq-input-wide"
+                      value={item.name}
+                      onChange={(e) => updateItem(idx, { name: e.target.value })}
+                      placeholder="name"
+                    />
+                    <span className="mge-seq-row-label">x</span>
+                    <span className="mge-quad-point-field">
+                      <input
+                        className="mge-seq-input"
+                        type="number"
+                        step={POINT_STEP}
+                        min={0}
+                        max={1}
+                        value={item.x}
+                        onChange={(e) => updateItem(idx, { x: Number(e.target.value) })}
+                      />
+                      <span className="mge-quad-point-stepper">
+                        <button
+                          type="button"
+                          className="mge-quad-point-stepper-btn"
+                          aria-label={t.quadrant.increaseX}
+                          onClick={() => updateItem(idx, { x: round(clamp01(item.x + POINT_STEP)) })}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          className="mge-quad-point-stepper-btn"
+                          aria-label={t.quadrant.decreaseX}
+                          onClick={() => updateItem(idx, { x: round(clamp01(item.x - POINT_STEP)) })}
+                        >
+                          ▼
+                        </button>
+                      </span>
+                    </span>
+                    <span className="mge-seq-row-label">y</span>
+                    <span className="mge-quad-point-field">
+                      <input
+                        className="mge-seq-input"
+                        type="number"
+                        step={POINT_STEP}
+                        min={0}
+                        max={1}
+                        value={item.y}
+                        onChange={(e) => updateItem(idx, { y: Number(e.target.value) })}
+                      />
+                      <span className="mge-quad-point-stepper">
+                        <button
+                          type="button"
+                          className="mge-quad-point-stepper-btn"
+                          aria-label={t.quadrant.increaseY}
+                          onClick={() => updateItem(idx, { y: round(clamp01(item.y + POINT_STEP)) })}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          className="mge-quad-point-stepper-btn"
+                          aria-label={t.quadrant.decreaseY}
+                          onClick={() => updateItem(idx, { y: round(clamp01(item.y - POINT_STEP)) })}
+                        >
+                          ▼
+                        </button>
+                      </span>
+                    </span>
+                    <button
+                      className="mge-seq-btn mge-seq-btn-sm mge-seq-btn-danger"
+                      onClick={() => deleteItem(idx)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              }
+              return (
+                <div key={idx} className="mge-seq-row mge-seq-row-raw">
+                  <span className="mge-seq-badge mge-seq-badge-raw">raw</span>
+                  <code className="mge-seq-raw-line">{item.line.trim()}</code>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      }
       onSourceEdit={handleSourceEdit}
     >
       <div className="mge-seq-body">
@@ -211,106 +351,6 @@ export const QuadrantEditor = ({ initialSource, onSave, onCancel }: Props) => {
               />
             </div>
           ))}
-        </section>
-
-        <section className="mge-seq-section">
-          <div className="mge-seq-section-header">
-            <span className="mge-seq-section-title">Points</span>
-            <div className="mge-seq-add-btns">
-              <button className="mge-seq-btn mge-seq-btn-sm" onClick={addPoint}>
-                + point
-              </button>
-            </div>
-          </div>
-          {ir.items.filter((i) => i.type === "point").length === 0 && (
-            <p className="mge-seq-empty">{t.quadrant.pointsEmpty}</p>
-          )}
-          {ir.items.map((item, idx) => {
-            if (item.type === "point") {
-              return (
-                <div key={idx} className="mge-seq-row">
-                  <input
-                    className="mge-seq-input mge-seq-input-wide"
-                    value={item.name}
-                    onChange={(e) => updateItem(idx, { name: e.target.value })}
-                    placeholder="name"
-                  />
-                  <span className="mge-seq-row-label">x</span>
-                  <span className="mge-quad-point-field">
-                    <input
-                      className="mge-seq-input"
-                      type="number"
-                      step={POINT_STEP}
-                      min={0}
-                      max={1}
-                      value={item.x}
-                      onChange={(e) => updateItem(idx, { x: Number(e.target.value) })}
-                    />
-                    <span className="mge-quad-point-stepper">
-                      <button
-                        type="button"
-                        className="mge-quad-point-stepper-btn"
-                        aria-label={t.quadrant.increaseX}
-                        onClick={() => updateItem(idx, { x: round(clamp01(item.x + POINT_STEP)) })}
-                      >
-                        ▲
-                      </button>
-                      <button
-                        type="button"
-                        className="mge-quad-point-stepper-btn"
-                        aria-label={t.quadrant.decreaseX}
-                        onClick={() => updateItem(idx, { x: round(clamp01(item.x - POINT_STEP)) })}
-                      >
-                        ▼
-                      </button>
-                    </span>
-                  </span>
-                  <span className="mge-seq-row-label">y</span>
-                  <span className="mge-quad-point-field">
-                    <input
-                      className="mge-seq-input"
-                      type="number"
-                      step={POINT_STEP}
-                      min={0}
-                      max={1}
-                      value={item.y}
-                      onChange={(e) => updateItem(idx, { y: Number(e.target.value) })}
-                    />
-                    <span className="mge-quad-point-stepper">
-                      <button
-                        type="button"
-                        className="mge-quad-point-stepper-btn"
-                        aria-label={t.quadrant.increaseY}
-                        onClick={() => updateItem(idx, { y: round(clamp01(item.y + POINT_STEP)) })}
-                      >
-                        ▲
-                      </button>
-                      <button
-                        type="button"
-                        className="mge-quad-point-stepper-btn"
-                        aria-label={t.quadrant.decreaseY}
-                        onClick={() => updateItem(idx, { y: round(clamp01(item.y - POINT_STEP)) })}
-                      >
-                        ▼
-                      </button>
-                    </span>
-                  </span>
-                  <button
-                    className="mge-seq-btn mge-seq-btn-sm mge-seq-btn-danger"
-                    onClick={() => deleteItem(idx)}
-                  >
-                    ×
-                  </button>
-                </div>
-              );
-            }
-            return (
-              <div key={idx} className="mge-seq-row mge-seq-row-raw">
-                <span className="mge-seq-badge mge-seq-badge-raw">raw</span>
-                <code className="mge-seq-raw-line">{item.line.trim()}</code>
-              </div>
-            );
-          })}
         </section>
       </div>
     </EditorShell>
