@@ -8,6 +8,14 @@ This plugin adds an **Edit** button to every `` ```mermaid `` code block — in 
 
 Saving writes back **only the fence content that was edited**; the rest of the note is untouched. Node coordinates and other GUI-only state live for the session only and are never written to the file, so the Mermaid source stays exactly what you'd expect from standard Mermaid — no proprietary metadata, no lock-in.
 
+## Demo
+
+| | |
+| --- | --- |
+| ![Inserting a new diagram from the template picker](images/insert-new.gif) Insert a new diagram from the template picker | ![Editing flowchart node shapes on the interactive canvas](images/change-shapes.gif) Flowchart: edit node shapes directly on the canvas |
+| ![Flowchart subgraphs, auto-layout, and the edge inspector](images/flowchart-subgraph.gif) Flowchart: subgraphs, auto-layout, and the connected-edges inspector | ![Dragging kanban cards between columns](images/kanban.gif) Kanban: drag-and-drop cards and columns |
+| ![Dragging quadrant chart points with the Mermaid source staying in sync](images/quadrant.gif) Quadrant chart: drag points, source stays in sync | ![Editing an XY chart with bar and line series](images/xychart.gif) XY chart: bar + line series, editable inline |
+
 ## Features
 
 - **Edit button on every mermaid block**, in Reading view, Live Preview, and Source mode alike, plus a command-palette / right-click action to edit the block under your cursor
