@@ -10,11 +10,23 @@ Saving writes back **only the fence content that was edited**; the rest of the n
 
 ## Demo
 
-| | |
-| --- | --- |
-| ![Inserting a new diagram from the template picker](images/insert-new.gif) Insert a new diagram from the template picker | ![Editing flowchart node shapes on the interactive canvas](images/change-shapes.gif) Flowchart: edit node shapes directly on the canvas |
-| ![Flowchart subgraphs, auto-layout, and the edge inspector](images/flowchart-subgraph.gif) Flowchart: subgraphs, auto-layout, and the connected-edges inspector | ![Dragging kanban cards between columns](images/kanban.gif) Kanban: drag-and-drop cards and columns |
-| ![Dragging quadrant chart points with the Mermaid source staying in sync](images/quadrant.gif) Quadrant chart: drag points, source stays in sync | ![Editing an XY chart with bar and line series](images/xychart.gif) XY chart: bar + line series, editable inline |
+**Insert a new diagram from the template picker**
+![Inserting a new diagram from the template picker](images/insert-new.gif)
+
+**Flowchart: edit node shapes directly on the canvas**
+![Editing flowchart node shapes on the interactive canvas](images/change-shapes.gif)
+
+**Flowchart: subgraphs, auto-layout, and the connected-edges inspector**
+![Flowchart subgraphs, auto-layout, and the edge inspector](images/flowchart-subgraph.gif)
+
+**Kanban: drag-and-drop cards and columns**
+![Dragging kanban cards between columns](images/kanban.gif)
+
+**Quadrant chart: drag points, source stays in sync**
+![Dragging quadrant chart points with the Mermaid source staying in sync](images/quadrant.gif)
+
+**XY chart: bar + line series, editable inline**
+![Editing an XY chart with bar and line series](images/xychart.gif)
 
 ## Features
 
