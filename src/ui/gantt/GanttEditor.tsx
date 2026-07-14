@@ -10,7 +10,13 @@ import {
 import { parseGantt } from "../../core/gantt/parser";
 import { generateGantt } from "../../core/gantt/generator";
 import { formatGanttAxisTick } from "../../core/gantt/axis-format";
-import { parseDurationDays } from "../../core/gantt/duration";
+import {
+  formatDurationToken,
+  oneUnitMs,
+  parseDurationDays,
+  parseDurationToken,
+  type GanttDurationUnit,
+} from "../../core/gantt/duration";
 import { buildTicks, paddedRange, pickTickIntervalMs } from "../../core/gantt/tick-scale";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import { useT } from "../EditorHostContext";
@@ -93,9 +99,6 @@ const parseAfterReference = (value: string | undefined): string | null => {
 const isAfterReference = (value: string | undefined) => parseAfterReference(value) !== null;
 
 const addDays = (time: number, days: number) => time + days * DAY_MS;
-
-const diffDays = (start: number, end: number) =>
-  Math.max(1, Math.round((end - start) / DAY_MS));
 
 const addUtcDatePart = (time: number, part: DatePart, delta: number) => {
   const date = new Date(time);
@@ -337,13 +340,21 @@ const GanttInteractivePreview = ({
     return addDays(min, Math.round(ratio * spanDays));
   };
 
-  const daysDeltaForClient = (clientX: number, startClientX: number) => {
+  /**
+   * Continuous (unrounded) pixel-to-time delta. Unlike the old whole-day
+   * rounding, this scales correctly for sub-day timelines (`dateFormat
+   * HH:mm` etc.) — rounding to a sensible granularity happens downstream,
+   * at the point where a value is re-serialized (day-precision for date
+   * fields via `formatDateUtc`, native-unit precision for duration tokens
+   * via `formatDurationToken`).
+   */
+  const msDeltaForClient = (clientX: number, startClientX: number) => {
     const svg = svgRef.current;
     if (!svg) return 0;
     const rect = svg.getBoundingClientRect();
     if (rect.width <= 0) return 0;
     const scaledChartWidth = (chartWidth / viewBoxWidth) * rect.width;
-    return Math.round(((clientX - startClientX) / scaledChartWidth) * spanDays);
+    return ((clientX - startClientX) / scaledChartWidth) * (max - min);
   };
 
   const startDrag = (
@@ -452,13 +463,17 @@ const GanttInteractivePreview = ({
 
     const edge = edgeDragRef.current;
     if (edge && edge.pointerId === event.pointerId) {
-      const delta = daysDeltaForClient(event.clientX, edge.clientX);
-      if (delta === 0) return;
+      const deltaMs = msDeltaForClient(event.clientX, edge.clientX);
+      if (deltaMs === 0) return;
+      // Scale-aware zoom floor: roughly two ticks' worth of the current
+      // span, instead of a flat 2-day minimum that made sub-day charts
+      // (whose whole span may be under 2 days) impossible to zoom into.
+      const minWidth = pickTickIntervalMs(Math.max(edge.max - edge.min, 1)) * 2;
       if (edge.side === "left") {
-        const nextMin = Math.min(addDays(edge.min, delta), addDays(edge.max, -2));
+        const nextMin = Math.min(edge.min + deltaMs, edge.max - minWidth);
         setViewport({ min: nextMin, max: edge.max });
       } else {
-        const nextMax = Math.max(addDays(edge.max, delta), addDays(edge.min, 2));
+        const nextMax = Math.max(edge.max + deltaMs, edge.min + minWidth);
         setViewport({ min: edge.min, max: nextMax });
       }
       return;
@@ -466,55 +481,64 @@ const GanttInteractivePreview = ({
 
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    const delta = daysDeltaForClient(event.clientX, drag.clientX);
-    if (delta === 0) return;
+    const deltaMs = msDeltaForClient(event.clientX, drag.clientX);
+    if (deltaMs === 0) return;
+
+    const originalEndToken = parseDurationToken(drag.originalEnd);
 
     if (drag.mode === "move") {
-      const nextStart = addDays(drag.start, delta);
-      const nextEnd = addDays(drag.end, delta);
+      const nextStart = drag.start + deltaMs;
+      const nextEnd = drag.end + deltaMs;
       onPatchTask(drag.index, {
         start: formatDateUtc(nextStart),
-        end: parseDurationDays(drag.originalEnd) !== null
-          ? drag.originalEnd
-          : formatDateUtc(nextEnd),
+        // Duration is relative to start and doesn't change on a plain move.
+        end: originalEndToken ? drag.originalEnd : formatDateUtc(nextEnd),
       });
       return;
     }
 
+    // Minimum start/end gap: one native unit of the task's own duration
+    // token (e.g. 1 minute for a `9m` task) instead of a flat day, so
+    // resizing a sub-day task doesn't get clamped to a day-scale minimum.
+    const minGapMs = originalEndToken
+      ? Math.max(oneUnitMs(originalEndToken.unit), MIN_TASK_DURATION_MS)
+      : DAY_MS;
+
     if (drag.mode === "resize-start") {
-      const nextStart = Math.min(addDays(drag.start, delta), addDays(drag.end, -1));
-      const nextDuration = diffDays(nextStart, drag.end);
+      const nextStart = Math.min(drag.start + deltaMs, drag.end - minGapMs);
+      const nextDurationDays = (drag.end - nextStart) / DAY_MS;
       const currentLayout = baseTimeline.tasks.find((task) => task.index === drag.index);
       const previousId = parseAfterReference(currentLayout?.task.start);
       const previousLayout = previousId
         ? baseTimeline.tasks.find((task) => task.task.id === previousId)
         : undefined;
       if (currentLayout && previousLayout) {
+        const previousToken = parseDurationToken(previousLayout.task.end);
         onPatchTask(previousLayout.index, {
-          end: parseDurationDays(previousLayout.task.end) !== null
-            ? `${diffDays(previousLayout.start, nextStart)}d`
+          end: previousToken
+            ? formatDurationToken((nextStart - previousLayout.start) / DAY_MS, previousToken.unit)
             : formatDateUtc(nextStart),
         });
         onPatchTask(drag.index, {
-          end: parseDurationDays(drag.originalEnd) !== null
-            ? `${nextDuration}d`
+          end: originalEndToken
+            ? formatDurationToken(nextDurationDays, originalEndToken.unit)
             : drag.originalEnd,
         });
         return;
       }
       onPatchTask(drag.index, {
         start: formatDateUtc(nextStart),
-        end: parseDurationDays(drag.originalEnd) !== null
-          ? `${nextDuration}d`
+        end: originalEndToken
+          ? formatDurationToken(nextDurationDays, originalEndToken.unit)
           : formatDateUtc(drag.end),
       });
       return;
     }
 
-    const nextEnd = Math.max(addDays(drag.end, delta), addDays(drag.start, 1));
+    const nextEnd = Math.max(drag.end + deltaMs, drag.start + minGapMs);
     onPatchTask(drag.index, {
-      end: parseDurationDays(drag.originalEnd) !== null
-        ? `${diffDays(drag.start, nextEnd)}d`
+      end: originalEndToken
+        ? formatDurationToken((nextEnd - drag.start) / DAY_MS, originalEndToken.unit)
         : formatDateUtc(nextEnd),
     });
     const currentLayout = baseTimeline.tasks.find((task) => task.index === drag.index);
@@ -522,9 +546,10 @@ const GanttInteractivePreview = ({
       baseTimeline.tasks
         .filter((task) => parseAfterReference(task.task.start) === currentLayout.task.id)
         .forEach((successor) => {
-          if (parseDurationDays(successor.task.end) === null) return;
+          const successorToken = parseDurationToken(successor.task.end);
+          if (!successorToken) return;
           onPatchTask(successor.index, {
-            end: `${diffDays(nextEnd, successor.end)}d`,
+            end: formatDurationToken((successor.end - nextEnd) / DAY_MS, successorToken.unit),
           });
         });
     }
@@ -1054,7 +1079,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       row,
       field,
       mode,
-      duration: parseDurationDays(value) ?? 1,
+      duration: parseDurationToken(value)?.amount ?? 1,
       afterIndex: Math.max(0, taskIdOptions.findIndex((id) => id === afterId)),
     });
   }, [ir.items, taskIdOptions]);
@@ -1164,8 +1189,10 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       }
       if (column === "end" && valueType === "duration") {
         event.preventDefault();
-        const next = Math.max(1, (parseDurationDays(item.end) ?? 1) + delta);
-        patchTask(row, { end: `${next}d` });
+        const token = parseDurationToken(item.end);
+        const unit: GanttDurationUnit = token?.unit ?? "d";
+        const next = Math.max(1, (token?.amount ?? 1) + delta);
+        patchTask(row, { end: `${next}${unit}` });
         return;
       }
     }
@@ -1251,9 +1278,11 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
     if (item?.type !== "task") return;
     const current = item[schedulePicker.field];
     if (schedulePicker.mode === "duration") {
-      const next = Math.max(1, (parseDurationDays(current) ?? schedulePicker.duration) + delta);
+      const token = parseDurationToken(current);
+      const unit: GanttDurationUnit = token?.unit ?? "d";
+      const next = Math.max(1, (token?.amount ?? schedulePicker.duration) + delta);
       setSchedulePicker((prev) => (prev ? { ...prev, duration: next } : prev));
-      patchTask(schedulePicker.row, { end: `${next}d` });
+      patchTask(schedulePicker.row, { end: `${next}${unit}` });
       return;
     }
     if (schedulePicker.mode === "after") {
@@ -1277,7 +1306,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       row,
       field: "start",
       mode: "after",
-      duration: parseDurationDays(item.end) ?? 1,
+      duration: parseDurationToken(item.end)?.amount ?? 1,
       afterIndex: nextIndex,
     });
     patchTask(row, { start: `after ${options[nextIndex]}` });
@@ -1323,27 +1352,33 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
             )}
           </div>
         ) : (
-          <label className="mge-gantt-duration-stepper">
-            <input
-              className="mge-gantt-picker-field"
-              type="number"
-              min={1}
-              step={1}
-              value={parseDurationDays(value) ?? schedulePicker.duration}
-              autoFocus
-              onKeyDown={(event) => {
-                if (editMode || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
-                event.preventDefault();
-                event.stopPropagation();
-              }}
-              onChange={(event) => {
-                const next = Math.max(1, Number(event.target.value) || 1);
-                setSchedulePicker((prev) => (prev ? { ...prev, duration: next } : prev));
-                patchTask(idx, { end: `${next}d` });
-              }}
-            />
-            <span>d</span>
-          </label>
+          (() => {
+            const token = parseDurationToken(value);
+            const unit: GanttDurationUnit = token?.unit ?? "d";
+            return (
+              <label className="mge-gantt-duration-stepper">
+                <input
+                  className="mge-gantt-picker-field"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={token?.amount ?? schedulePicker.duration}
+                  autoFocus
+                  onKeyDown={(event) => {
+                    if (editMode || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                  onChange={(event) => {
+                    const next = Math.max(1, Math.round(Number(event.target.value)) || 1);
+                    setSchedulePicker((prev) => (prev ? { ...prev, duration: next } : prev));
+                    patchTask(idx, { end: `${next}${unit}` });
+                  }}
+                />
+                <span>{unit}</span>
+              </label>
+            );
+          })()
         )}
         <div className="mge-gantt-picker-hint">
           {field === "start" ? "Alt+↑↓: select / Enter: close" : "Edit mode + ↑↓: adjust / Enter: close"}
