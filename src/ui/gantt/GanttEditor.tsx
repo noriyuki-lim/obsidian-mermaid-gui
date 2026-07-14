@@ -10,6 +10,8 @@ import {
 import { parseGantt } from "../../core/gantt/parser";
 import { generateGantt } from "../../core/gantt/generator";
 import { formatGanttAxisTick } from "../../core/gantt/axis-format";
+import { parseDurationDays } from "../../core/gantt/duration";
+import { buildTicks, paddedRange, pickTickIntervalMs } from "../../core/gantt/tick-scale";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import { useT } from "../EditorHostContext";
 import { blurOnEscape } from "../keyboard";
@@ -34,6 +36,7 @@ type PrimaryStatus = GanttTaskStatus | "";
 const PRIMARY_STATUSES: PrimaryStatus[] = ["", "done", "active", "milestone"];
 const COLUMNS: GanttCellColumn[] = ["kind", "label", "id", "modifiers", "start", "end"];
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MIN_TASK_DURATION_MS = 60_000; // 1 minute — last-resort guard, not a general minimum
 const CHART_LEFT = 154;
 const CHART_TOP = 56;
 const ROW_HEIGHT = 38;
@@ -80,19 +83,6 @@ const formatDateUtc = (time: number): string => {
   const m = String(date.getUTCMonth() + 1).padStart(2, "0");
   const d = String(date.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
-};
-
-const parseDurationDays = (value: string | undefined): number | null => {
-  if (!value) return null;
-  const match = value.trim().match(/^(\d+)\s*([dhwMs])$/i);
-  if (!match) return null;
-  const amount = Number(match[1]);
-  const unit = match[2].toLowerCase();
-  if (!Number.isFinite(amount) || amount <= 0) return null;
-  if (unit === "h") return Math.max(1, Math.ceil(amount / 24));
-  if (unit === "w") return amount * 7;
-  if (unit === "m") return amount * 30;
-  return amount;
 };
 
 const parseAfterReference = (value: string | undefined): string | null => {
@@ -210,7 +200,7 @@ const buildTimeline = (ir: GanttIR): GanttTimeline => {
       end = addDays(start, durationDays ?? defaultDuration);
     }
 
-    if (end <= start) end = addDays(start, 1);
+    if (end <= start) end = start + MIN_TASK_DURATION_MS;
 
     const row = tasks.length;
     tasks.push({ index, task: item, row, start, end });
@@ -222,13 +212,8 @@ const buildTimeline = (ir: GanttIR): GanttTimeline => {
 
   const rawMin = tasks.length ? Math.min(...tasks.map((task) => task.start)) : fallbackStart;
   const rawMax = tasks.length ? Math.max(...tasks.map((task) => task.end)) : addDays(fallbackStart, 14);
-  const min = addDays(rawMin, -1);
-  const max = addDays(rawMax, 2);
-  const totalDays = diffDays(min, max);
-  const step = totalDays > 90 ? 14 : totalDays > 45 ? 7 : 3;
-  const ticks: number[] = [];
-  for (let t = min; t <= max; t = addDays(t, step)) ticks.push(t);
-  if (!ticks.includes(max)) ticks.push(max);
+  const { min, max } = paddedRange(rawMin, rawMax);
+  const ticks = buildTicks(min, max, pickTickIntervalMs(max - min));
   return { tasks, sectionSpans, min, max, ticks };
 };
 
@@ -328,14 +313,10 @@ const GanttInteractivePreview = ({
   const height = Math.max(220, CHART_TOP + Math.max(baseTimeline.tasks.length, 1) * ROW_HEIGHT + 52);
 
   // Recompute ticks for the (possibly zoomed) viewport.
-  const ticks = useMemo(() => {
-    const totalDays = diffDays(min, max);
-    const step = totalDays > 90 ? 14 : totalDays > 45 ? 7 : 3;
-    const out: number[] = [];
-    for (let t = min; t <= max; t = addDays(t, step)) out.push(t);
-    if (!out.includes(max)) out.push(max);
-    return out;
-  }, [min, max]);
+  const ticks = useMemo(
+    () => buildTicks(min, max, pickTickIntervalMs(max - min)),
+    [min, max],
+  );
 
   const xForDate = (time: number) => CHART_LEFT + ((time - min) / (max - min)) * chartWidth;
   const yForRow = (row: number) => CHART_TOP + row * ROW_HEIGHT;

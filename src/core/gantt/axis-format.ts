@@ -15,6 +15,9 @@ export function formatGanttAxisTick(time: number, format = "%m/%d"): string {
     "%d": pad2(date.getUTCDate()),
     "%W": pad2(getUtcWeekNumber(date)),
     "%a": WEEKDAYS[date.getUTCDay()],
+    "%H": pad2(date.getUTCHours()),
+    "%M": pad2(date.getUTCMinutes()),
+    "%S": pad2(date.getUTCSeconds()),
   };
 
   return Object.entries(replacements).reduce(
