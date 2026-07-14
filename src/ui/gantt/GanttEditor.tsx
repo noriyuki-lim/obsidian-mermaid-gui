@@ -283,6 +283,16 @@ const GanttInteractivePreview = ({
     end: number;
     originalStart?: string;
     originalEnd?: string;
+    // Frozen at pointerdown (mode "move" only) — every pointermove reflects
+    // the TOTAL delta since pointerdown, so the baseline it's added to must
+    // stay fixed for the whole gesture. Reading the predecessor/dependents'
+    // positions fresh from `baseTimeline` on each pointermove instead would
+    // add that same total delta on top of an already-shifted value every
+    // time, compounding into a runaway drift after just a few events.
+    moveSnapshot?: {
+      predecessor?: { index: number; start: number; end: number; unit: GanttDurationUnit | null };
+      dependents: { index: number; originalEnd: number }[];
+    };
   } | null>(null);
   const edgeDragRef = useRef<{
     pointerId: number;
@@ -366,6 +376,35 @@ const GanttInteractivePreview = ({
     return ((clientX - startClientX) / scaledChartWidth) * (max - min);
   };
 
+  /**
+   * Transitive `after`-dependents of `rootId`, snapshotted once (not
+   * re-walked live) — only entries whose `end` is an explicit date are
+   * collected, since a duration-token end auto-follows via the `after`
+   * chain and never needs patching. Traversal continues past duration-token
+   * nodes regardless, since their own dependents still need collecting.
+   */
+  const collectDependentEnds = (rootId: string): { index: number; originalEnd: number }[] => {
+    const out: { index: number; originalEnd: number }[] = [];
+    const visited = new Set<string>([rootId]);
+    const queue: string[] = [rootId];
+    while (queue.length > 0) {
+      const id = queue.shift() as string;
+      baseTimeline.tasks
+        .filter((task) => parseAfterReference(task.task.start) === id)
+        .forEach((dependent) => {
+          if (!parseDurationToken(dependent.task.end) && dependent.task.end !== undefined) {
+            out.push({ index: dependent.index, originalEnd: dependent.end });
+          }
+          const depId = dependent.task.id;
+          if (depId && !visited.has(depId)) {
+            visited.add(depId);
+            queue.push(depId);
+          }
+        });
+    }
+    return out;
+  };
+
   const startDrag = (
     layout: TaskLayout,
     mode: "move" | "resize-start" | "resize-end",
@@ -375,6 +414,26 @@ const GanttInteractivePreview = ({
     event.stopPropagation();
     trySetPointerCapture(event.currentTarget as Element, event.pointerId);
     onSelect({ type: "task", index: layout.index });
+
+    let moveSnapshot: NonNullable<typeof dragRef.current>["moveSnapshot"];
+    if (mode === "move") {
+      const predecessorId = parseAfterReference(layout.task.start);
+      const predecessorLayout = predecessorId
+        ? baseTimeline.tasks.find((task) => task.task.id === predecessorId)
+        : undefined;
+      moveSnapshot = {
+        predecessor: predecessorLayout
+          ? {
+              index: predecessorLayout.index,
+              start: predecessorLayout.start,
+              end: predecessorLayout.end,
+              unit: parseDurationToken(predecessorLayout.task.end)?.unit ?? null,
+            }
+          : undefined,
+        dependents: layout.task.id ? collectDependentEnds(layout.task.id) : [],
+      };
+    }
+
     dragRef.current = {
       index: layout.index,
       pointerId: event.pointerId,
@@ -384,6 +443,7 @@ const GanttInteractivePreview = ({
       end: layout.end,
       originalStart: layout.task.start,
       originalEnd: layout.task.end,
+      moveSnapshot,
     };
   };
 
@@ -446,35 +506,6 @@ const GanttInteractivePreview = ({
     onSelect({ type: "task", index: layout.index });
   };
 
-  /**
-   * Shifts every task transitively dependent on `rootId` (via `after`) by
-   * `deltaMs`, but only touches tasks whose own `end` is an explicit
-   * date/time — a duration-token end (e.g. `15m`) is relative to its own
-   * start, which already moves for free once its predecessor's end moves
-   * (via the `after` lookup in buildTimeline), so there's nothing to patch.
-   * Traversal continues past duration-token nodes regardless, since their
-   * own dependents still need visiting.
-   */
-  const shiftDependentChain = (rootId: string, deltaMs: number) => {
-    const visited = new Set<string>([rootId]);
-    const queue: string[] = [rootId];
-    while (queue.length > 0) {
-      const id = queue.shift() as string;
-      baseTimeline.tasks
-        .filter((task) => parseAfterReference(task.task.start) === id)
-        .forEach((dependent) => {
-          if (!parseDurationToken(dependent.task.end) && dependent.task.end !== undefined) {
-            onPatchTask(dependent.index, { end: formatDateUtc(dependent.end + deltaMs, dateFormat) });
-          }
-          const depId = dependent.task.id;
-          if (depId && !visited.has(depId)) {
-            visited.add(depId);
-            queue.push(depId);
-          }
-        });
-    }
-  };
-
   const onPointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
     const rowDrag = rowDragRef.current;
     if (rowDrag && rowDrag.pointerId === event.pointerId) {
@@ -529,21 +560,23 @@ const GanttInteractivePreview = ({
       // clobbering it with a literal date: if this task IS a dependent,
       // redirect the shift onto its predecessor's end (same idea as
       // resize-start already uses); if other tasks depend on THIS one,
-      // cascade the shift forward to them.
-      const predecessorId = parseAfterReference(drag.originalStart);
-      const predecessorLayout = predecessorId
-        ? baseTimeline.tasks.find((task) => task.task.id === predecessorId)
-        : undefined;
+      // cascade the shift forward to them. Every baseline here (`predecessor`/
+      // `dependents`) comes from `drag.moveSnapshot`, frozen once at
+      // pointerdown — `deltaMs` is the TOTAL delta since pointerdown, so
+      // adding it to a live (already-shifted-by-a-previous-pointermove)
+      // value instead would compound into a runaway drift within a few
+      // events.
+      const snapshot = drag.moveSnapshot;
+      const predecessor = snapshot?.predecessor;
 
-      if (predecessorLayout) {
-        const predecessorToken = parseDurationToken(predecessorLayout.task.end);
+      if (predecessor) {
         const nextPredecessorEnd = Math.max(
-          predecessorLayout.end + deltaMs,
-          predecessorLayout.start + MIN_TASK_DURATION_MS,
+          predecessor.end + deltaMs,
+          predecessor.start + MIN_TASK_DURATION_MS,
         );
-        onPatchTask(predecessorLayout.index, {
-          end: predecessorToken
-            ? formatDurationToken((nextPredecessorEnd - predecessorLayout.start) / DAY_MS, predecessorToken.unit)
+        onPatchTask(predecessor.index, {
+          end: predecessor.unit
+            ? formatDurationToken((nextPredecessorEnd - predecessor.start) / DAY_MS, predecessor.unit)
             : formatDateUtc(nextPredecessorEnd, dateFormat),
         });
         // `start` (the `after <id>` reference) is left untouched. Our own
@@ -561,8 +594,9 @@ const GanttInteractivePreview = ({
         });
       }
 
-      const currentLayout = baseTimeline.tasks.find((task) => task.index === drag.index);
-      if (currentLayout?.task.id) shiftDependentChain(currentLayout.task.id, deltaMs);
+      snapshot?.dependents.forEach((dependent) => {
+        onPatchTask(dependent.index, { end: formatDateUtc(dependent.originalEnd + deltaMs, dateFormat) });
+      });
       return;
     }
 
