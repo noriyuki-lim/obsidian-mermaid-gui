@@ -1,10 +1,18 @@
 import type { ParseOutcome } from "../adapters/types";
+import { DEFAULT_DATE_FORMAT, isDateStringForFormat } from "./date-format";
 import type { GanttIR, GanttItem, GanttTask, GanttTaskStatus } from "./ir-types";
 
 const MODIFIERS = new Set<GanttTaskStatus>(["done", "active", "crit", "milestone"]);
 
-function isDateLike(s: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}/.test(s);
+/**
+ * Structural "is this token a date" check, used only to decide which comma-
+ * separated field a token fills (id vs start vs end) — so it must honor the
+ * chart's own `dateFormat` (e.g. `HH:mm`). A hardcoded `YYYY-MM-DD`-only
+ * check here would misclassify a bare time-only start token (no id given)
+ * as an id and silently drop the actual start time.
+ */
+function isDateLike(s: string, dateFormat: string): boolean {
+  return isDateStringForFormat(s, dateFormat);
 }
 
 function isDuration(s: string): boolean {
@@ -15,12 +23,13 @@ function isAfterOrUntil(s: string): boolean {
   return /^(after|until)\s+\S+$/i.test(s);
 }
 
-function isDateOrDuration(s: string): boolean {
-  return isDateLike(s) || isDuration(s) || isAfterOrUntil(s);
+function isDateOrDuration(s: string, dateFormat: string): boolean {
+  return isDateLike(s, dateFormat) || isDuration(s) || isAfterOrUntil(s);
 }
 
 function parseTaskSpec(
   spec: string,
+  dateFormat: string,
 ): Pick<GanttTask, "modifiers" | "id" | "start" | "end"> {
   const parts = spec
     .split(",")
@@ -44,7 +53,7 @@ function parseTaskSpec(
   } else if (rest.length === 1) {
     end = rest[0];
   } else if (rest.length === 2) {
-    if (!isDateOrDuration(rest[0])) {
+    if (!isDateOrDuration(rest[0], dateFormat)) {
       id = rest[0];
       end = rest[1];
     } else {
@@ -52,7 +61,7 @@ function parseTaskSpec(
       end = rest[1];
     }
   } else {
-    if (!isDateOrDuration(rest[0])) {
+    if (!isDateOrDuration(rest[0], dateFormat)) {
       id = rest[0];
       start = rest[1];
       end = rest.slice(2).join(", ");
@@ -116,7 +125,7 @@ export function parseGantt(source: string): ParseOutcome<GanttIR> {
     if (colonIdx > 0) {
       const label = line.slice(0, colonIdx).trim();
       const spec = line.slice(colonIdx + 1).trim();
-      items.push({ type: "task", label, ...parseTaskSpec(spec) });
+      items.push({ type: "task", label, ...parseTaskSpec(spec, dateFormat ?? DEFAULT_DATE_FORMAT) });
       continue;
     }
 

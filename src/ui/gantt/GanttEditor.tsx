@@ -18,6 +18,15 @@ import {
   type GanttDurationUnit,
 } from "../../core/gantt/duration";
 import { buildTicks, paddedRange, pickTickIntervalMs } from "../../core/gantt/tick-scale";
+import {
+  DEFAULT_DATE_FORMAT,
+  addDateField,
+  fieldAtCaret,
+  formatDateWithFormat,
+  isDateStringForFormat,
+  nativeDateInput,
+  parseDateWithFormat,
+} from "../../core/gantt/date-format";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import { useT } from "../EditorHostContext";
 import { blurOnEscape } from "../keyboard";
@@ -35,7 +44,6 @@ type CellElement = HTMLInputElement | HTMLSelectElement;
 type ScheduleField = "start" | "end";
 type SchedulePickerMode = "duration" | "after";
 type ScheduleValueType = "date" | "duration" | "after";
-type DatePart = "year" | "month" | "day";
 
 type PrimaryStatus = GanttTaskStatus | "";
 /** Statuses selectable as the single "primary" status in the table dropdown. */
@@ -73,23 +81,19 @@ const composeModifiers = (primary: PrimaryStatus, crit: boolean): GanttTaskStatu
   return out;
 };
 
-const isDateToken = (value: string | undefined): value is string =>
-  typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value);
+/**
+ * Whether `value` is a date/time token — shaped to the chart's own
+ * `dateFormat` (e.g. `HH:mm`), not a hardcoded `YYYY-MM-DD` assumption.
+ */
+const isDateToken = (value: string | undefined, dateFormat: string): value is string =>
+  typeof value === "string" && isDateStringForFormat(value, dateFormat);
 
-const parseDateUtc = (value: string | undefined): number | null => {
-  if (!isDateToken(value)) return null;
-  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
-  if (!year || !month || !day) return null;
-  return Date.UTC(year, month - 1, day);
+const parseDateUtc = (value: string | undefined, dateFormat: string): number | null => {
+  if (!isDateToken(value, dateFormat)) return null;
+  return parseDateWithFormat(value, dateFormat);
 };
 
-const formatDateUtc = (time: number): string => {
-  const date = new Date(time);
-  const y = date.getUTCFullYear();
-  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(date.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
+const formatDateUtc = (time: number, dateFormat: string): string => formatDateWithFormat(time, dateFormat);
 
 const parseAfterReference = (value: string | undefined): string | null => {
   const match = value?.trim().match(/^after\s+(\S+)$/i);
@@ -100,22 +104,22 @@ const isAfterReference = (value: string | undefined) => parseAfterReference(valu
 
 const addDays = (time: number, days: number) => time + days * DAY_MS;
 
-const addUtcDatePart = (time: number, part: DatePart, delta: number) => {
-  const date = new Date(time);
-  const year = date.getUTCFullYear() + (part === "year" ? delta : 0);
-  const month = date.getUTCMonth() + (part === "month" ? delta : 0);
-  const day = date.getUTCDate() + (part === "day" ? delta : 0);
-  return Date.UTC(year, month, day);
-};
+const todayDate = (dateFormat: string) => formatDateUtc(Date.now(), dateFormat);
 
-const datePartFromCaret = (input: HTMLInputElement): DatePart => {
-  const position = input.selectionStart ?? input.value.length;
-  if (position <= 4) return "year";
-  if (position <= 7) return "month";
-  return "day";
+/**
+ * `setPointerCapture` can throw (e.g. `NotFoundError` if the browser no
+ * longer considers the pointer active) — unlike its `releasePointerCapture`
+ * counterpart elsewhere in this file, it wasn't wrapped, so a throw here
+ * used to abort the rest of the handler, silently skipping the drag-ref
+ * assignment that follows it and leaving the gesture dead on arrival.
+ */
+const trySetPointerCapture = (el: Element, pointerId: number) => {
+  try {
+    el.setPointerCapture?.(pointerId);
+  } catch {
+    // best-effort — the drag still tracks via the ref below regardless
+  }
 };
-
-const todayDate = () => formatDateUtc(Date.now());
 
 const scheduleValueType = (field: ScheduleField, value: string | undefined): ScheduleValueType => {
   if (field === "start" && isAfterReference(value)) return "after";
@@ -123,12 +127,12 @@ const scheduleValueType = (field: ScheduleField, value: string | undefined): Sch
   return "date";
 };
 
-const firstExplicitDate = (items: GanttItem[]) => {
+const firstExplicitDate = (items: GanttItem[], dateFormat: string) => {
   for (const item of items) {
     if (item.type !== "task") continue;
-    const start = parseDateUtc(item.start);
+    const start = parseDateUtc(item.start, dateFormat);
     if (start !== null) return start;
-    const end = parseDateUtc(item.end);
+    const end = parseDateUtc(item.end, dateFormat);
     if (end !== null) return end;
   }
   return Date.UTC(2024, 0, 1);
@@ -169,7 +173,8 @@ interface GanttTimeline {
 }
 
 const buildTimeline = (ir: GanttIR): GanttTimeline => {
-  const fallbackStart = firstExplicitDate(ir.items);
+  const dateFormat = ir.dateFormat ?? DEFAULT_DATE_FORMAT;
+  const fallbackStart = firstExplicitDate(ir.items, dateFormat);
   const endById = new Map<string, number>();
   const tasks: TaskLayout[] = [];
   const sectionSpans: { title: string; fromRow: number; toRow: number }[] = [];
@@ -184,10 +189,10 @@ const buildTimeline = (ir: GanttIR): GanttTimeline => {
     }
     if (item.type !== "task") return;
 
-    const explicitStart = parseDateUtc(item.start);
+    const explicitStart = parseDateUtc(item.start, dateFormat);
     const afterId = parseAfterReference(item.start);
     const afterEnd = afterId ? endById.get(afterId) ?? null : null;
-    const explicitEnd = parseDateUtc(item.end);
+    const explicitEnd = parseDateUtc(item.end, dateFormat);
     const durationDays = parseDurationDays(item.end);
     const defaultDuration = item.modifiers.includes("milestone") ? 1 : 3;
 
@@ -307,10 +312,10 @@ const GanttInteractivePreview = ({
     return () => observer.disconnect();
   }, []);
 
+  const dateFormat = ir.dateFormat ?? DEFAULT_DATE_FORMAT;
   const baseTimeline = useMemo(() => buildTimeline(ir), [ir]);
   const min = viewport?.min ?? baseTimeline.min;
   const max = viewport?.max ?? baseTimeline.max;
-  const spanDays = Math.max(1, (max - min) / DAY_MS);
   const chartRight = Math.max(CHART_LEFT + 240, viewBoxWidth - CHART_RIGHT_PAD);
   const chartWidth = chartRight - CHART_LEFT;
   const height = Math.max(220, CHART_TOP + Math.max(baseTimeline.tasks.length, 1) * ROW_HEIGHT + 52);
@@ -337,7 +342,11 @@ const GanttInteractivePreview = ({
     const vb = clientToViewbox(clientX, 0);
     if (!vb) return null;
     const ratio = Math.min(Math.max((vb.x - CHART_LEFT) / chartWidth, 0), 1);
-    return addDays(min, Math.round(ratio * spanDays));
+    const rawTime = min + ratio * (max - min);
+    // Snap to the visible tick granularity rather than a flat whole day —
+    // a whole-day snap collapses to a single position on sub-day charts.
+    const snap = pickTickIntervalMs(max - min);
+    return Math.round(rawTime / snap) * snap;
   };
 
   /**
@@ -364,7 +373,7 @@ const GanttInteractivePreview = ({
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
-    (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
+    trySetPointerCapture(event.currentTarget as Element, event.pointerId);
     onSelect({ type: "task", index: layout.index });
     dragRef.current = {
       index: layout.index,
@@ -383,7 +392,7 @@ const GanttInteractivePreview = ({
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
-    (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
+    trySetPointerCapture(event.currentTarget as Element, event.pointerId);
     linkDragRef.current = { sourceIndex: layout.index, pointerId: event.pointerId };
     const fromX = xForDate(layout.end);
     const fromY = yForRow(layout.row) + 4 + BAR_HEIGHT / 2;
@@ -395,7 +404,7 @@ const GanttInteractivePreview = ({
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
-    (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
+    trySetPointerCapture(event.currentTarget as Element, event.pointerId);
     edgeDragRef.current = { pointerId: event.pointerId, side, clientX: event.clientX, min, max };
   };
 
@@ -431,7 +440,7 @@ const GanttInteractivePreview = ({
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
-    (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
+    trySetPointerCapture(event.currentTarget as Element, event.pointerId);
     rowDragRef.current = { pointerId: event.pointerId, currentIndex: layout.index };
     setPreviewDraggingIndex(layout.index);
     onSelect({ type: "task", index: layout.index });
@@ -490,9 +499,9 @@ const GanttInteractivePreview = ({
       const nextStart = drag.start + deltaMs;
       const nextEnd = drag.end + deltaMs;
       onPatchTask(drag.index, {
-        start: formatDateUtc(nextStart),
+        start: formatDateUtc(nextStart, dateFormat),
         // Duration is relative to start and doesn't change on a plain move.
-        end: originalEndToken ? drag.originalEnd : formatDateUtc(nextEnd),
+        end: originalEndToken ? drag.originalEnd : formatDateUtc(nextEnd, dateFormat),
       });
       return;
     }
@@ -517,7 +526,7 @@ const GanttInteractivePreview = ({
         onPatchTask(previousLayout.index, {
           end: previousToken
             ? formatDurationToken((nextStart - previousLayout.start) / DAY_MS, previousToken.unit)
-            : formatDateUtc(nextStart),
+            : formatDateUtc(nextStart, dateFormat),
         });
         onPatchTask(drag.index, {
           end: originalEndToken
@@ -527,10 +536,10 @@ const GanttInteractivePreview = ({
         return;
       }
       onPatchTask(drag.index, {
-        start: formatDateUtc(nextStart),
+        start: formatDateUtc(nextStart, dateFormat),
         end: originalEndToken
           ? formatDurationToken(nextDurationDays, originalEndToken.unit)
-          : formatDateUtc(drag.end),
+          : formatDateUtc(drag.end, dateFormat),
       });
       return;
     }
@@ -539,7 +548,7 @@ const GanttInteractivePreview = ({
     onPatchTask(drag.index, {
       end: originalEndToken
         ? formatDurationToken((nextEnd - drag.start) / DAY_MS, originalEndToken.unit)
-        : formatDateUtc(nextEnd),
+        : formatDateUtc(nextEnd, dateFormat),
     });
     const currentLayout = baseTimeline.tasks.find((task) => task.index === drag.index);
     if (currentLayout?.task.id) {
@@ -559,7 +568,7 @@ const GanttInteractivePreview = ({
     const target = event.target as Element;
     if (event.target !== event.currentTarget && !target.classList.contains("mge-gantt-bg")) return;
     const date = dateForClientX(event.clientX);
-    onAddTask(date ? formatDateUtc(date) : undefined);
+    onAddTask(date ? formatDateUtc(date, dateFormat) : undefined);
   };
 
   // Dependency lines (goal 5): each task whose start is `after <id>` draws a
@@ -840,6 +849,7 @@ const GanttInteractivePreview = ({
 export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: Props) => {
   const t = useT();
   const [ir, setIr] = useState<GanttIR>(() => seed(initialSource));
+  const dateFormat = ir.dateFormat ?? DEFAULT_DATE_FORMAT;
   const [saving, setSaving] = useState(false);
   const [selection, setSelection] = useState<Selection>(null);
   // Table interaction mode (goal 7): navigation vs cell-edit, Excel-like.
@@ -902,7 +912,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
-    event.currentTarget.setPointerCapture(event.pointerId);
+    trySetPointerCapture(event.currentTarget, event.pointerId);
     tableDragRef.current = { pointerId: event.pointerId, currentIndex: idx };
     setTableDraggingIndex(idx);
     setSelection({ type: "task", index: idx });
@@ -1181,9 +1191,11 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       const delta = event.key === "ArrowUp" ? 1 : -1;
       if (valueType === "date" && event.currentTarget instanceof HTMLInputElement) {
         event.preventDefault();
-        const base = parseDateUtc(item[column]) ?? Date.now();
+        const base = parseDateUtc(item[column], dateFormat) ?? Date.now();
+        const caretPos = event.currentTarget.selectionStart ?? event.currentTarget.value.length;
+        const field = fieldAtCaret(dateFormat, caretPos);
         patchTask(row, {
-          [column]: formatDateUtc(addUtcDatePart(base, datePartFromCaret(event.currentTarget), delta)),
+          [column]: formatDateUtc(addDateField(base, field, delta), dateFormat),
         } as Partial<GanttTask>);
         return;
       }
@@ -1403,7 +1415,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
           readOnly
           aria-disabled
           tabIndex={-1}
-          placeholder={field === "start" ? "YYYY-MM-DD / after id" : "YYYY-MM-DD / 7d"}
+          placeholder={field === "start" ? `${dateFormat} / after id` : `${dateFormat} / 7d`}
         />
       );
     }
@@ -1418,9 +1430,17 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       } else if (nextType === "duration") {
         patchTask(idx, { end: `${parseDurationDays(task.end) ?? 1}d` });
       } else {
-        patchTask(idx, { [field]: isDateToken(value) ? value.slice(0, 10) : todayDate() } as Partial<GanttTask>);
+        patchTask(idx, { [field]: isDateToken(value, dateFormat) ? value : todayDate(dateFormat) } as Partial<GanttTask>);
       }
     };
+    // The native picker input's own value format is fixed by its HTML type
+    // (always YYYY-MM-DD for type="date", HH:mm for type="time", ...) and is
+    // independent of the chart's dateFormat — convert through it explicitly.
+    const { type: nativeType, nativeFormat } = nativeDateInput(dateFormat);
+    const nativeValue = (() => {
+      const time = parseDateUtc(value, dateFormat);
+      return time !== null ? formatDateWithFormat(time, nativeFormat) : "";
+    })();
 
     return (
       <div className="mge-gantt-schedule-cell">
@@ -1432,7 +1452,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
           onFocus={() => setSelection({ type: "task", index: idx })}
           onKeyDown={onCellKeyDown(idx, colIndex, item)}
           onChange={(event) => patch(event.target.value)}
-          placeholder={field === "start" ? "YYYY-MM-DD / after id" : "YYYY-MM-DD / 7d"}
+          placeholder={field === "start" ? `${dateFormat} / after id` : `${dateFormat} / 7d`}
         />
         <select
           className="mge-gantt-schedule-type"
@@ -1447,16 +1467,19 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
         {valueType === "date" ? (
           <input
             className="mge-gantt-date-trigger"
-            type="date"
+            type={nativeType}
             aria-label={`${field} date picker`}
-            value={isDateToken(value) ? value.slice(0, 10) : ""}
+            value={nativeValue}
             onKeyDown={(event) => {
               if (event.key !== "Escape") return;
               event.preventDefault();
               event.stopPropagation();
               event.currentTarget.blur();
             }}
-            onChange={(event) => patch(event.target.value)}
+            onChange={(event) => {
+              const time = parseDateWithFormat(event.target.value, nativeFormat);
+              if (time !== null) patch(formatDateUtc(time, dateFormat));
+            }}
           />
         ) : (
           <button

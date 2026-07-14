@@ -148,4 +148,37 @@ describe("parseGantt", () => {
     expect(sections).toHaveLength(2);
     expect(tasks).toHaveLength(3);
   });
+
+  it("recognizes a sub-day start token under a non-default dateFormat (no id given)", () => {
+    // Regression: `isDateLike` used to be hardcoded to YYYY-MM-DD, so a bare
+    // "06:30" start (no explicit id, just start+duration) was misread as an
+    // id and the start time was silently dropped.
+    const src = `gantt
+    dateFormat HH:mm
+    Task1 :06:30, 9m`;
+    const r = parseGantt(src);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const task = r.ir.items[0];
+    expect(task.type).toBe("task");
+    if (task.type !== "task") return;
+    expect(task.id).toBeUndefined();
+    expect(task.start).toBe("06:30");
+    expect(task.end).toBe("9m");
+  });
+
+  it("still recognizes an explicit id alongside a sub-day start token", () => {
+    const src = `gantt
+    dateFormat HH:mm
+    Task1 :t1, 06:30, 9m`;
+    const r = parseGantt(src);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const task = r.ir.items[0];
+    expect(task.type).toBe("task");
+    if (task.type !== "task") return;
+    expect(task.id).toBe("t1");
+    expect(task.start).toBe("06:30");
+    expect(task.end).toBe("9m");
+  });
 });
