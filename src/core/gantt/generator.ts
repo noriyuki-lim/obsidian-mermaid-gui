@@ -13,6 +13,7 @@ export function generateGantt(ir: GanttIR): string {
   if (ir.title) lines.push(`    title ${ir.title}`);
   if (ir.dateFormat) lines.push(`    dateFormat ${ir.dateFormat}`);
   if (ir.axisFormat) lines.push(`    axisFormat ${ir.axisFormat}`);
+  if (ir.tickInterval) lines.push(`    tickInterval ${ir.tickInterval}`);
 
   for (const item of ir.items) {
     if (item.type === "raw") {

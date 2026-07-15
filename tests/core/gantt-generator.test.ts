@@ -91,6 +91,17 @@ describe("generateGantt", () => {
     expect(out.indexOf("dateFormat")).toBeLessThan(out.indexOf("axisFormat"));
   });
 
+  it("emits tickInterval after axisFormat", () => {
+    const out = generateGantt({
+      kind: "gantt",
+      axisFormat: "%m/%d",
+      tickInterval: "1week",
+      items: [],
+    });
+    expect(out).toContain("tickInterval 1week");
+    expect(out.indexOf("axisFormat")).toBeLessThan(out.indexOf("tickInterval"));
+  });
+
   it("round-trips axisFormat (incl. weekday token)", () => {
     const src = `gantt\n    dateFormat YYYY-MM-DD\n    axisFormat %m/%d(%a)\n    A task :2024-01-01, 5d\n`;
     const { ir1, ir2 } = roundtrip(src);

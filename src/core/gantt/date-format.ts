@@ -165,6 +165,53 @@ export function addDateField(time: number, field: DateFieldKey, delta: number): 
   );
 }
 
+/** Parses only the fields `format` actually specifies — no epoch defaulting. */
+function parsePresentFields(value: string, format: string): Partial<Record<DateFieldKey, number>> | null {
+  const { regex, fieldOrder } = buildMatcher(format);
+  const match = value.trim().match(regex);
+  if (!match) return null;
+  const fields: Partial<Record<DateFieldKey, number>> = {};
+  fieldOrder.forEach((field, idx) => {
+    const raw = Number(match[idx + 1]);
+    fields[field] = field === "year" && raw < 100 ? 2000 + raw : raw;
+  });
+  return fields;
+}
+
+/**
+ * Re-expresses a date value written under `fromFormat` into `toFormat`.
+ * Values that aren't a date token under `fromFormat` (duration tokens like
+ * `3d`, `after <id>` references, or anything unparseable) are returned
+ * untouched — so callers can map this over every start/end field blindly.
+ *
+ * When the target format needs components the source omits, missing *date*
+ * parts (year/month/day) inherit from `now` and missing *time* parts default
+ * to midnight. So a time-only → dated switch lands in the current year (not
+ * 1970, the epoch anchor `parseDateWithFormat` uses for pure ordering math),
+ * while a dated → time switch reads a clean `00:00`. That partial loss is the
+ * intended meaning of "change the notation", not a bug.
+ */
+export function reformatDateValue(
+  value: string,
+  fromFormat: string,
+  toFormat: string,
+  now: number = Date.now(),
+): string {
+  if (fromFormat === toFormat) return value;
+  const fields = parsePresentFields(value, fromFormat);
+  if (!fields) return value;
+  const base = new Date(now);
+  const time = Date.UTC(
+    fields.year ?? base.getUTCFullYear(),
+    (fields.month ?? base.getUTCMonth() + 1) - 1,
+    fields.day ?? base.getUTCDate(),
+    fields.hour ?? 0,
+    fields.minute ?? 0,
+    fields.second ?? 0,
+  );
+  return Number.isFinite(time) ? formatDateWithFormat(time, toFormat) : value;
+}
+
 export type DateFormatCapability = "date" | "time" | "datetime";
 
 /** Whether `format` carries a calendar date, a time-of-day, or both. */

@@ -26,5 +26,6 @@ export interface GanttIR {
   title?: string;
   dateFormat?: string;
   axisFormat?: string;
+  tickInterval?: string;
   items: GanttItem[];
 }

@@ -3,6 +3,31 @@ const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 const WEEK = 7 * DAY;
+const MONTH = 30 * DAY; // approximate — Mermaid uses calendar months; fine for preview spacing
+
+const TICK_UNIT_MS: Record<string, number> = {
+  millisecond: 1,
+  second: SECOND,
+  minute: MINUTE,
+  hour: HOUR,
+  day: DAY,
+  week: WEEK,
+  month: MONTH,
+};
+
+/**
+ * Parses a Mermaid gantt `tickInterval` token (e.g. `1day`, `1week`, `6hour`)
+ * to milliseconds; null if unrecognized. Mermaid's own grammar is
+ * `<n><unit>` with singular units (millisecond/second/minute/hour/day/week/
+ * month); a trailing plural `s` is tolerated on read for leniency.
+ */
+export function parseTickInterval(token: string | undefined): number | null {
+  if (!token) return null;
+  const match = token.trim().match(/^([1-9]\d*)\s*(millisecond|second|minute|hour|day|week|month)s?$/i);
+  if (!match) return null;
+  const unit = TICK_UNIT_MS[match[2].toLowerCase()];
+  return unit ? Number(match[1]) * unit : null;
+}
 
 /** Ascending ladder of "nice" tick intervals, 1 second through ~1 year. */
 const NICE_INTERVALS_MS: number[] = [
@@ -32,6 +57,21 @@ export function buildTicks(min: number, max: number, intervalMs: number): number
   for (let t = min; t <= max; t += intervalMs) ticks.push(t);
   if (ticks[ticks.length - 1] !== max) ticks.push(max);
   return ticks;
+}
+
+/**
+ * Ticks phase-locked to *absolute* time — multiples of `intervalMs` measured
+ * from the Unix epoch — rather than anchored at `min` like `buildTicks`. A
+ * given instant's gridline therefore sits at the same time no matter how the
+ * viewport is zoomed or panned (only which ticks fall in range changes), which
+ * is what makes a fixed `tickInterval` grid stay put during zoom.
+ */
+export function buildAbsoluteTicks(min: number, max: number, intervalMs: number): number[] {
+  if (intervalMs <= 0 || max <= min) return [min];
+  const first = Math.ceil(min / intervalMs) * intervalMs;
+  const ticks: number[] = [];
+  for (let t = first; t <= max; t += intervalMs) ticks.push(t);
+  return ticks.length ? ticks : [min];
 }
 
 /**

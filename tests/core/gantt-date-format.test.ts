@@ -8,6 +8,7 @@ import {
   isDateStringForFormat,
   nativeDateInput,
   parseDateWithFormat,
+  reformatDateValue,
 } from "../../src/core/gantt/date-format";
 
 describe("parseDateWithFormat", () => {
@@ -86,6 +87,33 @@ describe("dateFormatCapability / dateFormatHasSeconds", () => {
   it("detects a seconds token", () => {
     expect(dateFormatHasSeconds("HH:mm")).toBe(false);
     expect(dateFormatHasSeconds("HH:mm:ss")).toBe(true);
+  });
+});
+
+describe("reformatDateValue", () => {
+  it("re-expresses a date value from one format into another", () => {
+    expect(reformatDateValue("2026-07-14", "YYYY-MM-DD", "YYYY/MM/DD")).toBe("2026/07/14");
+    expect(reformatDateValue("2026-07-14 09:30", "YYYY-MM-DD HH:mm", "HH:mm")).toBe("09:30");
+  });
+
+  it("drops time the target can't hold, defaulting a dated→time switch to 00:00", () => {
+    expect(reformatDateValue("2026-07-14", "YYYY-MM-DD", "HH:mm")).toBe("00:00");
+  });
+
+  it("fills date components the source lacks from `now`, not the 1970 epoch", () => {
+    const now = Date.UTC(2026, 6, 15, 12, 0);
+    expect(reformatDateValue("09:30", "HH:mm", "YYYY-MM-DD HH:mm", now)).toBe("2026-07-15 09:30");
+    expect(reformatDateValue("09:30", "HH:mm", "YYYY-MM-DD", now)).toBe("2026-07-15");
+  });
+
+  it("leaves non-date tokens (durations, after-refs, junk) untouched", () => {
+    expect(reformatDateValue("3d", "YYYY-MM-DD", "HH:mm")).toBe("3d");
+    expect(reformatDateValue("after t1", "YYYY-MM-DD", "HH:mm")).toBe("after t1");
+    expect(reformatDateValue("2026-07-14", "HH:mm", "YYYY-MM-DD")).toBe("2026-07-14");
+  });
+
+  it("is a no-op when the format is unchanged", () => {
+    expect(reformatDateValue("2026-07-14", "YYYY-MM-DD", "YYYY-MM-DD")).toBe("2026-07-14");
   });
 });
 

@@ -109,6 +109,18 @@ describe("parseGantt", () => {
     expect(r.ir.axisFormat).toBe("%m/%d(%a)");
   });
 
+  it("parses tickInterval into IR (not raw)", () => {
+    const src = `gantt
+    axisFormat %m/%d
+    tickInterval 1week
+    A task :2024-01-01, 5d`;
+    const r = parseGantt(src);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.ir.tickInterval).toBe("1week");
+    expect(r.ir.items.some((i) => i.type === "raw")).toBe(false);
+  });
+
   it("preserves unknown lines as raw", () => {
     const src = `gantt
     excludes weekends

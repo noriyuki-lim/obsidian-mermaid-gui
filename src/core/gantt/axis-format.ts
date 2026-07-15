@@ -1,4 +1,18 @@
+import type { DateFormatCapability } from "./date-format";
+
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/**
+ * The axisFormat tick pattern that best matches a `dateFormat`'s granularity.
+ * Used when auto-following a dateFormat change: a time-only chart wants
+ * `%H:%M` ticks, not `%m/%d`. Kept in sync with the axis preset lists in the
+ * gantt editor UI (`AXIS_PRESET_VALUES`).
+ */
+export function defaultAxisFormat(capability: DateFormatCapability): string {
+  if (capability === "time") return "%H:%M";
+  if (capability === "datetime") return "%m/%d %H:%M";
+  return "%m/%d";
+}
 
 const pad2 = (value: number) => String(value).padStart(2, "0");
 
