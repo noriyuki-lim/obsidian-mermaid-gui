@@ -933,7 +933,16 @@ const GanttInteractivePreview = ({
     }
 
     const nextEnd = Math.max(drag.end + deltaMs, drag.start + minGapMs);
+    // If the end is an absolute date but the start is implicit (neither a date
+    // nor an `after` ref), pin the start to its frozen value so the bar extends
+    // from a fixed left edge instead of the derived start sliding along with the
+    // end (which made end-resize look frozen).
+    const startAnchored =
+      isAfterReference(drag.originalStart) || isDateToken(drag.originalStart, dateFormat);
     onPatchTask(drag.index, {
+      ...(!originalEndToken && !startAnchored
+        ? { start: formatDateUtc(drag.start, dateFormat) }
+        : {}),
       end: originalEndToken
         ? formatDurationToken((nextEnd - drag.start) / DAY_MS, originalEndToken.unit)
         : formatDateUtc(nextEnd, dateFormat),
@@ -1650,8 +1659,18 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
         // Seed from the currently-resolved date (e.g. what `after` points to),
         // falling back to today only if the row has no resolved time.
         const resolved = resolvedByIndex.get(idx);
-        const seededTime = resolved ? resolved[field] : Date.now();
-        patchTask(idx, { [field]: formatDateUtc(seededTime, dateFormat) } as Partial<GanttTask>);
+        const patch = {
+          [field]: formatDateUtc(resolved ? resolved[field] : Date.now(), dateFormat),
+        } as Partial<GanttTask>;
+        // Pin the OTHER end too when it's implicit (undefined). Otherwise
+        // buildTimeline would derive it from this now-absolute value minus the
+        // default duration, collapsing the bar to 3d and making the two edges
+        // move together (resize would appear frozen).
+        const otherField: ScheduleField = field === "start" ? "end" : "start";
+        if (item[otherField] === undefined && resolved) {
+          patch[otherField] = formatDateUtc(resolved[otherField], dateFormat);
+        }
+        patchTask(idx, patch);
       }
     },
     [ir.items, taskIdOptions, dateFormat, resolvedByIndex, patchTask],
