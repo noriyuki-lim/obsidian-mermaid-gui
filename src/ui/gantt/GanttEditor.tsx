@@ -9,7 +9,7 @@ import {
 } from "react";
 import { parseGantt } from "../../core/gantt/parser";
 import { generateGantt } from "../../core/gantt/generator";
-import { formatGanttAxisTick } from "../../core/gantt/axis-format";
+import { defaultAxisFormat, formatGanttAxisTick } from "../../core/gantt/axis-format";
 import {
   formatDurationToken,
   oneUnitMs,
@@ -17,15 +17,23 @@ import {
   parseDurationToken,
   type GanttDurationUnit,
 } from "../../core/gantt/duration";
-import { buildTicks, paddedRange, pickTickIntervalMs } from "../../core/gantt/tick-scale";
+import {
+  buildAbsoluteTicks,
+  buildTicks,
+  paddedRange,
+  parseTickInterval,
+  pickTickIntervalMs,
+} from "../../core/gantt/tick-scale";
 import {
   DEFAULT_DATE_FORMAT,
   addDateField,
+  dateFormatCapability,
   fieldAtCaret,
   formatDateWithFormat,
   isDateStringForFormat,
   nativeDateInput,
   parseDateWithFormat,
+  reformatDateValue,
 } from "../../core/gantt/date-format";
 import { EditorShell, type SourceEditOutcome } from "../EditorShell";
 import { useT } from "../EditorHostContext";
@@ -39,7 +47,20 @@ interface Props {
   renderMermaid?: (source: string) => Promise<string>;
 }
 
-type GanttCellColumn = "kind" | "label" | "id" | "modifiers" | "start" | "end";
+// Navigable table slots, in visual left-to-right order. Sub-controls (the crit
+// checkbox, the start/end "type" selects) are first-class slots so Tab AND the
+// arrow keys stop on every one of them, and empty rows register placeholders
+// for the same slots so navigation never dead-ends (goal: uniform grid).
+type GanttCellColumn =
+  | "kind"
+  | "label"
+  | "id"
+  | "status"
+  | "crit"
+  | "start"
+  | "startType"
+  | "end"
+  | "endType";
 type CellElement = HTMLInputElement | HTMLSelectElement;
 type ScheduleField = "start" | "end";
 type SchedulePickerMode = "duration" | "after";
@@ -48,7 +69,19 @@ type ScheduleValueType = "date" | "duration" | "after";
 type PrimaryStatus = GanttTaskStatus | "";
 /** Statuses selectable as the single "primary" status in the table dropdown. */
 const PRIMARY_STATUSES: PrimaryStatus[] = ["", "done", "active", "milestone"];
-const COLUMNS: GanttCellColumn[] = ["kind", "label", "id", "modifiers", "start", "end"];
+const COLUMNS: GanttCellColumn[] = [
+  "kind",
+  "label",
+  "id",
+  "status",
+  "crit",
+  "start",
+  "startType",
+  "end",
+  "endType",
+];
+/** Column index within COLUMNS (source of truth for both Tab and arrow nav). */
+const COL = (c: GanttCellColumn) => COLUMNS.indexOf(c);
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MIN_TASK_DURATION_MS = 60_000; // 1 minute — last-resort guard, not a general minimum
 const CHART_LEFT = 154;
@@ -104,7 +137,13 @@ const isAfterReference = (value: string | undefined) => parseAfterReference(valu
 
 const addDays = (time: number, days: number) => time + days * DAY_MS;
 
-const todayDate = (dateFormat: string) => formatDateUtc(Date.now(), dateFormat);
+/**
+ * Default duration for a newly-created task's `end`. A time-only chart
+ * (`dateFormat HH:mm`) has no notion of days, so `3d` would be nonsense —
+ * seed `1h` there instead (goal: sensible sub-day default).
+ */
+const defaultTaskEnd = (dateFormat: string): string =>
+  dateFormatCapability(dateFormat) === "time" ? "1h" : "3d";
 
 /**
  * `setPointerCapture` can throw (e.g. `NotFoundError` if the browser no
@@ -140,7 +179,25 @@ const firstExplicitDate = (items: GanttItem[], dateFormat: string) => {
 
 // ---- axisFormat presets (goals 1 & 2) ----------------------------------
 
-const AXIS_PRESET_VALUES = ["%m/%d", "%W"] as const;
+// Every axisFormat base the preset dropdown offers, in display order.
+// `axisPreset` treats a base outside this set as "custom", and dateFormat
+// auto-follow only rewrites an axisFormat whose base is in here (a hand-typed
+// custom pattern is left be). The dropdown is NOT gated by dateFormat: the axis
+// label is purely cosmetic, so any granularity is selectable regardless of the
+// chart's own dateFormat. Labels omit the raw token (Date / Week / Time …) —
+// the exact pattern is already visible in the adjacent custom-format input.
+const AXIS_PRESET_VALUES = ["%m/%d", "%Y/%m/%d", "%W", "%H:%M", "%m/%d %H:%M"] as const;
+
+const DEFAULT_AXIS_FORMAT = "%m/%d";
+
+/** dateFormat presets — friendlier than typing dayjs tokens by hand. */
+const DATE_FORMAT_PRESETS = [
+  { key: "date", format: "YYYY-MM-DD" },
+  { key: "datetime", format: "YYYY-MM-DD HH:mm" },
+  { key: "time", format: "HH:mm" },
+] as const;
+
+type DateFormatPresetKey = (typeof DATE_FORMAT_PRESETS)[number]["key"] | "custom";
 
 /** Strip a trailing weekday token like `(%a)` or `%a`, returning base + flag. */
 const splitWeekday = (fmt: string): { base: string; weekday: boolean } => {
@@ -156,17 +213,29 @@ const composeAxisFormat = (base: string, weekday: boolean): string => {
   return `${trimmed}(%a)`;
 };
 
+/** How many section colors cycle before repeating (mirrors Mermaid's palette). */
+const SECTION_PALETTE_SIZE = 5;
+
 interface TaskLayout {
   index: number;
   task: GanttTask;
   row: number;
   start: number;
   end: number;
+  /** 0-based section ordinal for color cycling; -1 = before any section. */
+  sectionIndex: number;
+}
+
+interface SectionSpan {
+  title: string;
+  fromRow: number;
+  toRow: number;
+  index: number;
 }
 
 interface GanttTimeline {
   tasks: TaskLayout[];
-  sectionSpans: { title: string; fromRow: number; toRow: number }[];
+  sectionSpans: SectionSpan[];
   min: number;
   max: number;
   ticks: number[];
@@ -177,14 +246,16 @@ const buildTimeline = (ir: GanttIR): GanttTimeline => {
   const fallbackStart = firstExplicitDate(ir.items, dateFormat);
   const endById = new Map<string, number>();
   const tasks: TaskLayout[] = [];
-  const sectionSpans: { title: string; fromRow: number; toRow: number }[] = [];
+  const sectionSpans: SectionSpan[] = [];
   let previousEnd = fallbackStart;
-  let currentSection: { title: string; fromRow: number; toRow: number } | null = null;
+  let currentSection: SectionSpan | null = null;
+  let sectionIndex = -1;
 
   ir.items.forEach((item, index) => {
     if (item.type === "section") {
       if (currentSection) sectionSpans.push(currentSection);
-      currentSection = { title: item.title, fromRow: tasks.length, toRow: tasks.length - 1 };
+      sectionIndex += 1;
+      currentSection = { title: item.title, fromRow: tasks.length, toRow: tasks.length - 1, index: sectionIndex };
       return;
     }
     if (item.type !== "task") return;
@@ -211,7 +282,7 @@ const buildTimeline = (ir: GanttIR): GanttTimeline => {
     if (end <= start) end = start + MIN_TASK_DURATION_MS;
 
     const row = tasks.length;
-    tasks.push({ index, task: item, row, start, end });
+    tasks.push({ index, task: item, row, start, end, sectionIndex });
     if (currentSection) currentSection.toRow = row;
     previousEnd = end;
     if (item.id) endById.set(item.id, end);
@@ -225,12 +296,20 @@ const buildTimeline = (ir: GanttIR): GanttTimeline => {
   return { tasks, sectionSpans, min, max, ticks };
 };
 
-const taskColorClass = (task: GanttTask) => {
+/**
+ * Bar color class. Status modifiers (crit/done/active/milestone) win — same as
+ * Mermaid, whose activeTask/doneTask/crit styles override the section color.
+ * A plain task takes its section's cycling palette color so the preview reads
+ * as section-coded like the render; tasks before any section fall back to the
+ * default bar color.
+ */
+const taskColorClass = (task: GanttTask, sectionIndex: number) => {
   if (task.modifiers.includes("crit")) return "crit";
   if (task.modifiers.includes("done")) return "done";
   if (task.modifiers.includes("active")) return "active";
   if (task.modifiers.includes("milestone")) return "milestone";
-  return "default";
+  if (sectionIndex < 0) return "default";
+  return `section-${sectionIndex % SECTION_PALETTE_SIZE}`;
 };
 
 type Selection =
@@ -250,8 +329,15 @@ interface GanttPreviewProps {
   onAxisPresetChange: (value: string) => void;
   onAxisWeekdayChange: (value: boolean) => void;
   onAxisFormatChange: (value: string) => void;
+  onTickIntervalChange: (value: string) => void;
   onReorderItem: (from: number, to: number) => void;
+  onDeleteTask: (index: number) => void;
+  onDeleteDependency: (index: number) => void;
 }
+
+// Gridline interval options offered in the preview toolbar. Values are Mermaid
+// `tickInterval` tokens; "" = auto. Kept short to cover the common scales.
+const TICK_INTERVAL_VALUES = ["", "15minute", "1hour", "1day", "1week", "1month"] as const;
 
 const GanttInteractivePreview = ({
   ir,
@@ -265,7 +351,10 @@ const GanttInteractivePreview = ({
   onAxisPresetChange,
   onAxisWeekdayChange,
   onAxisFormatChange,
+  onTickIntervalChange,
   onReorderItem,
+  onDeleteTask,
+  onDeleteDependency,
 }: GanttPreviewProps) => {
   const t = useT();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -308,6 +397,24 @@ const GanttInteractivePreview = ({
   const [linkCursor, setLinkCursor] = useState<{ x: number; y: number; fromX: number; fromY: number } | null>(null);
   const rowDragRef = useRef<{ pointerId: number; currentIndex: number } | null>(null);
   const [previewDraggingIndex, setPreviewDraggingIndex] = useState<number | null>(null);
+  // Right-click delete menu on a bar or a dependency line. Positioned at the
+  // pointer; `kind` picks the label/action.
+  const [barMenu, setBarMenu] = useState<{
+    x: number;
+    y: number;
+    kind: "task" | "dep";
+    index: number;
+  } | null>(null);
+  // Background pan (goal: navigate by dragging empty space). Also distinguishes
+  // a plain click (deselect) from a drag (pan) via `moved`.
+  const bgPanRef = useRef<{
+    pointerId: number;
+    startClientX: number;
+    startMin: number;
+    startMax: number;
+    moved: boolean;
+  } | null>(null);
+  const [panning, setPanning] = useState(false);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -323,6 +430,46 @@ const GanttInteractivePreview = ({
   }, []);
 
   const dateFormat = ir.dateFormat ?? DEFAULT_DATE_FORMAT;
+  const axisPresetLabel = (value: string): string => {
+    switch (value) {
+      case "%m/%d":
+        return t.gantt.axisPresetDate;
+      case "%Y/%m/%d":
+        return t.gantt.axisPresetYearDate;
+      case "%W":
+        return t.gantt.axisPresetWeek;
+      case "%H:%M":
+        return t.gantt.axisPresetTime;
+      case "%m/%d %H:%M":
+        return t.gantt.axisPresetDateTime;
+      default:
+        return value;
+    }
+  };
+  const tickIntervalValue = ir.tickInterval ?? "";
+  const tickLabelFor = (value: string): string => {
+    switch (value) {
+      case "":
+        return t.gantt.tickAuto;
+      case "15minute":
+        return t.gantt.tick15min;
+      case "1hour":
+        return t.gantt.tickHour;
+      case "1day":
+        return t.gantt.tickDay;
+      case "1week":
+        return t.gantt.tickWeek;
+      case "1month":
+        return t.gantt.tickMonth;
+      default:
+        return value;
+    }
+  };
+  // Keep an out-of-preset explicit tickInterval (e.g. hand-written `6hour`)
+  // visible so the controlled <select> never points at a missing option.
+  const tickOptionValues = (TICK_INTERVAL_VALUES as readonly string[]).includes(tickIntervalValue)
+    ? [...TICK_INTERVAL_VALUES]
+    : [...TICK_INTERVAL_VALUES, tickIntervalValue];
   const baseTimeline = useMemo(() => buildTimeline(ir), [ir]);
   const min = viewport?.min ?? baseTimeline.min;
   const max = viewport?.max ?? baseTimeline.max;
@@ -330,11 +477,107 @@ const GanttInteractivePreview = ({
   const chartWidth = chartRight - CHART_LEFT;
   const height = Math.max(220, CHART_TOP + Math.max(baseTimeline.tasks.length, 1) * ROW_HEIGHT + 52);
 
-  // Recompute ticks for the (possibly zoomed) viewport.
-  const ticks = useMemo(
-    () => buildTicks(min, max, pickTickIntervalMs(max - min)),
-    [min, max],
-  );
+  // Absolute-time center of the selected bar (if a task is selected) — the
+  // zoom anchor. Independent of the viewport so it stays stable across zooms.
+  const selectedTaskCenter = useMemo(() => {
+    if (selection?.type !== "task") return null;
+    const layout = baseTimeline.tasks.find((task) => task.index === selection.index);
+    return layout ? (layout.start + layout.end) / 2 : null;
+  }, [selection, baseTimeline.tasks]);
+
+  // Gridline interval for the (possibly zoomed) viewport. An explicit Mermaid
+  // `tickInterval` is honored verbatim so the preview grid matches the render
+  // (guarded against absurd tick counts on huge spans). Otherwise auto-pick a
+  // width-aware density — denser than the old fixed 8 ticks, which read
+  // coarser than Mermaid's own rendered gridlines.
+  const tickIntervalMs = useMemo(() => {
+    const explicit = parseTickInterval(ir.tickInterval);
+    if (explicit && (max - min) / explicit <= 600) return explicit;
+    const target = Math.max(6, Math.round(chartWidth / 78));
+    return pickTickIntervalMs(max - min, target);
+  }, [ir.tickInterval, chartWidth, min, max]);
+  // Absolute-position ticks: gridlines phase-locked to real time so a given
+  // tick stays at the same instant while zooming/panning (per request).
+  const ticks = useMemo(() => buildAbsoluteTicks(min, max, tickIntervalMs), [min, max, tickIntervalMs]);
+
+  // Wheel-scroll zoom (session-only, sharing the same `viewport` state as the
+  // edge handles): scrolling over the plotting area zooms about the cursor —
+  // up/away zooms in, down/toward zooms out. Attached as a native non-passive
+  // listener so preventDefault() can stop the page from scrolling; React's
+  // synthetic onWheel is passive and cannot. Latest layout values are read
+  // from a ref so the once-attached listener never goes stale.
+  const wheelRef = useRef({ min, max, chartWidth, viewBoxWidth, height, selectedCenter: selectedTaskCenter });
+  wheelRef.current = { min, max, chartWidth, viewBoxWidth, height, selectedCenter: selectedTaskCenter };
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const onWheel = (event: WheelEvent) => {
+      const cur = wheelRef.current;
+      const rect = svg.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const scale = cur.viewBoxWidth / rect.width;
+      const vbX = (event.clientX - rect.left) * scale;
+      const vbY = (event.clientY - rect.top) * scale;
+      // Only while the cursor is within the bar plotting area.
+      if (vbX < CHART_LEFT || vbX > CHART_LEFT + cur.chartWidth) return;
+      if (vbY < CHART_TOP - 16 || vbY > cur.height - 28) return;
+      const span = cur.max - cur.min;
+      if (span <= 0) return;
+      const chartPx = (cur.chartWidth / cur.viewBoxWidth) * rect.width;
+      if (chartPx <= 0) return;
+
+      // Horizontal intent (trackpad deltaX, or Shift+wheel) pans; plain
+      // vertical wheel zooms. Both stay session-only via `viewport`.
+      const horizontal = event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY);
+      if (horizontal) {
+        // Take whichever axis carries the delta — some browsers route
+        // Shift+wheel into deltaX, others leave it in deltaY.
+        const raw = Math.abs(event.deltaX) >= Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+        if (raw === 0) return;
+        event.preventDefault();
+        const deltaPx = event.deltaMode === 1 ? raw * 16 : raw;
+        const timeDelta = (deltaPx / chartPx) * span;
+        setViewport({ min: cur.min + timeDelta, max: cur.max + timeDelta });
+        return;
+      }
+
+      if (event.deltaY === 0) return;
+      event.preventDefault();
+      // Anchor: the selected bar's center if a bar is selected, otherwise the
+      // current view center — never the cursor position (per request).
+      const anchor = cur.selectedCenter ?? (cur.min + cur.max) / 2;
+      // Gentle, device-normalized zoom: express the wheel delta in ~pixels
+      // (line-mode ≈ 16px/line), cap one event's contribution, and map it to a
+      // small exponential step, so a notch nudges rather than lurches.
+      const deltaPx = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
+      const intensity = Math.max(-1, Math.min(1, deltaPx / 180));
+      const factor = Math.exp(intensity * 0.16);
+      const minWidth = pickTickIntervalMs(Math.max(span, 1)) * 2;
+      const nextSpan = Math.max(span * factor, minWidth);
+      const nextMin = anchor - (anchor - cur.min) * (nextSpan / span);
+      setViewport({ min: nextMin, max: nextMin + nextSpan });
+    };
+    svg.addEventListener("wheel", onWheel, { passive: false });
+    return () => svg.removeEventListener("wheel", onWheel);
+  }, []);
+
+  // Dismiss the right-click bar menu on any outside pointerdown or Escape.
+  useEffect(() => {
+    if (!barMenu) return;
+    const onDown = (event: PointerEvent) => {
+      if ((event.target as HTMLElement | null)?.closest(".mge-gantt-bar-menu")) return;
+      setBarMenu(null);
+    };
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") setBarMenu(null);
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("pointerdown", onDown, true);
+      window.removeEventListener("keydown", onKey, true);
+    };
+  }, [barMenu]);
 
   const xForDate = (time: number) => CHART_LEFT + ((time - min) / (max - min)) * chartWidth;
   const yForRow = (row: number) => CHART_TOP + row * ROW_HEIGHT;
@@ -346,6 +589,17 @@ const GanttInteractivePreview = ({
     if (rect.width <= 0) return null;
     const scale = viewBoxWidth / rect.width;
     return { x: (clientX - rect.left) * scale, y: (clientY - rect.top) * scale };
+  };
+
+  // Move keyboard focus to the focusable preview wrapper so the Delete/Backspace
+  // handler bound there fires after a bar/dependency is selected on the canvas
+  // (SVG shapes aren't focusable, so a click otherwise leaves focus elsewhere).
+  const focusPreviewWrap = () => {
+    (svgRef.current?.closest(".mge-gantt-preview-wrap") as HTMLElement | null)?.focus();
+  };
+  const selectOnCanvas = (sel: Selection) => {
+    onSelect(sel);
+    if (sel) focusPreviewWrap();
   };
 
   const dateForClientX = (clientX: number) => {
@@ -413,7 +667,7 @@ const GanttInteractivePreview = ({
     event.preventDefault();
     event.stopPropagation();
     trySetPointerCapture(event.currentTarget as Element, event.pointerId);
-    onSelect({ type: "task", index: layout.index });
+    selectOnCanvas({ type: "task", index: layout.index });
 
     let moveSnapshot: NonNullable<typeof dragRef.current>["moveSnapshot"];
     if (mode === "move") {
@@ -468,7 +722,27 @@ const GanttInteractivePreview = ({
     edgeDragRef.current = { pointerId: event.pointerId, side, clientX: event.clientX, min, max };
   };
 
+  // Background pan / deselect (goals #1, #3): drag empty space to pan; a plain
+  // click that never moves deselects the current selection.
+  const startBgPan = (event: ReactPointerEvent<SVGElement>) => {
+    if (event.button !== 0) return;
+    trySetPointerCapture(event.currentTarget as Element, event.pointerId);
+    bgPanRef.current = {
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startMin: min,
+      startMax: max,
+      moved: false,
+    };
+  };
+
   const finishDrag = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const bgPan = bgPanRef.current;
+    if (bgPan && bgPan.pointerId === event.pointerId) {
+      bgPanRef.current = null;
+      setPanning(false);
+      if (!bgPan.moved) onSelect(null);
+    }
     if (rowDragRef.current && rowDragRef.current.pointerId === event.pointerId) {
       rowDragRef.current = null;
       setPreviewDraggingIndex(null);
@@ -503,10 +777,30 @@ const GanttInteractivePreview = ({
     trySetPointerCapture(event.currentTarget as Element, event.pointerId);
     rowDragRef.current = { pointerId: event.pointerId, currentIndex: layout.index };
     setPreviewDraggingIndex(layout.index);
-    onSelect({ type: "task", index: layout.index });
+    selectOnCanvas({ type: "task", index: layout.index });
   };
 
   const onPointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const bgPan = bgPanRef.current;
+    if (bgPan && bgPan.pointerId === event.pointerId) {
+      const svg = svgRef.current;
+      if (!svg) return;
+      const rect = svg.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const chartPx = (chartWidth / viewBoxWidth) * rect.width;
+      if (chartPx <= 0) return;
+      const dx = event.clientX - bgPan.startClientX;
+      if (!bgPan.moved && Math.abs(dx) > 3) {
+        bgPan.moved = true;
+        setPanning(true);
+      }
+      // dx measured from pointerdown; timeDelta uses the frozen start span so
+      // the pan never compounds. Grab semantics: drag right → earlier times.
+      const timeDelta = (dx / chartPx) * (bgPan.startMax - bgPan.startMin);
+      setViewport({ min: bgPan.startMin - timeDelta, max: bgPan.startMax - timeDelta });
+      return;
+    }
+
     const rowDrag = rowDragRef.current;
     if (rowDrag && rowDrag.pointerId === event.pointerId) {
       const vb = clientToViewbox(event.clientX, event.clientY);
@@ -699,14 +993,18 @@ const GanttInteractivePreview = ({
       <div className="mge-gantt-preview-tools">
         <span>{ir.title || "Gantt chart"}</span>
         <div className="mge-gantt-preview-tool-group">
+          <span className="mge-gantt-preview-tool-label">{t.gantt.axisLabel}</span>
           <select
             className="mge-gantt-preview-field"
             value={axisPreset}
             onChange={(event) => onAxisPresetChange(event.target.value)}
-            title="axis"
+            aria-label={t.gantt.axisRoleHint}
           >
-            <option value="%m/%d">{t.gantt.axisPresetDate}</option>
-            <option value="%W">{t.gantt.axisPresetWeek}</option>
+            {AXIS_PRESET_VALUES.map((value) => (
+              <option key={value} value={value}>
+                {axisPresetLabel(value)}
+              </option>
+            ))}
             <option value="custom">{t.gantt.axisPresetCustom}</option>
           </select>
           <label className="mge-gantt-preview-check">
@@ -722,8 +1020,21 @@ const GanttInteractivePreview = ({
             value={ir.axisFormat ?? ""}
             onChange={(event) => onAxisFormatChange(event.target.value)}
             placeholder="%m/%d"
-            title="axisFormat"
+            aria-label={t.gantt.axisFormatRoleHint}
           />
+          <span className="mge-gantt-preview-tool-label">{t.gantt.tickLabel}</span>
+          <select
+            className="mge-gantt-preview-field"
+            value={tickIntervalValue}
+            onChange={(event) => onTickIntervalChange(event.target.value)}
+            aria-label={t.gantt.tickRoleHint}
+          >
+            {tickOptionValues.map((value) => (
+              <option key={value || "auto"} value={value}>
+                {tickLabelFor(value)}
+              </option>
+            ))}
+          </select>
           {viewport ? (
             <button className="mge-gantt-preview-btn" onClick={() => setViewport(null)}>
               {t.gantt.zoomReset}
@@ -744,7 +1055,29 @@ const GanttInteractivePreview = ({
         onPointerCancel={finishDrag}
         onDoubleClick={onBackgroundDoubleClick}
       >
-        <rect x={0} y={0} width={viewBoxWidth} height={height} className="mge-gantt-bg" />
+        <rect
+          x={0}
+          y={0}
+          width={viewBoxWidth}
+          height={height}
+          className={`mge-gantt-bg ${panning ? "panning" : ""}`}
+          onPointerDown={startBgPan}
+        />
+        {/* Section background bands — faint per-section tint mirroring the
+            rendered chart's section coloring. Drawn under grid/bars. */}
+        {baseTimeline.sectionSpans.map((span, i) => {
+          if (span.toRow < span.fromRow) return null;
+          return (
+            <rect
+              key={`band-${i}`}
+              x={CHART_LEFT}
+              y={yForRow(span.fromRow)}
+              width={chartRight - CHART_LEFT}
+              height={(span.toRow - span.fromRow + 1) * ROW_HEIGHT}
+              className={`mge-gantt-section-band section-${span.index % SECTION_PALETTE_SIZE}`}
+            />
+          );
+        })}
         <line x1={CHART_LEFT} y1={CHART_TOP - 14} x2={chartRight} y2={CHART_TOP - 14} className="mge-gantt-axis" />
         {ticks.map((tick) => {
           const x = xForDate(tick);
@@ -766,7 +1099,13 @@ const GanttInteractivePreview = ({
           const yBot = yForRow(span.toRow) + ROW_HEIGHT;
           return (
             <g key={`sec-${i}`} className="mge-gantt-section-gutter">
-              <line x1={CHART_LEFT - 4} y1={yTop} x2={CHART_LEFT - 4} y2={yBot} className="mge-gantt-section-rule" />
+              <line
+                x1={CHART_LEFT - 4}
+                y1={yTop}
+                x2={CHART_LEFT - 4}
+                y2={yBot}
+                className={`mge-gantt-section-rule section-${span.index % SECTION_PALETTE_SIZE}`}
+              />
               <text x={16} y={yMid} className="mge-gantt-section-label" dominantBaseline="middle">
                 {span.title}
               </text>
@@ -792,22 +1131,38 @@ const GanttInteractivePreview = ({
           onPointerDown={startEdgeDrag("right")}
         />
 
-        {/* Dependency connectors (goal 5) */}
+        {/* Dependency connectors (goal 5). A wide transparent hit line makes the
+            thin connector easy to click / right-click (select + delete). */}
         {deps.map((dep, i) => {
           const isSel = selection?.type === "dep" && selection.index === dep.targetIndex;
+          const selectDep = (e: ReactPointerEvent<SVGLineElement>) => {
+            e.stopPropagation();
+            selectOnCanvas({ type: "dep", index: dep.targetIndex });
+          };
           return (
-            <line
-              key={`dep-${i}`}
-              x1={dep.fromX}
-              y1={dep.fromY}
-              x2={dep.toX}
-              y2={dep.toY}
-              className={`mge-gantt-dep ${isSel ? "selected" : ""}`}
-              onPointerDown={(e) => {
-                e.stopPropagation();
-                onSelect({ type: "dep", index: dep.targetIndex });
-              }}
-            />
+            <g key={`dep-${i}`}>
+              <line
+                x1={dep.fromX}
+                y1={dep.fromY}
+                x2={dep.toX}
+                y2={dep.toY}
+                className="mge-gantt-dep-hit"
+                onPointerDown={selectDep}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  selectOnCanvas({ type: "dep", index: dep.targetIndex });
+                  setBarMenu({ x: e.clientX, y: e.clientY, kind: "dep", index: dep.targetIndex });
+                }}
+              />
+              <line
+                x1={dep.fromX}
+                y1={dep.fromY}
+                x2={dep.toX}
+                y2={dep.toY}
+                className={`mge-gantt-dep ${isSel ? "selected" : ""}`}
+              />
+            </g>
           );
         })}
         {linkCursor ? (
@@ -832,7 +1187,7 @@ const GanttInteractivePreview = ({
           const y = yForRow(layout.row);
           const selected = selection?.type === "task" && selection.index === layout.index;
           const editing = editingIndex === layout.index;
-          const colorClass = taskColorClass(layout.task);
+          const colorClass = taskColorClass(layout.task, layout.sectionIndex);
           const isMilestone = layout.task.modifiers.includes("milestone");
 
           return (
@@ -844,6 +1199,12 @@ const GanttInteractivePreview = ({
                 event.stopPropagation();
                 setEditingIndex(layout.index);
                 onSelect({ type: "task", index: layout.index });
+              }}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                selectOnCanvas({ type: "task", index: layout.index });
+                setBarMenu({ x: event.clientX, y: event.clientY, kind: "task", index: layout.index });
               }}
             >
               <g className="mge-gantt-row-handle-group" onPointerDown={startRowDrag(layout)}>
@@ -935,6 +1296,21 @@ const GanttInteractivePreview = ({
           );
         })}
       </svg>
+      {barMenu ? (
+        <div className="mge-gantt-bar-menu" style={{ left: barMenu.x, top: barMenu.y }}>
+          <button
+            type="button"
+            className="mge-gantt-bar-menu-item"
+            onClick={() => {
+              if (barMenu.kind === "task") onDeleteTask(barMenu.index);
+              else onDeleteDependency(barMenu.index);
+              setBarMenu(null);
+            }}
+          >
+            {barMenu.kind === "task" ? t.gantt.deleteTask : t.gantt.deleteDependency}
+          </button>
+        </div>
+      ) : null}
       <p className="mge-gantt-preview-help">{t.gantt.previewHelp}</p>
     </div>
   );
@@ -945,6 +1321,10 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
   const [ir, setIr] = useState<GanttIR>(() => seed(initialSource));
   const dateFormat = ir.dateFormat ?? DEFAULT_DATE_FORMAT;
   const [saving, setSaving] = useState(false);
+  // dateFormat control: a preset dropdown, with "custom" a sticky UI mode
+  // (the stored format may still match a preset while the user edits freely).
+  const [dateFormatCustom, setDateFormatCustom] = useState(false);
+  const [dateFormatDraft, setDateFormatDraft] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>(null);
   // Table interaction mode (goal 7): navigation vs cell-edit, Excel-like.
   const [editMode, setEditMode] = useState(false);
@@ -1047,7 +1427,13 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
         ...prev,
         items: [
           ...prev.items,
-          { type: "task", label: "New task", modifiers: [], start, end: "3d" },
+          {
+            type: "task",
+            label: "New task",
+            modifiers: [],
+            start,
+            end: defaultTaskEnd(prev.dateFormat ?? DEFAULT_DATE_FORMAT),
+          },
         ],
       };
     });
@@ -1118,7 +1504,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
               : item.type === "raw"
                 ? item.line.trim() || "New task"
                 : "New task";
-          return { type: "task", label, modifiers: [], end: "3d" };
+          return { type: "task", label, modifiers: [], end: defaultTaskEnd(prev.dateFormat ?? DEFAULT_DATE_FORMAT) };
         }
         return {
           type: "raw",
@@ -1134,6 +1520,16 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
   };
 
   const currentSource = useMemo(() => generateGantt(ir), [ir]);
+
+  // Resolved (rendered) start/end per row, from the same timeline the preview
+  // draws. Switching a field to an explicit "date" seeds the value it CURRENTLY
+  // resolves to (e.g. the date an `after` chain lands on) rather than today —
+  // otherwise the bar snaps to now and the whole chart reflows (goal #4).
+  const resolvedByIndex = useMemo(() => {
+    const map = new Map<number, { start: number; end: number }>();
+    buildTimeline(ir).tasks.forEach((task) => map.set(task.index, { start: task.start, end: task.end }));
+    return map;
+  }, [ir]);
 
   const handleSourceEdit = useCallback((next: string): SourceEditOutcome => {
     const r = parseGantt(next);
@@ -1164,6 +1560,58 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
     setIr((prev) => ({ ...prev, axisFormat: value.trim() ? value : undefined }));
   }, []);
 
+  const setTickInterval = useCallback((value: string) => {
+    setIr((prev) => ({ ...prev, tickInterval: value.trim() ? value : undefined }));
+  }, []);
+
+  // dateFormat preset detection + change handling (goals: intuitive date⇄time
+  // switching, and the table following the change).
+  const dateFormatPreset: DateFormatPresetKey =
+    DATE_FORMAT_PRESETS.find((preset) => preset.format === dateFormat)?.key ?? "custom";
+  const showCustomDateFormat = dateFormatCustom || dateFormatPreset === "custom";
+
+  const changeDateFormat = useCallback((nextRaw: string) => {
+    setIr((prev) => {
+      const from = prev.dateFormat ?? DEFAULT_DATE_FORMAT;
+      const to = nextRaw.trim() ? nextRaw.trim() : DEFAULT_DATE_FORMAT;
+      if (to === from) return prev;
+      // Re-express every explicit date value so the table follows the new
+      // format; duration tokens (`3d`) and `after <id>` refs pass through.
+      const items = prev.items.map((item) =>
+        item.type === "task"
+          ? {
+              ...item,
+              start: item.start ? reformatDateValue(item.start, from, to) : item.start,
+              end: item.end ? reformatDateValue(item.end, from, to) : item.end,
+            }
+          : item,
+      );
+      // Auto-follow the axis to the new granularity — but only when it still
+      // sits on a recognized preset; a hand-typed custom pattern is left be.
+      let axisFormat = prev.axisFormat;
+      const { base, weekday } = splitWeekday(axisFormat ?? DEFAULT_AXIS_FORMAT);
+      if ((AXIS_PRESET_VALUES as readonly string[]).includes(base)) {
+        const composed = composeAxisFormat(defaultAxisFormat(dateFormatCapability(to)), weekday);
+        axisFormat = composed === DEFAULT_AXIS_FORMAT ? undefined : composed;
+      }
+      return { ...prev, items, dateFormat: to === DEFAULT_DATE_FORMAT ? undefined : to, axisFormat };
+    });
+  }, []);
+
+  const onDateFormatPresetChange = useCallback(
+    (value: string) => {
+      setDateFormatDraft(null);
+      if (value === "custom") {
+        setDateFormatCustom(true);
+        return;
+      }
+      setDateFormatCustom(false);
+      const preset = DATE_FORMAT_PRESETS.find((entry) => entry.key === value);
+      if (preset) changeDateFormat(preset.format);
+    },
+    [changeDateFormat],
+  );
+
   const taskIdOptions = useMemo(
     () =>
       ir.items
@@ -1171,6 +1619,42 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
         .map((item) => item.id as string),
     [ir.items],
   );
+
+  // Change a schedule field's value TYPE (date ⇄ after / duration). Extracted to
+  // component scope so both the type <select> and keyboard cycling share it.
+  const setScheduleType = useCallback(
+    (idx: number, field: ScheduleField, nextType: ScheduleValueType) => {
+      const item = ir.items[idx];
+      if (item?.type !== "task") return;
+      const value = item[field] ?? "";
+      const options = taskIdOptions.filter((id) => id !== item.id);
+      setSchedulePicker(null);
+      if (nextType === "after") {
+        patchTask(idx, { start: options[0] ? `after ${options[0]}` : undefined });
+      } else if (nextType === "duration") {
+        patchTask(idx, { end: `${parseDurationDays(item.end) ?? 1}d` });
+      } else if (isDateToken(value, dateFormat)) {
+        patchTask(idx, { [field]: value } as Partial<GanttTask>);
+      } else {
+        // Seed from the currently-resolved date (e.g. what `after` points to),
+        // falling back to today only if the row has no resolved time.
+        const resolved = resolvedByIndex.get(idx);
+        const seededTime = resolved ? resolved[field] : Date.now();
+        patchTask(idx, { [field]: formatDateUtc(seededTime, dateFormat) } as Partial<GanttTask>);
+      }
+    },
+    [ir.items, taskIdOptions, dateFormat, resolvedByIndex, patchTask],
+  );
+
+  /** Toggle a schedule field between date and its alternate type (keyboard). */
+  const toggleScheduleType = (idx: number, field: ScheduleField) => {
+    const item = ir.items[idx];
+    if (item?.type !== "task") return;
+    const vt = scheduleValueType(field, item[field]);
+    const other: ScheduleValueType =
+      field === "start" ? (vt === "after" ? "date" : "after") : vt === "duration" ? "date" : "duration";
+    setScheduleType(idx, field, other);
+  };
 
   const openSchedulePicker = useCallback((row: number, field: ScheduleField) => {
     const item = ir.items[row];
@@ -1190,14 +1674,28 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
 
   useEffect(() => {
     if (!schedulePicker) return;
+    const { row, field } = schedulePicker;
     const closePickerOnEscape = (event: globalThis.KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      event.preventDefault();
       event.stopPropagation();
+      setSchedulePicker(null);
+      // Land focus back on the (editable) schedule input so Obsidian's close()
+      // guard keeps deferring — the modal must not close on this Escape (#4).
+      focusScheduleInput(row, field);
+    };
+    // Click-away: any pointerdown outside the popover and its trigger dismisses
+    // the picker (#4). The trigger is excluded so its own onClick can toggle.
+    const closePickerOnOutsideClick = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest(".mge-gantt-schedule-popover") || target?.closest(".mge-gantt-schedule-open")) return;
       setSchedulePicker(null);
     };
     window.addEventListener("keydown", closePickerOnEscape, true);
-    return () => window.removeEventListener("keydown", closePickerOnEscape, true);
+    document.addEventListener("pointerdown", closePickerOnOutsideClick, true);
+    return () => {
+      window.removeEventListener("keydown", closePickerOnEscape, true);
+      document.removeEventListener("pointerdown", closePickerOnOutsideClick, true);
+    };
   }, [schedulePicker]);
 
   // ---- table cell focus / navigation -----------------------------------
@@ -1218,13 +1716,32 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
     window.setTimeout(() => {
       const el = cellRefs.current.get(cellKey(nextRow, COLUMNS[nextCol]));
       el?.focus();
-      if (el instanceof HTMLInputElement) el.select();
+      if (el instanceof HTMLInputElement && el.type !== "checkbox") el.select();
     }, 0);
   };
+
+  /**
+   * Return focus to a schedule cell's text input. The picker keeps focus here
+   * (not in the popover) so ↑/↓ cycling and Escape route through
+   * `onCellKeyDown`, and — since the input is editable *within the modal* —
+   * Obsidian's `close()` guard defers on Escape instead of closing the modal
+   * (goal #4). `setTimeout` lets the click that opened the picker settle first.
+   */
+  const focusScheduleInput = (idx: number, field: ScheduleField) => {
+    window.setTimeout(() => cellRefs.current.get(cellKey(idx, field))?.focus(), 0);
+  };
+
+  // ↑/↓ "adjust intent": in Edit mode a plain ↑/↓ adjusts; in Move mode it
+  // navigates, and Alt+↑/↓ adjusts instead (goal #5 — one rule for every
+  // schedule/status control).
+  const isAdjustKey = (event: { key: string }) =>
+    event.key === "ArrowUp" || event.key === "ArrowDown";
+  const adjustEnabled = (event: { altKey: boolean }) => (editMode ? true : event.altKey);
 
   const onCellKeyDown = (row: number, colIndex: number, item: GanttItem) => (event: KeyboardEvent<CellElement>) => {
     const move = (nextRow: number, nextCol: number) => {
       event.preventDefault();
+      if (schedulePicker) setSchedulePicker(null);
       focusCell(nextRow, nextCol);
     };
     const column = COLUMNS[colIndex];
@@ -1257,55 +1774,82 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       return;
     }
 
-    // Alt+↑/↓ opens/selects lightweight choices. `after` cycles dependencies here;
-    // duration intentionally stays edit-mode only.
-    if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown") && item.type === "task") {
-      event.preventDefault();
-      const delta = event.key === "ArrowDown" ? 1 : -1;
-      if (column === "modifiers") {
+    // Unified ↑/↓ adjust (goal #5): cycles status / crit / `after` dependency /
+    // date-field / duration / value-type on the relevant slot. Gated by
+    // `adjustEnabled` (Edit: plain ↑/↓; Move: Alt+↑/↓). Task rows only; empty
+    // placeholder cells fall through to navigation.
+    if (isAdjustKey(event) && adjustEnabled(event) && item.type === "task") {
+      const delta = event.key === "ArrowUp" ? 1 : -1;
+      if (column === "status") {
+        event.preventDefault();
         const cur = primaryStatus(item.modifiers);
         const i = PRIMARY_STATUSES.indexOf(cur);
         const nextPrimary = PRIMARY_STATUSES[(i + delta + PRIMARY_STATUSES.length) % PRIMARY_STATUSES.length];
         patchTask(row, { modifiers: composeModifiers(nextPrimary, item.modifiers.includes("crit")) });
-      } else if (column === "start" && scheduleValueType("start", item.start) === "after") {
-        cycleAfterReference(row, delta);
-      } else {
-        (event.currentTarget as HTMLInputElement | HTMLSelectElement).click();
+        return;
       }
+      if (column === "crit") {
+        event.preventDefault();
+        patchTask(row, {
+          modifiers: composeModifiers(primaryStatus(item.modifiers), !item.modifiers.includes("crit")),
+        });
+        return;
+      }
+      if (column === "startType" || column === "endType") {
+        event.preventDefault();
+        toggleScheduleType(row, column === "startType" ? "start" : "end");
+        return;
+      }
+      if (column === "start" || column === "end") {
+        const field = column;
+        const valueType = scheduleValueType(field, item[field]);
+        if (field === "start" && valueType === "after") {
+          event.preventDefault();
+          // The `after` picker is a top-to-bottom list, so ↓ moves DOWN the list
+          // (later index) — opposite sign from the numeric "↑ = increase".
+          cycleAfterReference(row, -delta);
+          return;
+        }
+        if (valueType === "date" && event.currentTarget instanceof HTMLInputElement) {
+          event.preventDefault();
+          const base = parseDateUtc(item[field], dateFormat) ?? Date.now();
+          const caretPos = event.currentTarget.selectionStart ?? event.currentTarget.value.length;
+          const f = fieldAtCaret(dateFormat, caretPos);
+          patchTask(row, {
+            [field]: formatDateUtc(addDateField(base, f, delta), dateFormat),
+          } as Partial<GanttTask>);
+          return;
+        }
+        if (field === "end" && valueType === "duration") {
+          event.preventDefault();
+          const token = parseDurationToken(item.end);
+          const unit: GanttDurationUnit = token?.unit ?? "d";
+          const next = Math.max(1, (token?.amount ?? 1) + delta);
+          patchTask(row, { end: `${next}${unit}` });
+          return;
+        }
+        event.preventDefault();
+        return;
+      }
+      // kind/label/id: nothing to adjust — fall through to row navigation.
+    }
+
+    // In edit mode ←/→ moves the caret inside an editable text input; selects,
+    // the crit checkbox, and empty readonly placeholders still navigate so you
+    // can pass through them (goal: ←/→ stops match Tab stops).
+    if (
+      editMode &&
+      (event.key === "ArrowLeft" || event.key === "ArrowRight") &&
+      event.currentTarget instanceof HTMLInputElement &&
+      !event.currentTarget.readOnly &&
+      event.currentTarget.type !== "checkbox"
+    ) {
       return;
     }
 
-    if (
-      editMode &&
-      item.type === "task" &&
-      (column === "start" || column === "end") &&
-      (event.key === "ArrowUp" || event.key === "ArrowDown")
-    ) {
-      const valueType = scheduleValueType(column, item[column]);
-      const delta = event.key === "ArrowUp" ? 1 : -1;
-      if (valueType === "date" && event.currentTarget instanceof HTMLInputElement) {
-        event.preventDefault();
-        const base = parseDateUtc(item[column], dateFormat) ?? Date.now();
-        const caretPos = event.currentTarget.selectionStart ?? event.currentTarget.value.length;
-        const field = fieldAtCaret(dateFormat, caretPos);
-        patchTask(row, {
-          [column]: formatDateUtc(addDateField(base, field, delta), dateFormat),
-        } as Partial<GanttTask>);
-        return;
-      }
-      if (column === "end" && valueType === "duration") {
-        event.preventDefault();
-        const token = parseDurationToken(item.end);
-        const unit: GanttDurationUnit = token?.unit ?? "d";
-        const next = Math.max(1, (token?.amount ?? 1) + delta);
-        patchTask(row, { end: `${next}${unit}` });
-        return;
-      }
-    }
-
-    // In edit mode, let ←/→ move the caret inside the input (do not navigate).
-    if (editMode && (event.key === "ArrowLeft" || event.key === "ArrowRight")) return;
-
+    // Tab and arrows share one flat COLUMNS grid — every slot (incl. the type
+    // selects and crit) is a stop, and empty rows register placeholders so
+    // nothing dead-ends (goal #4).
     if (event.key === "Tab") {
       const delta = event.shiftKey ? -1 : 1;
       const flat = row * COLUMNS.length + colIndex + delta;
@@ -1339,6 +1883,20 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       else clearDependency(selection.index);
     },
     [selection, deleteItem, clearDependency],
+  );
+
+  // Focusable readonly placeholder occupying a nav slot on rows that have no
+  // real control there (section/raw). Registered so Tab/arrows pass through it.
+  const renderEmptyCell = (idx: number, column: GanttCellColumn, item: GanttItem) => (
+    <input
+      ref={registerCell(idx, column)}
+      className="mge-gantt-cell-input mge-gantt-cell-empty"
+      value=""
+      readOnly
+      aria-hidden
+      onFocus={() => setSelection({ type: "task", index: idx })}
+      onKeyDown={onCellKeyDown(idx, COL(column), item)}
+    />
   );
 
   const renderTextCell = (item: GanttItem, idx: number) => {
@@ -1394,7 +1952,8 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
     if (schedulePicker.mode === "after") {
       const options = taskIdOptions.filter((id) => id !== item.id);
       if (options.length === 0) return;
-      const nextIndex = (schedulePicker.afterIndex + delta + options.length) % options.length;
+      // Reversed vs numeric adjust: ↓ (delta -1) moves DOWN the list.
+      const nextIndex = (schedulePicker.afterIndex - delta + options.length) % options.length;
       setSchedulePicker((prev) => (prev ? { ...prev, afterIndex: nextIndex } : prev));
       patchTask(schedulePicker.row, { start: `after ${options[nextIndex]}` });
     }
@@ -1431,12 +1990,11 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
             event.preventDefault();
             event.stopPropagation();
             setSchedulePicker(null);
-          } else if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+            focusScheduleInput(idx, field);
+          } else if (isAdjustKey(event)) {
             event.preventDefault();
             event.stopPropagation();
-            if ((field === "start" && event.altKey) || (field === "end" && editMode)) {
-              adjustPickerValue(event.key === "ArrowUp" ? 1 : -1);
-            }
+            if (adjustEnabled(event)) adjustPickerValue(event.key === "ArrowUp" ? 1 : -1);
           }
         }}
       >
@@ -1450,7 +2008,10 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
                   key={id}
                   type="button"
                   className={parseAfterReference(value) === id ? "active" : ""}
-                  onClick={() => patchTask(idx, { start: `after ${id}` })}
+                  onClick={() => {
+                    patchTask(idx, { start: `after ${id}` });
+                    focusScheduleInput(idx, field);
+                  }}
                 >
                   after {id}
                 </button>
@@ -1469,12 +2030,6 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
                   min={1}
                   step={1}
                   value={token?.amount ?? schedulePicker.duration}
-                  autoFocus
-                  onKeyDown={(event) => {
-                    if (editMode || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
-                    event.preventDefault();
-                    event.stopPropagation();
-                  }}
                   onChange={(event) => {
                     const next = Math.max(1, Math.round(Number(event.target.value)) || 1);
                     setSchedulePicker((prev) => (prev ? { ...prev, duration: next } : prev));
@@ -1486,47 +2041,28 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
             );
           })()
         )}
-        <div className="mge-gantt-picker-hint">
-          {field === "start" ? "Alt+↑↓: select / Enter: close" : "Edit mode + ↑↓: adjust / Enter: close"}
-        </div>
+        <div className="mge-gantt-picker-hint">{t.gantt.pickerHint}</div>
       </div>
     );
   };
 
-  const renderScheduleCell = (
-    task: GanttTask | null,
-    idx: number,
-    field: "start" | "end",
-    colIndex: number,
-    item: GanttItem,
-  ) => {
+  const renderScheduleCell = (task: GanttTask | null, idx: number, field: ScheduleField, item: GanttItem) => {
+    const typeColumn: GanttCellColumn = field === "start" ? "startType" : "endType";
     const value = task?.[field] ?? "";
     if (!task) {
+      // Empty schedule cell for a section/raw row: focusable placeholders for
+      // both the value and type slots so Tab/arrows pass straight through.
       return (
-        <input
-          className="mge-gantt-cell-input"
-          value=""
-          readOnly
-          aria-disabled
-          tabIndex={-1}
-          placeholder={field === "start" ? `${dateFormat} / after id` : `${dateFormat} / 7d`}
-        />
+        <div className="mge-gantt-schedule-cell">
+          {renderEmptyCell(idx, field, item)}
+          {renderEmptyCell(idx, typeColumn, item)}
+        </div>
       );
     }
 
     const patch = (next: string) => patchTask(idx, { [field]: next || undefined } as Partial<GanttTask>);
     const valueType = scheduleValueType(field, value);
-    const options = taskIdOptions.filter((id) => id !== task.id);
-    const setType = (nextType: ScheduleValueType) => {
-      setSchedulePicker(null);
-      if (nextType === "after") {
-        patchTask(idx, { start: options[0] ? `after ${options[0]}` : undefined });
-      } else if (nextType === "duration") {
-        patchTask(idx, { end: `${parseDurationDays(task.end) ?? 1}d` });
-      } else {
-        patchTask(idx, { [field]: isDateToken(value, dateFormat) ? value : todayDate(dateFormat) } as Partial<GanttTask>);
-      }
-    };
+    const setType = (nextType: ScheduleValueType) => setScheduleType(idx, field, nextType);
     // The native picker input's own value format is fixed by its HTML type
     // (always YYYY-MM-DD for type="date", HH:mm for type="time", ...) and is
     // independent of the chart's dateFormat — convert through it explicitly.
@@ -1544,16 +2080,18 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
           type="text"
           value={value}
           onFocus={() => setSelection({ type: "task", index: idx })}
-          onKeyDown={onCellKeyDown(idx, colIndex, item)}
+          onKeyDown={onCellKeyDown(idx, COL(field), item)}
           onChange={(event) => patch(event.target.value)}
           placeholder={field === "start" ? `${dateFormat} / after id` : `${dateFormat} / 7d`}
         />
         <select
+          ref={registerCell(idx, typeColumn)}
           className="mge-gantt-schedule-type"
           aria-label={`${field} type`}
           value={valueType}
+          onFocus={() => setSelection({ type: "task", index: idx })}
           onChange={(event) => setType(event.target.value as ScheduleValueType)}
-          onKeyDown={blurOnEscape}
+          onKeyDown={onCellKeyDown(idx, COL(typeColumn), item)}
         >
           <option value="date">date</option>
           {field === "start" ? <option value="after">after</option> : <option value="duration">dur</option>}
@@ -1564,6 +2102,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
             type={nativeType}
             aria-label={`${field} date picker`}
             value={nativeValue}
+            onFocus={() => setSelection({ type: "task", index: idx })}
             onKeyDown={(event) => {
               if (event.key !== "Escape") return;
               event.preventDefault();
@@ -1580,7 +2119,17 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
             className="mge-gantt-schedule-open"
             type="button"
             aria-label={t.gantt.openPickerFor(field)}
-            onClick={() => openSchedulePicker(idx, field)}
+            onFocus={() => setSelection({ type: "task", index: idx })}
+            onClick={() => {
+              const open =
+                schedulePicker?.row === idx && schedulePicker?.field === field;
+              if (open) {
+                setSchedulePicker(null);
+                return;
+              }
+              openSchedulePicker(idx, field);
+              focusScheduleInput(idx, field);
+            }}
           >
             ▾
           </button>
@@ -1618,7 +2167,10 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
             }}
             onAxisWeekdayChange={(value) => setAxisFormat(composeAxisFormat(axisBase, value))}
             onAxisFormatChange={setAxisFormat}
+            onTickIntervalChange={setTickInterval}
             onReorderItem={reorderItem}
+            onDeleteTask={deleteItem}
+            onDeleteDependency={clearDependency}
           />
         </div>
       }
@@ -1636,14 +2188,40 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
             />
           </label>
           <label>
-            <span>dateFormat</span>
-            <input
+            <span>{t.gantt.dateFormatCaption}</span>
+            <select
               className="mge-gantt-field"
-              value={ir.dateFormat ?? ""}
-              onChange={(event) => setIr({ ...ir, dateFormat: event.target.value || undefined })}
+              value={showCustomDateFormat ? "custom" : dateFormatPreset}
+              onChange={(event) => onDateFormatPresetChange(event.target.value)}
               onKeyDown={blurOnEscape}
-              placeholder="YYYY-MM-DD"
-            />
+              aria-label={t.gantt.dateFormatRoleHint}
+            >
+              <option value="date">{t.gantt.dateFormatPresetDate}</option>
+              <option value="datetime">{t.gantt.dateFormatPresetDateTime}</option>
+              <option value="time">{t.gantt.dateFormatPresetTime}</option>
+              <option value="custom">{t.gantt.dateFormatPresetCustom}</option>
+            </select>
+            {showCustomDateFormat ? (
+              <input
+                className="mge-gantt-field mge-gantt-dateformat-custom"
+                value={dateFormatDraft ?? dateFormat}
+                onChange={(event) => setDateFormatDraft(event.target.value)}
+                onBlur={() => {
+                  if (dateFormatDraft !== null) changeDateFormat(dateFormatDraft);
+                  setDateFormatDraft(null);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.currentTarget.blur();
+                  } else if (event.key === "Escape") {
+                    setDateFormatDraft(null);
+                    event.currentTarget.blur();
+                  }
+                }}
+                placeholder="YYYY-MM-DD"
+                aria-label={t.gantt.dateFormatCustomLabel}
+              />
+            ) : null}
           </label>
           <div className="mge-gantt-table-actions">
             <button
@@ -1727,11 +2305,11 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
                 {task ? (
                   <div className="mge-gantt-status-cell">
                     <select
-                      ref={registerCell(idx, "modifiers")}
+                      ref={registerCell(idx, "status")}
                       className="mge-gantt-cell-select"
                       value={primaryStatus(task.modifiers)}
                       onFocus={() => setSelection({ type: "task", index: idx })}
-                      onKeyDown={onCellKeyDown(idx, 3, item)}
+                      onKeyDown={onCellKeyDown(idx, COL("status"), item)}
                       onChange={(event) =>
                         patchTask(idx, {
                           modifiers: composeModifiers(
@@ -1748,29 +2326,28 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
                     </select>
                     <label className="mge-gantt-crit-toggle" title={t.gantt.critToggleTitle}>
                       <input
+                        ref={registerCell(idx, "crit")}
                         type="checkbox"
                         checked={task.modifiers.includes("crit")}
+                        onFocus={() => setSelection({ type: "task", index: idx })}
                         onChange={(event) =>
                           patchTask(idx, {
                             modifiers: composeModifiers(primaryStatus(task.modifiers), event.target.checked),
                           })
                         }
-                        onKeyDown={blurOnEscape}
+                        onKeyDown={onCellKeyDown(idx, COL("crit"), item)}
                       />
                       crit
                     </label>
                   </div>
                 ) : (
-                  <input
-                    className="mge-gantt-cell-input"
-                    value=""
-                    readOnly
-                    aria-disabled
-                    tabIndex={-1}
-                  />
+                  <div className="mge-gantt-status-cell">
+                    {renderEmptyCell(idx, "status", item)}
+                    {renderEmptyCell(idx, "crit", item)}
+                  </div>
                 )}
-                {renderScheduleCell(task, idx, "start", 4, item)}
-                {renderScheduleCell(task, idx, "end", 5, item)}
+                {renderScheduleCell(task, idx, "start", item)}
+                {renderScheduleCell(task, idx, "end", item)}
                 <button
                   className="mge-gantt-delete"
                   aria-label="Delete item"
