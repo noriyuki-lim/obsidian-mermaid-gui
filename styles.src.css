@@ -1902,6 +1902,13 @@ body.theme-dark .mge-seq-badge-raw {
   opacity: 0.78;
 }
 
+/* Row whose bar is selected on the canvas — accent tint + inset border. Placed
+   after the even/section/raw rules so it wins at equal specificity. */
+.mge-gantt-grid-row.selected {
+  background: color-mix(in srgb, var(--background-secondary, #fff) 76%, var(--mge-accent, #04aed6) 24%);
+  box-shadow: 0 0 0 1px var(--mge-accent, #04aed6) inset;
+}
+
 .mge-gantt-cell-input,
 .mge-gantt-cell-select {
   width: 100%;

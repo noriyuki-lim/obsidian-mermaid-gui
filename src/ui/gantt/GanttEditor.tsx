@@ -1329,6 +1329,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
   // Table interaction mode (goal 7): navigation vs cell-edit, Excel-like.
   const [editMode, setEditMode] = useState(false);
   const cellRefs = useRef(new Map<string, CellElement>());
+  const gridShellRef = useRef<HTMLElement>(null);
   const tableDragRef = useRef<{ pointerId: number; currentIndex: number } | null>(null);
   const [tableDraggingIndex, setTableDraggingIndex] = useState<number | null>(null);
   const [schedulePicker, setSchedulePicker] = useState<{
@@ -1530,6 +1531,16 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
     buildTimeline(ir).tasks.forEach((task) => map.set(task.index, { start: task.start, end: task.end }));
     return map;
   }, [ir]);
+
+  // Keep the selected task's table row visible (e.g. after selecting its bar on
+  // the canvas). `block: "nearest"` no-ops when the row is already on screen, so
+  // clicking a cell doesn't cause a jump.
+  useEffect(() => {
+    if (selection?.type !== "task") return;
+    gridShellRef.current
+      ?.querySelector<HTMLElement>(`[data-gantt-row="${selection.index}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [selection]);
 
   const handleSourceEdit = useCallback((next: string): SourceEditOutcome => {
     const r = parseGantt(next);
@@ -2236,7 +2247,7 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
           </div>
         </section>
 
-        <section className="mge-gantt-grid-shell" aria-label="Gantt task table">
+        <section className="mge-gantt-grid-shell" aria-label="Gantt task table" ref={gridShellRef}>
           <div className="mge-gantt-grid-header">
             <span />
             <span>type</span>
@@ -2261,7 +2272,9 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
             return (
               <div
                 key={idx}
-                className={`${rowClass} ${tableDraggingIndex === idx ? "dragging" : ""}`}
+                className={`${rowClass} ${tableDraggingIndex === idx ? "dragging" : ""} ${
+                  selection?.type === "task" && selection.index === idx ? "selected" : ""
+                }`}
                 data-gantt-row={idx}
               >
                 <button
