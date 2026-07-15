@@ -1800,6 +1800,11 @@ body.theme-dark .mge-seq-badge-raw {
   padding: 4px 8px;
 }
 
+.mge-gantt-dateformat-custom {
+  font-family: var(--font-monospace, monospace);
+  font-size: 12px;
+}
+
 .mge-gantt-field:focus,
 .mge-gantt-cell-input:focus,
 .mge-gantt-cell-select:focus,
@@ -1956,6 +1961,38 @@ body.theme-dark .mge-seq-badge-raw {
   cursor: pointer;
 }
 
+/* Clear focus affordance on the chromeless schedule sub-controls (type select,
+   value input, crit checkbox) so keyboard nav shows where you are. */
+.mge-gantt-schedule-type:focus,
+.mge-gantt-schedule-type:focus-visible {
+  outline: 2px solid var(--mge-accent, #04aed6) !important;
+  outline-offset: -2px;
+  color: var(--text-normal, #ddd) !important;
+  background: color-mix(in srgb, var(--mge-accent, #04aed6) 12%, transparent) !important;
+}
+.mge-gantt-schedule-cell .mge-gantt-schedule-input:focus {
+  outline: 2px solid var(--mge-accent, #04aed6) !important;
+  outline-offset: -2px;
+  border-radius: 3px;
+}
+.mge-gantt-crit-toggle input:focus,
+.mge-gantt-crit-toggle input:focus-visible {
+  outline: 2px solid var(--mge-accent, #04aed6);
+  outline-offset: 2px;
+}
+
+/* Empty placeholder slots (section/raw rows): invisible but focusable so
+   Tab/arrows pass through; a focus outline still shows the caret's position. */
+.mge-gantt-cell-empty {
+  background: transparent !important;
+  border-color: transparent !important;
+  cursor: default;
+}
+.mge-gantt-cell-empty:focus {
+  outline: 2px solid var(--mge-accent, #04aed6);
+  outline-offset: -1px;
+}
+
 .mge-gantt-schedule-open {
   appearance: none;
   width: 28px;
@@ -2006,6 +2043,34 @@ body.theme-dark .mge-seq-badge-raw {
   background: var(--background-secondary, #252525);
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
   color: var(--text-normal, #ddd);
+}
+
+/* Right-click "Delete task" menu on a bar (fixed at the pointer). */
+.mge-gantt-bar-menu {
+  position: fixed;
+  z-index: 30;
+  min-width: 128px;
+  padding: 4px;
+  border: 1px solid var(--background-modifier-border, #d6d6df);
+  border-radius: 6px;
+  background: var(--background-primary, #fff);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+.mge-gantt-bar-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-normal, #1f1f2e) !important;
+  font: inherit;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.mge-gantt-bar-menu-item:hover {
+  background: var(--background-modifier-hover, rgba(0, 0, 0, 0.08)) !important;
 }
 
 .mge-gantt-after-list button {
@@ -2110,6 +2175,11 @@ body.theme-dark .mge-seq-badge-raw {
   --mge-gantt-bar-done: #34d399;
   --mge-gantt-bar-crit: #fb7185;
   --mge-gantt-bar-milestone: #f59e0b;
+  --mge-gantt-sec-0: #60a5fa;
+  --mge-gantt-sec-1: #a78bfa;
+  --mge-gantt-sec-2: #34d399;
+  --mge-gantt-sec-3: #fbbf24;
+  --mge-gantt-sec-4: #f472b6;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -2129,6 +2199,11 @@ body:not(.theme-dark) .mge-gantt-preview {
   --mge-gantt-bar-done: #059669;
   --mge-gantt-bar-crit: #e11d48;
   --mge-gantt-bar-milestone: #d97706;
+  --mge-gantt-sec-0: #2563eb;
+  --mge-gantt-sec-1: #7c3aed;
+  --mge-gantt-sec-2: #059669;
+  --mge-gantt-sec-3: #d97706;
+  --mge-gantt-sec-4: #db2777;
 }
 
 .mge-gantt-preview-tools {
@@ -2221,6 +2296,18 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
 
 .mge-gantt-bg {
   fill: var(--mge-gantt-canvas);
+  cursor: grab;
+}
+.mge-gantt-bg.panning {
+  cursor: grabbing;
+}
+
+/* Axis decorations never intercept pointers, so background pan/deselect stays
+   reliable even when the cursor lands on a gridline or tick. */
+.mge-gantt-axis,
+.mge-gantt-grid-line,
+.mge-gantt-tick {
+  pointer-events: none;
 }
 
 .mge-gantt-axis,
@@ -2277,6 +2364,25 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
 .mge-gantt-task.milestone .mge-gantt-bar {
   fill: var(--mge-gantt-bar-milestone);
 }
+
+/* Section-cycling bar colors (plain tasks) — mirrors the rendered chart's
+   per-section coloring. Status classes above win over these. */
+.mge-gantt-task.section-0 .mge-gantt-bar { fill: var(--mge-gantt-sec-0); }
+.mge-gantt-task.section-1 .mge-gantt-bar { fill: var(--mge-gantt-sec-1); }
+.mge-gantt-task.section-2 .mge-gantt-bar { fill: var(--mge-gantt-sec-2); }
+.mge-gantt-task.section-3 .mge-gantt-bar { fill: var(--mge-gantt-sec-3); }
+.mge-gantt-task.section-4 .mge-gantt-bar { fill: var(--mge-gantt-sec-4); }
+
+/* Faint per-section background bands behind the rows. */
+.mge-gantt-section-band {
+  opacity: 0.08;
+  pointer-events: none;
+}
+.mge-gantt-section-band.section-0 { fill: var(--mge-gantt-sec-0); }
+.mge-gantt-section-band.section-1 { fill: var(--mge-gantt-sec-1); }
+.mge-gantt-section-band.section-2 { fill: var(--mge-gantt-sec-2); }
+.mge-gantt-section-band.section-3 { fill: var(--mge-gantt-sec-3); }
+.mge-gantt-section-band.section-4 { fill: var(--mge-gantt-sec-4); }
 
 .mge-gantt-task.selected .mge-gantt-bar {
   stroke: #fff;
@@ -2893,7 +2999,15 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
 .mge-gantt-preview-tool-group {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 6px;
+}
+.mge-gantt-preview-tool-label {
+  font-size: 11px;
+  color: var(--text-normal, #1f1f2e);
+  opacity: 0.7;
+  white-space: nowrap;
 }
 .mge-gantt-preview-field {
   min-width: 86px;
@@ -2931,9 +3045,15 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
 }
 .mge-gantt-section-rule {
   stroke: var(--text-muted, #888);
-  stroke-width: 1;
-  opacity: 0.5;
+  stroke-width: 2;
+  opacity: 0.7;
+  stroke-linecap: round;
 }
+.mge-gantt-section-rule.section-0 { stroke: var(--mge-gantt-sec-0); }
+.mge-gantt-section-rule.section-1 { stroke: var(--mge-gantt-sec-1); }
+.mge-gantt-section-rule.section-2 { stroke: var(--mge-gantt-sec-2); }
+.mge-gantt-section-rule.section-3 { stroke: var(--mge-gantt-sec-3); }
+.mge-gantt-section-rule.section-4 { stroke: var(--mge-gantt-sec-4); }
 .mge-gantt-section-label {
   fill: var(--text-normal, #222);
   font-size: 12px;
@@ -2951,6 +3071,14 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
   stroke: var(--text-accent, #5b6ee1);
   stroke-width: 1.5;
   stroke-dasharray: 4 3;
+  fill: none;
+  /* The wide transparent hit line beneath takes the pointer events. */
+  pointer-events: none;
+}
+/* Fat invisible click/right-click target over the thin dependency connector. */
+.mge-gantt-dep-hit {
+  stroke: transparent;
+  stroke-width: 12;
   fill: none;
   cursor: pointer;
 }
