@@ -109,10 +109,12 @@ export const en: typeof ja = {
     tickWeek: "1 week",
     tickMonth: "1 month",
     weekday: "Weekday",
+    snapLabel: "Snap",
+    snapRoleHint: "Snap dragged bars to the tick grid (hold Ctrl to invert)",
     zoomReset: "Reset zoom",
     emptyPreviewHint: "Add with + task, or double-click empty space",
     previewHelp:
-      "Drag a bar to move it, its left/right edge to change duration, or from the ○ on its right edge to another bar to link them. Drag the outer handles — or scroll the wheel over the chart — to zoom the visible range. Select and press Delete to remove.",
+      "Drag a bar to move it, its left/right edge to change duration, or from the ○ on its right edge to another bar to link them. Hold Alt while dragging for 1-minute precision on minute-scale tasks. Drag the outer handles — or scroll the wheel over the chart — to zoom the visible range. Select and press Delete to remove.",
     pickerEmpty: "No tasks with an id",
     pickerHint: "Edit ↑↓ · Move Alt+↑↓ to change · Enter/Esc to close",
     deleteTask: "Delete task",

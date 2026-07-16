@@ -118,11 +118,13 @@ export const ja = {
     tickWeek: "1 week",
     tickMonth: "1 month",
     weekday: "Weekday",
+    snapLabel: "Snap",
+    snapRoleHint: "Snap dragged bars to the tick grid (hold Ctrl to invert)",
     zoomReset: "Reset zoom",
     emptyPreviewHint: "Add with + task, or double-click empty space",
     // Preview operation help — Japanese (see language policy above).
     previewHelp:
-      "バーをドラッグして移動・左右端で期間変更・右端の○から別バーへドラッグで依存。端のハンドルまたはバー上での縦スクロールで表示範囲をズーム。選択して Delete で削除。",
+      "バーをドラッグして移動・左右端で期間変更・右端の○から別バーへドラッグで依存。分単位のタスクはAltキーで1分刻みに調整可能。端のハンドルまたはバー上での縦スクロールで表示範囲をズーム。選択して Delete で削除。",
     pickerEmpty: "No tasks with an id",
     pickerHint: "Edit ↑↓ · Move Alt+↑↓ to change · Enter/Esc to close",
     deleteTask: "Delete task",

@@ -155,6 +155,31 @@ const defaultTaskEnd = (dateFormat: string): string =>
   dateFormatCapability(dateFormat) === "time" ? "1h" : "3d";
 
 /**
+ * The unit a duration token reserializes to while being move/resize-dragged
+ * in the preview. `h`-scale tasks drag-reserialize as `m` instead of `h`: at
+ * `h` precision, `oneUnitMs` (the resize floor) is a full hour and
+ * `formatDurationToken` only rounds to whole hours, so a `1h`/`2h` task could
+ * never shrink below its own original length and every drag snapped to
+ * whole-hour steps. `d`/`w` tasks (ordinary project-scale durations) keep
+ * their own unit — no such complaint there, and reserializing a multi-week
+ * task in minutes would produce an unreadable `30240m`.
+ */
+const dragSerializeUnit = (unit: GanttDurationUnit): GanttDurationUnit => (unit === "h" ? "m" : unit);
+
+/** Default drag step for `m`-scale tasks (5 minutes; 1 minute with Alt held) —
+ * a stepper-style granularity independent of tick-snap (which snaps the
+ * *absolute* position to the visible axis grid; this quantizes the *amount
+ * dragged so far* instead, so it still applies with no tick-snap in play).
+ * `d`/`w`/`s` tasks are unaffected — only unit `m` after `dragSerializeUnit`
+ * (plain `m` tasks, or `h` tasks converted to `m`) gets this treatment. */
+const MINUTE_STEP_DEFAULT = 5;
+const minuteStepMs = (altHeld: boolean) => oneUnitMs("m") * (altHeld ? 1 : MINUTE_STEP_DEFAULT);
+/** Quantize `deltaMs` to whole steps of `stepMs`, or leave it as continuous
+ * pixel-tracked motion when `unit` isn't `m`. */
+const quantizeDeltaForUnit = (deltaMs: number, unit: GanttDurationUnit | null, altHeld: boolean): number =>
+  unit === "m" ? Math.round(deltaMs / minuteStepMs(altHeld)) * minuteStepMs(altHeld) : deltaMs;
+
+/**
  * `setPointerCapture` can throw (e.g. `NotFoundError` if the browser no
  * longer considers the pointer active) — unlike its `releasePointerCapture`
  * counterpart elsewhere in this file, it wasn't wrapped, so a throw here
@@ -437,6 +462,11 @@ const GanttInteractivePreview = ({
     moved: boolean;
   } | null>(null);
   const [panning, setPanning] = useState(false);
+  // Snap-to-tick (session-only UI preference, not part of the diagram itself —
+  // no reason to serialize a drag-input aid into the Mermaid source). Ctrl
+  // held during a drag inverts this rather than only ever enabling it, so it
+  // also works as "temporarily go freehand" when the checkbox is already on.
+  const [snapToTick, setSnapToTick] = useState(false);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -704,7 +734,10 @@ const GanttInteractivePreview = ({
               index: predecessorLayout.index,
               start: predecessorLayout.start,
               end: predecessorLayout.end,
-              unit: parseDurationToken(predecessorLayout.task.end)?.unit ?? null,
+              unit: (() => {
+                const unit = parseDurationToken(predecessorLayout.task.end)?.unit;
+                return unit ? dragSerializeUnit(unit) : null;
+              })(),
             }
           : undefined,
         dependents: layout.task.id ? collectDependentEnds(layout.task.id) : [],
@@ -873,7 +906,23 @@ const GanttInteractivePreview = ({
     const deltaMs = msDeltaForClient(event.clientX, drag.clientX);
     if (deltaMs === 0) return;
 
+    // Ctrl held inverts the checkbox rather than only ever enabling it (see
+    // `snapToTick`'s doc comment). Snapping rounds to the *absolute* tick grid
+    // (same epoch-phase-locked multiples `buildAbsoluteTicks` draws), not an
+    // offset from the bar's own start, so a dragged edge lands exactly on a
+    // visible gridline.
+    const snapActive = snapToTick !== event.ctrlKey;
+    const snapTime = (time: number) => (snapActive ? Math.round(time / tickIntervalMs) * tickIntervalMs : time);
+
     const originalEndToken = parseDurationToken(drag.originalEnd);
+    // Stepper-style granularity for `m`-scale tasks: 5-minute steps by
+    // default, 1-minute with Alt held (see `quantizeDeltaForUnit`'s doc
+    // comment). Resolved from the dragged task's own unit; the move-mode
+    // predecessor branch below resolves its own since it's shifting a
+    // *different* task's (the predecessor's) duration.
+    const altHeld = event.altKey;
+    const dragUnit = originalEndToken ? dragSerializeUnit(originalEndToken.unit) : null;
+    const quantizedDeltaMs = quantizeDeltaForUnit(deltaMs, dragUnit, altHeld);
 
     if (drag.mode === "move") {
       // Preserve an `after` link on either side of this task instead of
@@ -890,8 +939,9 @@ const GanttInteractivePreview = ({
       const predecessor = snapshot?.predecessor;
 
       if (predecessor) {
+        const predecessorDeltaMs = quantizeDeltaForUnit(deltaMs, predecessor.unit, altHeld);
         const nextPredecessorEnd = Math.max(
-          predecessor.end + deltaMs,
+          snapTime(predecessor.end + predecessorDeltaMs),
           predecessor.start + MIN_TASK_DURATION_MS,
         );
         onPatchTask(predecessor.index, {
@@ -906,8 +956,10 @@ const GanttInteractivePreview = ({
           onPatchTask(drag.index, { end: formatDateUtc(drag.end + deltaMs, dateFormat) });
         }
       } else {
-        const nextStart = drag.start + deltaMs;
-        const nextEnd = drag.end + deltaMs;
+        // Snap only the start; the end follows at the same fixed distance so
+        // snapping doesn't quietly change the bar's own duration.
+        const nextStart = snapTime(drag.start + quantizedDeltaMs);
+        const nextEnd = nextStart + (drag.end - drag.start);
         onPatchTask(drag.index, {
           start: formatDateUtc(nextStart, dateFormat),
           end: originalEndToken ? drag.originalEnd : formatDateUtc(nextEnd, dateFormat),
@@ -922,13 +974,16 @@ const GanttInteractivePreview = ({
 
     // Minimum start/end gap: one native unit of the task's own duration
     // token (e.g. 1 minute for a `9m` task) instead of a flat day, so
-    // resizing a sub-day task doesn't get clamped to a day-scale minimum.
+    // resizing a sub-day task doesn't get clamped to a day-scale minimum. Goes
+    // through `dragSerializeUnit` like every other resize-time unit below, so
+    // an `h`-scale task's floor is 1 minute, not the 1-hour floor that made a
+    // `1h` task unshrinkable.
     const minGapMs = originalEndToken
-      ? Math.max(oneUnitMs(originalEndToken.unit), MIN_TASK_DURATION_MS)
+      ? Math.max(oneUnitMs(dragSerializeUnit(originalEndToken.unit)), MIN_TASK_DURATION_MS)
       : DAY_MS;
 
     if (drag.mode === "resize-start") {
-      const nextStart = Math.min(drag.start + deltaMs, drag.end - minGapMs);
+      const nextStart = Math.min(snapTime(drag.start + quantizedDeltaMs), drag.end - minGapMs);
       const nextDurationDays = (drag.end - nextStart) / DAY_MS;
       const currentLayout = baseTimeline.tasks.find((task) => task.index === drag.index);
       const previousId = parseAfterReference(currentLayout?.task.start);
@@ -939,12 +994,15 @@ const GanttInteractivePreview = ({
         const previousToken = parseDurationToken(previousLayout.task.end);
         onPatchTask(previousLayout.index, {
           end: previousToken
-            ? formatDurationToken((nextStart - previousLayout.start) / DAY_MS, previousToken.unit)
+            ? formatDurationToken(
+                (nextStart - previousLayout.start) / DAY_MS,
+                dragSerializeUnit(previousToken.unit),
+              )
             : formatDateUtc(nextStart, dateFormat),
         });
         onPatchTask(drag.index, {
           end: originalEndToken
-            ? formatDurationToken(nextDurationDays, originalEndToken.unit)
+            ? formatDurationToken(nextDurationDays, dragSerializeUnit(originalEndToken.unit))
             : drag.originalEnd,
         });
         return;
@@ -952,13 +1010,13 @@ const GanttInteractivePreview = ({
       onPatchTask(drag.index, {
         start: formatDateUtc(nextStart, dateFormat),
         end: originalEndToken
-          ? formatDurationToken(nextDurationDays, originalEndToken.unit)
+          ? formatDurationToken(nextDurationDays, dragSerializeUnit(originalEndToken.unit))
           : formatDateUtc(drag.end, dateFormat),
       });
       return;
     }
 
-    const nextEnd = Math.max(drag.end + deltaMs, drag.start + minGapMs);
+    const nextEnd = Math.max(snapTime(drag.end + quantizedDeltaMs), drag.start + minGapMs);
     // If the end is an absolute date but the start is implicit (neither a date
     // nor an `after` ref), pin the start to its frozen value so the bar extends
     // from a fixed left edge instead of the derived start sliding along with the
@@ -970,7 +1028,7 @@ const GanttInteractivePreview = ({
         ? { start: formatDateUtc(drag.start, dateFormat) }
         : {}),
       end: originalEndToken
-        ? formatDurationToken((nextEnd - drag.start) / DAY_MS, originalEndToken.unit)
+        ? formatDurationToken((nextEnd - drag.start) / DAY_MS, dragSerializeUnit(originalEndToken.unit))
         : formatDateUtc(nextEnd, dateFormat),
     });
     const currentLayout = baseTimeline.tasks.find((task) => task.index === drag.index);
@@ -981,7 +1039,10 @@ const GanttInteractivePreview = ({
           const successorToken = parseDurationToken(successor.task.end);
           if (!successorToken) return;
           onPatchTask(successor.index, {
-            end: formatDurationToken((successor.end - nextEnd) / DAY_MS, successorToken.unit),
+            end: formatDurationToken(
+              (successor.end - nextEnd) / DAY_MS,
+              dragSerializeUnit(successorToken.unit),
+            ),
           });
         });
     }
@@ -1070,6 +1131,14 @@ const GanttInteractivePreview = ({
               </option>
             ))}
           </select>
+          <label className="mge-gantt-preview-check" aria-label={t.gantt.snapRoleHint}>
+            <input
+              type="checkbox"
+              checked={snapToTick}
+              onChange={(event) => setSnapToTick(event.target.checked)}
+            />
+            {t.gantt.snapLabel}
+          </label>
           {viewport ? (
             <button className="mge-gantt-preview-btn" onClick={() => setViewport(null)}>
               {t.gantt.zoomReset}
