@@ -100,6 +100,23 @@ const CHART_RIGHT_PAD = 36;
  * into the single combined "start → end" reading instead. */
 const READOUT_MERGE_GAP_PX = 90;
 
+/**
+ * The uniform CSS-px-per-viewBox-unit scale actually used to render the
+ * preview `<svg>`, given its `preserveAspectRatio="xMinYMin meet"` — the
+ * SMALLER of the two axis scales, per spec. `rect.width / viewBoxWidth`
+ * alone (what every pointer↔viewBox conversion here used to assume) is only
+ * correct when width happens to be the constraining dimension; the SVG's
+ * viewBox height is derived from the task count (`CHART_TOP + rows *
+ * ROW_HEIGHT + 52`) and has no relationship to the element's actual CSS
+ * height (`flex: 1` in a column flex layout), so whichever axis ends up more
+ * constrained varies per chart/window size. Whenever height is the
+ * constraining one, the width-only formula silently maps pointer coordinates
+ * to the wrong point — the actual bug behind dependency-link dragging (and
+ * panning/zooming) landing away from the cursor.
+ */
+const svgRenderScale = (rectWidth: number, rectHeight: number, viewBoxWidth: number, viewBoxHeight: number): number =>
+  Math.min(rectWidth / viewBoxWidth, rectHeight / viewBoxHeight);
+
 const seed = (src: string): GanttIR => {
   const r = parseGantt(src);
   return r.ok ? r.ir : { kind: "gantt", items: [] };
@@ -598,16 +615,17 @@ const GanttInteractivePreview = ({
     const onWheel = (event: WheelEvent) => {
       const cur = wheelRef.current;
       const rect = svg.getBoundingClientRect();
-      if (rect.width <= 0) return;
-      const scale = cur.viewBoxWidth / rect.width;
-      const vbX = (event.clientX - rect.left) * scale;
-      const vbY = (event.clientY - rect.top) * scale;
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const renderScale = svgRenderScale(rect.width, rect.height, cur.viewBoxWidth, cur.height);
+      if (renderScale <= 0) return;
+      const vbX = (event.clientX - rect.left) / renderScale;
+      const vbY = (event.clientY - rect.top) / renderScale;
       // Only while the cursor is within the bar plotting area.
       if (vbX < CHART_LEFT || vbX > CHART_LEFT + cur.chartWidth) return;
       if (vbY < CHART_TOP - 16 || vbY > cur.height - 28) return;
       const span = cur.max - cur.min;
       if (span <= 0) return;
-      const chartPx = (cur.chartWidth / cur.viewBoxWidth) * rect.width;
+      const chartPx = cur.chartWidth * renderScale;
       if (chartPx <= 0) return;
 
       // Horizontal intent (trackpad deltaX, or Shift+wheel) pans; plain
@@ -670,9 +688,10 @@ const GanttInteractivePreview = ({
     const svg = svgRef.current;
     if (!svg) return null;
     const rect = svg.getBoundingClientRect();
-    if (rect.width <= 0) return null;
-    const scale = viewBoxWidth / rect.width;
-    return { x: (clientX - rect.left) * scale, y: (clientY - rect.top) * scale };
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    const renderScale = svgRenderScale(rect.width, rect.height, viewBoxWidth, height);
+    if (renderScale <= 0) return null;
+    return { x: (clientX - rect.left) / renderScale, y: (clientY - rect.top) / renderScale };
   };
 
   // Move keyboard focus to the focusable preview wrapper so the Delete/Backspace
@@ -709,8 +728,9 @@ const GanttInteractivePreview = ({
     const svg = svgRef.current;
     if (!svg) return 0;
     const rect = svg.getBoundingClientRect();
-    if (rect.width <= 0) return 0;
-    const scaledChartWidth = (chartWidth / viewBoxWidth) * rect.width;
+    if (rect.width <= 0 || rect.height <= 0) return 0;
+    const scaledChartWidth = chartWidth * svgRenderScale(rect.width, rect.height, viewBoxWidth, height);
+    if (scaledChartWidth <= 0) return 0;
     return ((clientX - startClientX) / scaledChartWidth) * (max - min);
   };
 
@@ -877,8 +897,8 @@ const GanttInteractivePreview = ({
       const svg = svgRef.current;
       if (!svg) return;
       const rect = svg.getBoundingClientRect();
-      if (rect.width <= 0) return;
-      const chartPx = (chartWidth / viewBoxWidth) * rect.width;
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const chartPx = chartWidth * svgRenderScale(rect.width, rect.height, viewBoxWidth, height);
       if (chartPx <= 0) return;
       const dx = event.clientX - bgPan.startClientX;
       if (!bgPan.moved && Math.abs(dx) > 3) {
