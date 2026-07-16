@@ -18,8 +18,7 @@ Saving writes back **only the fence content that was edited**; the rest of the n
 **Flowchart: edit node shapes directly on the canvas**
 ![Editing flowchart node shapes on the interactive canvas](images/change-shapes.gif)
 
-**Flowchart: subgraphs, auto-layout, and direction changes within a subgraph**
-![Flowchart subgraphs, auto-layout, and the edge inspector](images/flowchart-subgraph.gif)
+**Flowchart: add a subgraph and change its direction**![Flowchart subgraphs, auto-layout, and the edge inspector](images/flowchart-subgraph.gif)
 
 **Kanban: drag-and-drop cards and columns**
 ![Dragging kanban cards between columns](images/kanban.gif)
@@ -28,7 +27,7 @@ Saving writes back **only the fence content that was edited**; the rest of the n
 ![Dragging quadrant chart points with the Mermaid source staying in sync](images/quadrant.gif)
 
 **XY chart: bar + line series, editable inline**
-![Editing an XY chart with bar and line series](images/xychart.gif)
+![Editing an XY chart with bar and line series](images/xychart-sorted.gif)
 
 ## Features
 
