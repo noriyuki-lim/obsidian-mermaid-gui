@@ -88,6 +88,11 @@ const CHART_LEFT = 154;
 const CHART_TOP = 56;
 const ROW_HEIGHT = 38;
 const BAR_HEIGHT = 16;
+/** The milestone diamond is a `BAR_HEIGHT`-square rotated 45°, so its visual
+ * tip sticks out this far (half the square's diagonal) from its own center —
+ * further than the bar-geometry-based `w` the link handle otherwise uses,
+ * which is why the two used to overlap. */
+const MILESTONE_TIP_REACH = BAR_HEIGHT / Math.SQRT2;
 const EDGE_HANDLE_W = 10;
 const MIN_VIEWBOX_WIDTH = 920;
 const CHART_RIGHT_PAD = 36;
@@ -269,7 +274,11 @@ const buildTimeline = (ir: GanttIR): GanttTimeline => {
     const afterEnd = afterId ? endById.get(afterId) ?? null : null;
     const explicitEnd = parseDateUtc(item.end, dateFormat);
     const durationDays = parseDurationDays(item.end);
-    const defaultDuration = item.modifiers.includes("milestone") ? 1 : 3;
+    const isMilestoneItem = item.modifiers.includes("milestone");
+    // Milestones are a single point in time, not a range — start and end are
+    // meant to always coincide (Mermaid's own convention: `milestone, id,
+    // <date>, 0d`), so their fallback gap is 0 days, not 3.
+    const defaultDuration = isMilestoneItem ? 0 : 3;
 
     let start = explicitStart ?? afterEnd ?? previousEnd ?? fallbackStart;
     let end: number;
@@ -283,7 +292,13 @@ const buildTimeline = (ir: GanttIR): GanttTimeline => {
       end = addDays(start, durationDays ?? defaultDuration);
     }
 
-    if (end <= start) end = start + MIN_TASK_DURATION_MS;
+    // The zero-width-bar guard doesn't apply to milestones: their diamond
+    // glyph renders at a fixed size regardless of duration (see the
+    // `isMilestone` render branch below), so there's no visual bar to
+    // collapse. Bumping `end` forward here would instead desync it from the
+    // task's real `0d` duration token, showing up as a stray +1-minute drift
+    // in the drag readout on time-precision dateFormats/axisFormats.
+    if (end <= start && !isMilestoneItem) end = start + MIN_TASK_DURATION_MS;
 
     const row = tasks.length;
     tasks.push({ index, task: item, row, start, end, sectionIndex });
@@ -1247,12 +1262,16 @@ const GanttInteractivePreview = ({
                 </text>
               </g>
               {isMilestone ? (
+                // Centered ON `x` (the resolved start date) — not offset by
+                // half the square's own width — so the diamond's rotation
+                // center lands exactly on the date it represents instead of
+                // drifting `BAR_HEIGHT / 2` to the right of it.
                 <rect
-                  x={x}
+                  x={x - BAR_HEIGHT / 2}
                   y={y + 4}
                   width={BAR_HEIGHT}
                   height={BAR_HEIGHT}
-                  transform={`rotate(45 ${x + BAR_HEIGHT / 2} ${y + 4 + BAR_HEIGHT / 2})`}
+                  transform={`rotate(45 ${x} ${y + 4 + BAR_HEIGHT / 2})`}
                   rx={2}
                   className="mge-gantt-bar"
                 />
@@ -1266,25 +1285,40 @@ const GanttInteractivePreview = ({
                   className="mge-gantt-bar"
                 />
               )}
-              <rect
-                x={x - 4}
-                y={y + 2}
-                width={8}
-                height={BAR_HEIGHT + 4}
-                className="mge-gantt-resize-hit"
-                onPointerDown={startDrag(layout, "resize-start")}
-              />
-              <rect
-                x={x + w - 4}
-                y={y + 2}
-                width={8}
-                height={BAR_HEIGHT + 4}
-                className="mge-gantt-resize-hit"
-                onPointerDown={startDrag(layout, "resize-end")}
-              />
-              {/* Link handle (goal 5): drag to another bar to set `after`. */}
+              {/* Milestones are a single point in time (see `isMilestoneItem`
+                  in `buildTimeline`) — there's no separate start/end to drag,
+                  only the one date, which the diamond's own "move" handler
+                  (on the parent `<g>`) already covers. Rendering these hit
+                  rects for a milestone let them be grabbed by mistake instead
+                  of the move handler, silently pulling its end away from 0d. */}
+              {!isMilestone ? (
+                <>
+                  <rect
+                    x={x - 4}
+                    y={y + 2}
+                    width={8}
+                    height={BAR_HEIGHT + 4}
+                    className="mge-gantt-resize-hit"
+                    onPointerDown={startDrag(layout, "resize-start")}
+                  />
+                  <rect
+                    x={x + w - 4}
+                    y={y + 2}
+                    width={8}
+                    height={BAR_HEIGHT + 4}
+                    className="mge-gantt-resize-hit"
+                    onPointerDown={startDrag(layout, "resize-end")}
+                  />
+                </>
+              ) : null}
+              {/* Link handle (goal 5): drag to another bar to set `after`. A
+                  milestone's diamond is centered on `x` (see above) and
+                  visually reaches `MILESTONE_TIP_REACH` past that center, so
+                  anchor off the diamond's actual tip there instead of `w` —
+                  otherwise this handle sits inside the diamond and steals its
+                  move drag. */}
               <circle
-                cx={x + w + 6}
+                cx={isMilestone ? x + MILESTONE_TIP_REACH + 6 : x + w + 6}
                 cy={y + 4 + BAR_HEIGHT / 2}
                 r={4}
                 className="mge-gantt-link-handle"
@@ -1529,7 +1563,17 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
         if (!id) return prev;
         const items = withSrcId.map((it, i) =>
           i === targetIndex && it.type === "task"
-            ? { ...it, start: `after ${id}` }
+            ? {
+                ...it,
+                start: `after ${id}`,
+                // A milestone's end must stay a relative "0d" duration, not
+                // whatever absolute date it happened to hold before — once
+                // start is `after <id>`, an absolute end would go stale the
+                // next time the predecessor (and so this milestone's
+                // resolved start) moves, instead of always tracking 0 days
+                // after start.
+                end: it.modifiers.includes("milestone") ? "0d" : it.end,
+              }
             : it,
         );
         return { ...prev, items };
@@ -1707,7 +1751,14 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       const options = taskIdOptions.filter((id) => id !== item.id);
       setSchedulePicker(null);
       if (nextType === "after") {
-        patchTask(idx, { start: options[0] ? `after ${options[0]}` : undefined });
+        // Only offered for `field === "start"` (see the type <select> below).
+        // A milestone's end must stay a relative "0d" duration rather than a
+        // stale absolute date once start depends on another task — see
+        // `linkAfter`'s doc comment for why.
+        patchTask(idx, {
+          start: options[0] ? `after ${options[0]}` : undefined,
+          ...(item.modifiers.includes("milestone") ? { end: "0d" } : null),
+        });
       } else if (nextType === "duration") {
         patchTask(idx, { end: `${parseDurationDays(item.end) ?? 1}d` });
       } else if (isDateToken(value, dateFormat)) {

@@ -20,7 +20,11 @@ export interface GanttDurationToken {
  * preserving its original unit alongside the day-equivalent value. Units
  * follow real Mermaid gantt syntax exactly (lowercase only — Mermaid has no
  * month unit and is case-sensitive): s = seconds, m = minutes, h = hours,
- * d = days, w = weeks.
+ * d = days, w = weeks. `0d`/`0h`/etc are accepted — real Mermaid syntax for a
+ * milestone's zero-length duration (`milestone, id, after x, 0d`) — so the
+ * gantt editor's `originalEndToken` checks recognize a milestone's "0d" as a
+ * real duration token to preserve, instead of falling through to writing an
+ * absolute date on the next drag.
  */
 export const parseDurationToken = (value: string | undefined): GanttDurationToken | null => {
   if (!value) return null;
@@ -28,7 +32,7 @@ export const parseDurationToken = (value: string | undefined): GanttDurationToke
   if (!match) return null;
   const amount = Number(match[1]);
   const unit = match[2] as GanttDurationUnit;
-  if (!Number.isFinite(amount) || amount <= 0) return null;
+  if (!Number.isFinite(amount) || amount < 0) return null;
   return { amount, unit, days: amount * UNIT_DAYS[unit] };
 };
 

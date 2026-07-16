@@ -36,8 +36,11 @@ describe("parseDurationDays", () => {
     expect(parseDurationDays(undefined)).toBeNull();
     expect(parseDurationDays("")).toBeNull();
     expect(parseDurationDays("abc")).toBeNull();
-    expect(parseDurationDays("0d")).toBeNull();
     expect(parseDurationDays("-3d")).toBeNull();
+  });
+
+  it("accepts a zero amount (real Mermaid milestone syntax, e.g. `after x, 0d`)", () => {
+    expect(parseDurationDays("0d")).toBe(0);
   });
 });
 
@@ -51,6 +54,10 @@ describe("parseDurationToken", () => {
     expect(parseDurationToken(undefined)).toBeNull();
     expect(parseDurationToken("9M")).toBeNull();
     expect(parseDurationToken("abc")).toBeNull();
+  });
+
+  it("accepts a zero amount, e.g. a milestone's `0d`", () => {
+    expect(parseDurationToken("0d")).toEqual({ amount: 0, unit: "d", days: 0 });
   });
 });
 
