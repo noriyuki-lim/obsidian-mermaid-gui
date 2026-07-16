@@ -91,6 +91,10 @@ const BAR_HEIGHT = 16;
 const EDGE_HANDLE_W = 10;
 const MIN_VIEWBOX_WIDTH = 920;
 const CHART_RIGHT_PAD = 36;
+/** Below this pixel gap between the dragged bar's two edges, the start/end
+ * drag-readout labels (see `readoutIndex`) would overlap, so they collapse
+ * into the single combined "start → end" reading instead. */
+const READOUT_MERGE_GAP_PX = 90;
 
 const seed = (src: string): GanttIR => {
   const r = parseGantt(src);
@@ -397,6 +401,9 @@ const GanttInteractivePreview = ({
   const [linkCursor, setLinkCursor] = useState<{ x: number; y: number; fromX: number; fromY: number } | null>(null);
   const rowDragRef = useRef<{ pointerId: number; currentIndex: number } | null>(null);
   const [previewDraggingIndex, setPreviewDraggingIndex] = useState<number | null>(null);
+  // Task whose start/end should be shown as a live readout while moving or
+  // resizing its bar (goal: real-time absolute values at both edges).
+  const [readoutIndex, setReadoutIndex] = useState<number | null>(null);
   // Right-click delete menu on a bar or a dependency line. Positioned at the
   // pointer; `kind` picks the label/action.
   const [barMenu, setBarMenu] = useState<{
@@ -668,6 +675,7 @@ const GanttInteractivePreview = ({
     event.stopPropagation();
     trySetPointerCapture(event.currentTarget as Element, event.pointerId);
     selectOnCanvas({ type: "task", index: layout.index });
+    setReadoutIndex(layout.index);
 
     let moveSnapshot: NonNullable<typeof dragRef.current>["moveSnapshot"];
     if (mode === "move") {
@@ -761,7 +769,10 @@ const GanttInteractivePreview = ({
       linkDragRef.current = null;
       setLinkCursor(null);
     }
-    if (dragRef.current && dragRef.current.pointerId === event.pointerId) dragRef.current = null;
+    if (dragRef.current && dragRef.current.pointerId === event.pointerId) {
+      dragRef.current = null;
+      setReadoutIndex(null);
+    }
     if (edgeDragRef.current && edgeDragRef.current.pointerId === event.pointerId) edgeDragRef.current = null;
     try {
       (event.currentTarget as Element).releasePointerCapture?.(event.pointerId);
@@ -1304,6 +1315,49 @@ const GanttInteractivePreview = ({
             </g>
           );
         })}
+
+        {/* Live start/end readout while moving or resizing a bar, tucked just
+            below the bar and tracking each edge's own x position — formatted
+            with the axis's own axisFormat (not dateFormat) so it matches
+            whatever granularity the axis ticks show (e.g. omits the year when
+            axisFormat is "%m/%d"). Narrow bars would make the two labels
+            collide, so they merge into a single centered "start → end"
+            reading instead. */}
+        {readoutIndex !== null
+          ? (() => {
+              const l = baseTimeline.tasks.find((task) => task.index === readoutIndex);
+              if (!l) return null;
+              const startX = xForDate(l.start);
+              const endX = xForDate(l.end);
+              const y = yForRow(l.row) + 4 + BAR_HEIGHT + 12;
+              const clampX = (x: number) => Math.min(Math.max(x, CHART_LEFT + 48), chartRight - 48);
+              const axisFormat = ir.axisFormat ?? "%m/%d";
+              const startLabel = formatGanttAxisTick(l.start, axisFormat);
+              const endLabel = formatGanttAxisTick(l.end, axisFormat);
+              if (Math.abs(endX - startX) < READOUT_MERGE_GAP_PX) {
+                return (
+                  <text
+                    x={clampX((startX + endX) / 2)}
+                    y={y}
+                    className="mge-gantt-drag-readout"
+                    textAnchor="middle"
+                  >
+                    {`${startLabel}  →  ${endLabel}`}
+                  </text>
+                );
+              }
+              return (
+                <>
+                  <text x={clampX(startX)} y={y} className="mge-gantt-drag-readout" textAnchor="middle">
+                    {startLabel}
+                  </text>
+                  <text x={clampX(endX)} y={y} className="mge-gantt-drag-readout" textAnchor="middle">
+                    {endLabel}
+                  </text>
+                </>
+              );
+            })()
+          : null}
       </svg>
       {barMenu ? (
         <div className="mge-gantt-bar-menu" style={{ left: barMenu.x, top: barMenu.y }}>

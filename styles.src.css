@@ -2404,6 +2404,20 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
   user-select: none;
 }
 
+/* Live absolute-value readout shown above a bar while it's dragged/resized. A
+   stroke halo (painted under the fill) keeps it legible over bars and grid. */
+.mge-gantt-drag-readout {
+  fill: var(--mge-gantt-text);
+  font-size: 11px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--mge-gantt-canvas);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+  user-select: none;
+}
+
 .mge-gantt-bar {
   fill: var(--mge-gantt-bar-default);
   stroke: rgba(255, 255, 255, 0.72);
