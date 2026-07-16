@@ -146,6 +146,16 @@ const XYChartInteractivePreview = ({
   const [editingValue, setEditingValue] = useState<{ itemIndex: number; row: number } | null>(null);
   const [draggingRow, setDraggingRow] = useState<number | null>(null);
   const [activeBarSelection, setActiveBarSelection] = useState<{ row: number; itemIndex: number } | null>(null);
+  /**
+   * Mirrors `dragRef` (which is a ref and so can't trigger a render) just
+   * enough to know which bar/point is currently being value-dragged, so the
+   * live value badge below can render for it. The value itself always comes
+   * straight from `ir` (already updated by `onValueChange` on every
+   * pointermove), not from this state.
+   */
+  const [draggingTarget, setDraggingTarget] = useState<{ itemIndex: number; row: number; kind: "bar" | "point" } | null>(
+    null,
+  );
 
   const isHorizontal = ir.orientation === "horizontal";
   const width = 960;
@@ -270,6 +280,7 @@ const XYChartInteractivePreview = ({
       startY: event.clientY,
       moved: false,
     };
+    setDraggingTarget({ itemIndex, row, kind });
   };
 
   // Dragging anywhere on a line point changes its value; double-click opens
@@ -320,6 +331,7 @@ const XYChartInteractivePreview = ({
       moved: false,
     };
     setActiveBarSelection({ row, itemIndex });
+    setDraggingTarget({ itemIndex, row, kind: "bar" });
     // So a follow-up F2 (see `onPreviewKeyDown`) works without the user
     // having to click into the SVG separately first.
     svgRef.current?.focus({ preventScroll: true });
@@ -374,6 +386,7 @@ const XYChartInteractivePreview = ({
         barCycleRef.current.lastWasClick = !drag.moved;
       }
       dragRef.current = null;
+      setDraggingTarget(null);
     }
   };
 
@@ -572,6 +585,12 @@ const XYChartInteractivePreview = ({
                       }}
                     />
                   </foreignObject>
+                ) : draggingTarget?.kind === "bar" &&
+                  draggingTarget.itemIndex === series.index &&
+                  draggingTarget.row === row ? (
+                  <foreignObject x={editorPos.x} y={editorPos.y} width={72} height={28}>
+                    <div className="mge-xy-drag-value-badge">{value}</div>
+                  </foreignObject>
                 ) : null}
               </g>
             );
@@ -609,42 +628,49 @@ const XYChartInteractivePreview = ({
                 points={points.map((p) => `${p.x},${p.y}`).join(" ")}
                 className="mge-xy-line"
               />
-              {points.map((p) => (
-                <g key={p.row}>
-                  <circle
-                    cx={p.x}
-                    cy={p.y}
-                    r={4}
-                    className="mge-xy-point"
-                    onPointerDown={startPointDrag(series.index, p.row)}
-                    onDoubleClick={(event) => {
-                      event.stopPropagation();
-                      setEditingValue({ itemIndex: series.index, row: p.row });
-                    }}
-                  />
-                  {editingValue?.itemIndex === series.index && editingValue.row === p.row ? (
-                    <foreignObject
-                      x={isHorizontal ? Math.min(width - right - 76, p.x + 12) : p.x - 36}
-                      y={isHorizontal ? p.y - 14 : Math.max(4, p.y - 34)}
-                      width={72}
-                      height={28}
-                    >
-                      <input
-                        className="mge-xy-inline-input"
-                        type="number"
-                        value={p.value}
-                        autoFocus
-                        onChange={(event) => onValueChange(series.index, p.row, Number(event.target.value))}
-                        onBlur={() => setEditingValue(null)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Escape") event.stopPropagation();
-                          if (event.key === "Enter" || event.key === "Escape") setEditingValue(null);
-                        }}
-                      />
-                    </foreignObject>
-                  ) : null}
-                </g>
-              ))}
+              {points.map((p) => {
+                const pointEditorPos = {
+                  x: isHorizontal ? Math.min(width - right - 76, p.x + 12) : p.x - 36,
+                  y: isHorizontal ? p.y - 14 : Math.max(4, p.y - 34),
+                };
+                return (
+                  <g key={p.row}>
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r={4}
+                      className="mge-xy-point"
+                      onPointerDown={startPointDrag(series.index, p.row)}
+                      onDoubleClick={(event) => {
+                        event.stopPropagation();
+                        setEditingValue({ itemIndex: series.index, row: p.row });
+                      }}
+                    />
+                    {editingValue?.itemIndex === series.index && editingValue.row === p.row ? (
+                      <foreignObject x={pointEditorPos.x} y={pointEditorPos.y} width={72} height={28}>
+                        <input
+                          className="mge-xy-inline-input"
+                          type="number"
+                          value={p.value}
+                          autoFocus
+                          onChange={(event) => onValueChange(series.index, p.row, Number(event.target.value))}
+                          onBlur={() => setEditingValue(null)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Escape") event.stopPropagation();
+                            if (event.key === "Enter" || event.key === "Escape") setEditingValue(null);
+                          }}
+                        />
+                      </foreignObject>
+                    ) : draggingTarget?.kind === "point" &&
+                      draggingTarget.itemIndex === series.index &&
+                      draggingTarget.row === p.row ? (
+                      <foreignObject x={pointEditorPos.x} y={pointEditorPos.y} width={72} height={28}>
+                        <div className="mge-xy-drag-value-badge">{p.value}</div>
+                      </foreignObject>
+                    ) : null}
+                  </g>
+                );
+              })}
             </g>
           );
         })}
