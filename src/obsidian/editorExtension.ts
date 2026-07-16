@@ -4,6 +4,7 @@ import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate
 import { EditorModal } from "./EditorModal";
 import { type MermaidBlock } from "./commands";
 import { exportSvgToVault } from "./svgExport";
+import { attachEditBtnHideMenu, editBtnKey } from "./editButtonVisibility";
 
 const FENCE_OPEN = /^\s*```\s*mermaid\b/i;
 const FENCE_CLOSE = /^\s*```\s*$/;
@@ -118,6 +119,11 @@ class MermaidSourceWidget extends WidgetType {
       openEditorFromView(this.plugin, view, this.block);
     });
 
+    const path = fileFromView(view)?.path ?? "";
+    attachEditBtnHideMenu(button, editBtnKey(path, this.block.source), (isHidden) => {
+      button.toggleClass("mge-edit-btn-hidden", isHidden);
+    });
+
     wrap.appendChild(button);
     return wrap;
   }
@@ -190,6 +196,7 @@ class MermaidEditorButtonPlugin {
       },
       write: (positions: PositionedBlock[]) => {
         this.overlay.replaceChildren();
+        const path = fileFromView(this.view)?.path ?? "";
         for (const { block, top } of positions) {
           const button = document.createElement("button");
           button.className = "mge-edit-btn mge-cm-live-preview-btn";
@@ -202,6 +209,16 @@ class MermaidEditorButtonPlugin {
             ev.preventDefault();
             ev.stopPropagation();
             openEditorFromView(this.plugin, this.view, block);
+          });
+
+          // Right-click the button to hide/show it. Unlike Reading view (whose
+          // whole block carries the menu), the Live-Preview overlay is
+          // pointer-events:none except for the button itself, so the button is
+          // the only place a hidden-then-restore right-click can land — hence
+          // the CSS keeps a hidden button faintly present + hover-revealed
+          // rather than removing it.
+          attachEditBtnHideMenu(button, editBtnKey(path, block.source), (isHidden) => {
+            button.toggleClass("mge-edit-btn-hidden", isHidden);
           });
 
           this.overlay.appendChild(button);

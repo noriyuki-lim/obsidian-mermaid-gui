@@ -8,6 +8,7 @@ import { EditorModal } from "./EditorModal";
 import { writeBlockBack } from "./io";
 import { exportSvgToVault } from "./svgExport";
 import { renderMermaidThemed } from "./mermaidRender";
+import { attachEditBtnHideMenu, editBtnKey } from "./editButtonVisibility";
 
 /**
  * Decorate a single ```mermaid code block: render the diagram via Obsidian's
@@ -37,6 +38,16 @@ export const mountMermaidBlock = (
     ev.preventDefault();
     ev.stopPropagation();
     openEditor(plugin, source, ctx, el);
+  });
+
+  // Right-click the Edit button to hide/show it (useful when a full-width
+  // chart's top-right content sits under it). The menu lives on the button —
+  // not the whole block — so a normal right-click on the diagram keeps
+  // Obsidian's native context menu. That makes the button the only target that
+  // can un-hide it, so CSS keeps a hidden button faint + hover-revealed rather
+  // than removed (see styles.src.css / src/obsidian/AGENTS.md).
+  attachEditBtnHideMenu(editBtn, editBtnKey(ctx.sourcePath, source), (isHidden) => {
+    editBtn.toggleClass("mge-edit-btn-hidden", isHidden);
   });
 };
 

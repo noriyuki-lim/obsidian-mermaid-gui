@@ -695,6 +695,17 @@ body.mge-text-pane-resizing * {
 .mge-block:hover .mge-edit-btn {
   opacity: 1;
 }
+/* Hidden via the button's own right-click menu (session-only). The menu lives
+   on the button (so a normal right-click on the diagram keeps Obsidian's native
+   menu), which makes the button the only target that can un-hide it — so keep
+   it faint + pointer-interactive rather than removed. Stays invisible at rest;
+   a light hover reveal lets it be found and right-clicked to restore. */
+.mge-block .mge-edit-btn.mge-edit-btn-hidden {
+  opacity: 0 !important;
+}
+.mge-block:hover .mge-edit-btn.mge-edit-btn-hidden {
+  opacity: 0.4 !important;
+}
 
 /* 2. Live Preview (Header-like overlay) */
 .mge-cm-overlay {
@@ -716,6 +727,20 @@ body.mge-text-pane-resizing * {
   display: inline-flex;
   margin-left: 12px;
   vertical-align: middle;
+}
+
+/* Hidden state for the button-hosted menus (Live Preview overlay + source
+   widget). Unlike Reading view, the button itself is the only right-click
+   target that can restore it, so we can't remove it. Keep it nearly invisible
+   (stops covering a full-width chart) but pointer-interactive, and reveal it
+   faintly on hover so it can be found and right-clicked to un-hide. */
+.mge-cm-live-preview-btn.mge-edit-btn-hidden,
+.mge-cm-source-widget .mge-edit-btn.mge-edit-btn-hidden {
+  opacity: 0.06 !important;
+}
+.mge-cm-live-preview-btn.mge-edit-btn-hidden:hover,
+.mge-cm-source-widget .mge-edit-btn.mge-edit-btn-hidden:hover {
+  opacity: 0.4 !important;
 }
 
 /* ---------- Modal ----------
