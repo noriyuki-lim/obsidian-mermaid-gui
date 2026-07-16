@@ -117,6 +117,8 @@ export const en: typeof ja = {
     pickerHint: "Edit ↑↓ · Move Alt+↑↓ to change · Enter/Esc to close",
     deleteTask: "Delete task",
     deleteDependency: "Delete dependency",
+    increaseDuration: "Increase duration",
+    decreaseDuration: "Decrease duration",
     openPickerFor: (field: string) => `Open ${field} picker`,
     toggleModeTitle: "F2 also toggles",
     editMode: "Edit mode",

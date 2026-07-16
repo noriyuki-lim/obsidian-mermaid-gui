@@ -2141,10 +2141,32 @@ body.theme-dark .mge-seq-badge-raw {
 
 .mge-gantt-duration-stepper {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 6px;
   margin: 0;
+}
+.mge-gantt-step-group {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 0;
+}
+/* Chromeless ▲/▼ steppers for the duration field. */
+.mge-gantt-step-btn {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-normal, #ddd) !important;
+  opacity: 0.55 !important;
+  cursor: pointer;
+  width: 16px;
+  height: 13px;
+  padding: 0 !important;
+  font-size: 8px;
+  line-height: 13px;
+}
+.mge-gantt-step-btn:hover {
+  opacity: 1 !important;
 }
 
 .mge-gantt-picker-empty,
@@ -2158,8 +2180,16 @@ body.theme-dark .mge-seq-badge-raw {
   margin-top: 6px;
 }
 
-.mge-gantt-cell-input[readonly] {
+/* Only the empty section/raw placeholder slots read faint. Real cells that are
+   readonly merely because the table is in Move mode must look full-strength
+   (not greyed out) — override any theme readonly dimming. */
+.mge-gantt-cell-empty {
   color: var(--text-faint, #8a8a95);
+}
+.mge-gantt-cell-input:read-only:not(.mge-gantt-cell-empty) {
+  color: var(--text-normal, #1f1f2e) !important;
+  -webkit-text-fill-color: var(--text-normal, #1f1f2e) !important;
+  opacity: 1 !important;
 }
 
 .mge-gantt-cell-mono {
@@ -3207,6 +3237,15 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
 }
 .mge-gantt-edit-mode .mge-gantt-cell-input:focus {
   background: var(--background-modifier-form-field-highlighted, rgba(91,110,225,0.08));
+}
+
+/* Move (navigation) mode: table cells read as selections — the text caret is
+   hidden so it's obvious you must enter Edit mode (F2 or double-click) before
+   you can type. The focus outline alone marks the selected cell; text color
+   and background are left untouched. */
+.mge-gantt-editor:not(.mge-gantt-edit-mode) .mge-gantt-cell-input {
+  caret-color: transparent;
+  cursor: default;
 }
 .mge-gantt-action.active {
   background: var(--interactive-accent, #5b6ee1);

@@ -1337,6 +1337,9 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
   const [selection, setSelection] = useState<Selection>(null);
   // Table interaction mode (goal 7): navigation vs cell-edit, Excel-like.
   const [editMode, setEditMode] = useState(false);
+  // Double-click a cell = enter Edit mode (the mouse equivalent of F2). The
+  // double-clicked input keeps focus and, now editable, shows its caret.
+  const enterEditMode = useCallback(() => setEditMode(true), []);
   const cellRefs = useRef(new Map<string, CellElement>());
   const gridShellRef = useRef<HTMLElement>(null);
   const tableDragRef = useRef<{ pointerId: number; currentIndex: number } | null>(null);
@@ -1789,10 +1792,20 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
       return;
     }
 
-    // Plain, live-bound cell (no draft/picker to close) — blur so a second
-    // Escape reaches EditorModal's close() instead of doing nothing (its
-    // close() override defers to whichever field is currently focused).
     if (event.key === "Escape") {
+      // Escape in Edit mode drops back to Move mode (Excel-like), keeping the
+      // same cell selected. The shell's capture handler blurs the field first,
+      // so re-focus it once the row has re-rendered read-only.
+      if (editMode) {
+        event.preventDefault();
+        event.stopPropagation();
+        setEditMode(false);
+        focusCell(row, colIndex);
+        return;
+      }
+      // Move mode: blur so a second Escape reaches EditorModal's close()
+      // instead of doing nothing (its close() override defers to whichever
+      // field is currently focused).
       event.currentTarget.blur();
       return;
     }
@@ -1936,7 +1949,9 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
           ref={registerCell(idx, "label")}
           className="mge-gantt-cell-input"
           value={item.title}
+          readOnly={!editMode}
           onFocus={() => setSelection({ type: "task", index: idx })}
+          onDoubleClick={enterEditMode}
           onKeyDown={onCellKeyDown(idx, 1, item)}
           onChange={(event) => patchItem(idx, { title: event.target.value })}
         />
@@ -1948,7 +1963,9 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
           ref={registerCell(idx, "label")}
           className="mge-gantt-cell-input mge-gantt-cell-mono"
           value={item.line}
+          readOnly={!editMode}
           onFocus={() => setSelection({ type: "task", index: idx })}
+          onDoubleClick={enterEditMode}
           onKeyDown={onCellKeyDown(idx, 1, item)}
           onChange={(event) => patchItem(idx, { line: event.target.value })}
         />
@@ -1959,7 +1976,9 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
         ref={registerCell(idx, "label")}
         className="mge-gantt-cell-input"
         value={item.label}
+        readOnly={!editMode}
         onFocus={() => setSelection({ type: "task", index: idx })}
+        onDoubleClick={enterEditMode}
         onKeyDown={onCellKeyDown(idx, 1, item)}
         onChange={(event) => patchTask(idx, { label: event.target.value })}
       />
@@ -2066,7 +2085,27 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
                     patchTask(idx, { end: `${next}${unit}` });
                   }}
                 />
-                <span>{unit}</span>
+                <span className="mge-gantt-duration-unit">{unit}</span>
+                <span className="mge-gantt-step-group">
+                  <button
+                    type="button"
+                    className="mge-gantt-step-btn"
+                    aria-label={t.gantt.increaseDuration}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => adjustPickerValue(1)}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    className="mge-gantt-step-btn"
+                    aria-label={t.gantt.decreaseDuration}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => adjustPickerValue(-1)}
+                  >
+                    ▼
+                  </button>
+                </span>
               </label>
             );
           })()
@@ -2109,7 +2148,9 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
           className="mge-gantt-cell-input mge-gantt-schedule-input"
           type="text"
           value={value}
+          readOnly={!editMode}
           onFocus={() => setSelection({ type: "task", index: idx })}
+          onDoubleClick={enterEditMode}
           onKeyDown={onCellKeyDown(idx, COL(field), item)}
           onChange={(event) => patch(event.target.value)}
           placeholder={field === "start" ? `${dateFormat} / after id` : `${dateFormat} / 7d`}
@@ -2326,9 +2367,10 @@ export const GanttEditor = ({ initialSource, onSave, onCancel, renderMermaid }: 
                   ref={registerCell(idx, "id")}
                   className="mge-gantt-cell-input"
                   value={task?.id ?? ""}
-                  readOnly={!task}
+                  readOnly={!task || !editMode}
                   aria-disabled={!task}
                   onFocus={() => setSelection({ type: "task", index: idx })}
+                  onDoubleClick={enterEditMode}
                   onKeyDown={onCellKeyDown(idx, 2, item)}
                   onChange={(event) => patchTask(idx, { id: event.target.value || undefined })}
                   placeholder="id"
