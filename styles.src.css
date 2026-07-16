@@ -3116,6 +3116,10 @@ body.mge-preview-resizing .mge-editor-shell-stacked > .mge-preview-resizer::afte
 .mge-gantt-preview-axis-input {
   width: 104px;
 }
+.mge-gantt-preview-tick-amount {
+  width: 56px;
+  min-width: 56px;
+}
 .mge-gantt-preview-check {
   display: inline-flex;
   align-items: center;

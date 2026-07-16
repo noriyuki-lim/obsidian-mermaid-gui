@@ -19,7 +19,6 @@ import {
 } from "../../core/gantt/duration";
 import {
   buildAbsoluteTicks,
-  buildTicks,
   paddedRange,
   parseTickInterval,
   pickTickIntervalMs,
@@ -270,9 +269,19 @@ interface SectionSpan {
 interface GanttTimeline {
   tasks: TaskLayout[];
   sectionSpans: SectionSpan[];
+  /** Padded viewport range (see `paddedRange`) — drives the rendered chart's
+   * geometry (`xForDate`, bar positions, edge-handle room) AND the ticks'
+   * own domain (ticks always fill this whole range, no blank edges). */
   min: number;
   max: number;
-  ticks: number[];
+  /** Un-padded [earliest task start, latest task end] — the domain Mermaid's
+   * own renderer uses for its tick *spacing* decision (`min(startTime)`..
+   * `max(endTime)`, no padding: see `ganttRenderer.js`'s
+   * `timeScale.domain(...)`). Only the tick *interval* calculation uses this
+   * (to match Mermaid's spacing choice) — the ticks themselves still span
+   * the padded `min`/`max` above. */
+  rawMin: number;
+  rawMax: number;
 }
 
 const buildTimeline = (ir: GanttIR): GanttTimeline => {
@@ -336,8 +345,7 @@ const buildTimeline = (ir: GanttIR): GanttTimeline => {
   const rawMin = tasks.length ? Math.min(...tasks.map((task) => task.start)) : fallbackStart;
   const rawMax = tasks.length ? Math.max(...tasks.map((task) => task.end)) : addDays(fallbackStart, 14);
   const { min, max } = paddedRange(rawMin, rawMax);
-  const ticks = buildTicks(min, max, pickTickIntervalMs(max - min));
-  return { tasks, sectionSpans, min, max, ticks };
+  return { tasks, sectionSpans, min, max, rawMin, rawMax };
 };
 
 /**
@@ -379,9 +387,25 @@ interface GanttPreviewProps {
   onDeleteDependency: (index: number) => void;
 }
 
-// Gridline interval options offered in the preview toolbar. Values are Mermaid
-// `tickInterval` tokens; "" = auto. Kept short to cover the common scales.
-const TICK_INTERVAL_VALUES = ["", "15minute", "1hour", "1day", "1week", "1month"] as const;
+// Gridline interval units offered in the preview toolbar's unit <select>,
+// paired with a free-form amount <input> (goal: any "N unit" combination, not
+// just a handful of fixed presets). Matches the units `parseTickInterval`
+// accepts, minus millisecond/second — impractically fine-grained for a
+// project gantt's axis interval.
+const TICK_UNIT_VALUES = ["minute", "hour", "day", "week", "month"] as const;
+type TickUnit = (typeof TICK_UNIT_VALUES)[number];
+
+/** Splits a Mermaid `tickInterval` token (e.g. `3hour`) into the amount+unit
+ * the toolbar's two controls edit independently. `unit: null` means empty/
+ * unparseable — the unit <select> has its own "Auto" option for this case. */
+const splitTickInterval = (value: string): { amount: number | null; unit: TickUnit | null } => {
+  const match = value.trim().match(/^([1-9]\d*)\s*(minute|hour|day|week|month)s?$/i);
+  if (!match) return { amount: null, unit: null };
+  return { amount: Number(match[1]), unit: match[2].toLowerCase() as TickUnit };
+};
+
+const composeTickInterval = (amount: number | null, unit: TickUnit | null): string =>
+  amount && amount > 0 && unit ? `${amount}${unit}` : "";
 
 const GanttInteractivePreview = ({
   ir,
@@ -498,30 +522,21 @@ const GanttInteractivePreview = ({
         return value;
     }
   };
-  const tickIntervalValue = ir.tickInterval ?? "";
-  const tickLabelFor = (value: string): string => {
-    switch (value) {
-      case "":
-        return t.gantt.tickAuto;
-      case "15minute":
-        return t.gantt.tick15min;
-      case "1hour":
-        return t.gantt.tickHour;
-      case "1day":
-        return t.gantt.tickDay;
-      case "1week":
-        return t.gantt.tickWeek;
-      case "1month":
-        return t.gantt.tickMonth;
-      default:
-        return value;
+  const tickUnitLabel = (unit: TickUnit): string => {
+    switch (unit) {
+      case "minute":
+        return t.gantt.tickUnitMinute;
+      case "hour":
+        return t.gantt.tickUnitHour;
+      case "day":
+        return t.gantt.tickUnitDay;
+      case "week":
+        return t.gantt.tickUnitWeek;
+      case "month":
+        return t.gantt.tickUnitMonth;
     }
   };
-  // Keep an out-of-preset explicit tickInterval (e.g. hand-written `6hour`)
-  // visible so the controlled <select> never points at a missing option.
-  const tickOptionValues = (TICK_INTERVAL_VALUES as readonly string[]).includes(tickIntervalValue)
-    ? [...TICK_INTERVAL_VALUES]
-    : [...TICK_INTERVAL_VALUES, tickIntervalValue];
+  const { amount: tickAmount, unit: tickUnit } = splitTickInterval(ir.tickInterval ?? "");
   const baseTimeline = useMemo(() => buildTimeline(ir), [ir]);
   const min = viewport?.min ?? baseTimeline.min;
   const max = viewport?.max ?? baseTimeline.max;
@@ -542,14 +557,31 @@ const GanttInteractivePreview = ({
   // (guarded against absurd tick counts on huge spans). Otherwise auto-pick a
   // width-aware density — denser than the old fixed 8 ticks, which read
   // coarser than Mermaid's own rendered gridlines.
+  //
+  // The span driving this is the *un-padded task range* (`rawMin`/`rawMax`)
+  // as long as the current view still shows that whole range — matching
+  // Mermaid's own (padding-free) spacing decision — not the padded/zoomed
+  // `min`/`max` above (which only governs where the resulting ticks are
+  // *drawn*, via `buildAbsoluteTicks` below, so the axis still fills the
+  // whole padded viewport with no blank edges). Once the user has actually
+  // zoomed/panned past the task's own edges, there's no real render left to
+  // match, so density falls back to adapting to the current viewport instead
+  // — this mirrors `showsWholeTaskRange` from the tick-domain discontinuity
+  // fix (see AGENTS.md): gating on "still shows everything" rather than
+  // "viewport is set" avoids the same kind of pop on a trivial pan/zoom.
+  const showsWholeTaskRange = min <= baseTimeline.rawMin && max >= baseTimeline.rawMax;
   const tickIntervalMs = useMemo(() => {
     const explicit = parseTickInterval(ir.tickInterval);
-    if (explicit && (max - min) / explicit <= 600) return explicit;
+    const span = showsWholeTaskRange ? baseTimeline.rawMax - baseTimeline.rawMin : max - min;
+    if (explicit && span / explicit <= 600) return explicit;
     const target = Math.max(6, Math.round(chartWidth / 78));
-    return pickTickIntervalMs(max - min, target);
-  }, [ir.tickInterval, chartWidth, min, max]);
+    return pickTickIntervalMs(span, target);
+  }, [ir.tickInterval, chartWidth, showsWholeTaskRange, baseTimeline.rawMin, baseTimeline.rawMax, min, max]);
   // Absolute-position ticks: gridlines phase-locked to real time so a given
-  // tick stays at the same instant while zooming/panning (per request).
+  // tick stays at the same instant while zooming/panning (per request). The
+  // axis always fills the whole (padded) viewport — ticks are not clamped to
+  // the un-padded task range — so the axis is visible edge-to-edge by
+  // default rather than leaving the padding blank until the user pans/zooms.
   const ticks = useMemo(() => buildAbsoluteTicks(min, max, tickIntervalMs), [min, max, tickIntervalMs]);
 
   // Wheel-scroll zoom (session-only, sharing the same `viewport` state as the
@@ -1119,15 +1151,38 @@ const GanttInteractivePreview = ({
             aria-label={t.gantt.axisFormatRoleHint}
           />
           <span className="mge-gantt-preview-tool-label">{t.gantt.tickLabel}</span>
+          <input
+            type="number"
+            min={1}
+            className="mge-gantt-preview-field mge-gantt-preview-tick-amount"
+            value={tickAmount ?? ""}
+            placeholder={t.gantt.tickAuto}
+            onChange={(event) => {
+              const raw = event.target.value;
+              const amount = raw === "" ? null : Math.max(1, Math.round(Number(raw)) || 1);
+              // Typing an amount while the unit is still "Auto" picks a
+              // default unit so the pair immediately becomes a valid token.
+              onTickIntervalChange(composeTickInterval(amount, tickUnit ?? "day"));
+            }}
+            aria-label={t.gantt.tickRoleHint}
+          />
           <select
             className="mge-gantt-preview-field"
-            value={tickIntervalValue}
-            onChange={(event) => onTickIntervalChange(event.target.value)}
+            value={tickUnit ?? ""}
+            onChange={(event) => {
+              const raw = event.target.value;
+              if (raw === "") {
+                onTickIntervalChange("");
+                return;
+              }
+              onTickIntervalChange(composeTickInterval(tickAmount ?? 1, raw as TickUnit));
+            }}
             aria-label={t.gantt.tickRoleHint}
           >
-            {tickOptionValues.map((value) => (
-              <option key={value || "auto"} value={value}>
-                {tickLabelFor(value)}
+            <option value="">{t.gantt.tickAuto}</option>
+            {TICK_UNIT_VALUES.map((unit) => (
+              <option key={unit} value={unit}>
+                {tickUnitLabel(unit)}
               </option>
             ))}
           </select>
