@@ -111,6 +111,8 @@ This plugin is not yet in the Obsidian community plugin directory. Until it's li
 
 * The flowchart **Curve** setting (`%%{init: {"flowchart": {"curve": "..."}}}%%`) may not visibly affect rendering, depending on the Mermaid version bundled with your Obsidian install. This is a known, currently unresolved upstream Mermaid bug in the flowchart-v2/dagre-wrapper renderer ([mermaid-js/mermaid#6193](https://github.com/mermaid-js/mermaid/issues/6193), fix in progress via PR #6408) — the Mermaid saved by this plugin is correct either way, and the setting will take visible effect once Obsidian ships a Mermaid version with the upstream fix.
 
+* The Gantt editor's preview axis may show slightly different tick dates than the diagram's actual rendered output (e.g. in Reading view), if your system isn't set to UTC. This plugin computes all dates/ticks in UTC, while Mermaid's own renderer parses dates and lays out axis ticks in your local timezone — the saved Mermaid source is unaffected either way, only the two axes' gridline positions can diverge slightly.
+
 ## Development
 
 ```bash
