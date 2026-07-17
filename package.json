@@ -1,6 +1,6 @@
 {
   "name": "mermaid-gui-editor",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Edit Mermaid diagrams — flowchart, sequence, class, state, gantt, kanban, and more — inside Obsidian notes with a GUI editor that saves back as plain Mermaid text.",
   "main": "main.js",
   "private": true,
