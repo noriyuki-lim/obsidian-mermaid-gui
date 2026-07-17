@@ -85,17 +85,15 @@ const useFlip = (orderKey: string) => {
       const dx = before.left - after.left;
       const dy = before.top - after.top;
       if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
-      el.style.transition = "none";
-      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      el.setCssStyles({ transition: "none", transform: `translate(${dx}px, ${dy}px)` });
       el.getBoundingClientRect(); // force reflow before releasing the invert
-      requestAnimationFrame(() => {
-        el.style.transition = "transform 180ms ease";
-        el.style.transform = "";
+      window.requestAnimationFrame(() => {
+        el.setCssStyles({ transition: "transform 180ms ease", transform: "" });
       });
     });
-    // `orderKey` is the derived, comparable form of the current order —
-    // re-running this effect whenever it changes is the intended trigger.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `orderKey` is the
+    // derived, comparable form of the current order — re-running this effect
+    // whenever it changes is the intended trigger.
   }, [orderKey]);
 
   return { register, snapshot };
@@ -195,9 +193,9 @@ const isSwapArmed = (drag: DragInfo, key: string, ratio: number): boolean => {
  */
 const measureRestRect = (el: HTMLElement): DOMRect => {
   const prevTransform = el.style.transform;
-  if (prevTransform) el.style.transform = "none";
+  if (prevTransform) el.setCssStyles({ transform: "none" });
   const rect = el.getBoundingClientRect();
-  if (prevTransform) el.style.transform = prevTransform;
+  if (prevTransform) el.setCssStyles({ transform: prevTransform });
   return rect;
 };
 
@@ -405,7 +403,7 @@ export const KanbanInteractivePreview = ({
   const measureGhostOrigin = () => {
     const el = ghostElRef.current;
     if (!el) return;
-    el.style.transform = "translate3d(0px, 0px, 0)";
+    el.setCssStyles({ transform: "translate3d(0px, 0px, 0)" });
     const rect = el.getBoundingClientRect();
     ghostOriginRef.current = { left: rect.left, top: rect.top };
   };
@@ -479,12 +477,12 @@ export const KanbanInteractivePreview = ({
       window.removeEventListener("pointerup", handleEnd);
       window.removeEventListener("pointercancel", handleEnd);
     };
-    // Intentionally gated on `ghost` alone (flips exactly once at drag start
-    // and once at drag end) — `onReorderColumn`/`onMoveCard`/`onSelectCard`
-    // are stable callbacks from the host, and `colFlip.snapshot` /
-    // `cardFlip.snapshot` close over refs, so re-subscribing on every
-    // mid-drag re-render is unnecessary churn.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentionally
+    // gated on `ghost` alone (flips exactly once at drag start and once at
+    // drag end) — `onReorderColumn`/`onMoveCard`/`onSelectCard` are stable
+    // callbacks from the host, and `colFlip.snapshot`/`cardFlip.snapshot`
+    // close over refs, so re-subscribing on every mid-drag re-render is
+    // unnecessary churn.
   }, [ghost]);
 
   const startColDrag = (idx: number) => (e: ReactPointerEvent<HTMLButtonElement>) => {
@@ -513,7 +511,7 @@ export const KanbanInteractivePreview = ({
       width: rect?.width ?? 200,
       height: rect?.height ?? 40,
     });
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       measureGhostOrigin();
       positionGhost(e.clientX, e.clientY);
     });
@@ -546,7 +544,7 @@ export const KanbanInteractivePreview = ({
       width: rect?.width ?? 160,
       height: rect?.height ?? 32,
     });
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       measureGhostOrigin();
       positionGhost(e.clientX, e.clientY);
     });

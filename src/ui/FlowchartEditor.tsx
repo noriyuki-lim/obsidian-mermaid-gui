@@ -123,7 +123,7 @@ export const FlowchartEditor = ({
           onKeyDownCapture={blurFocusedEditableOnEscape}
         >
           <Toolbar
-            onSave={handleSave}
+            onSave={() => void handleSave()}
             onCancel={onCancel}
             onExportSvg={onExportSvg ? handleExportSvg : undefined}
             saving={saving}

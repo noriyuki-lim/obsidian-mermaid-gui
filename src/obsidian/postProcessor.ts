@@ -3,6 +3,7 @@ import {
   MarkdownRenderChild,
   Notice,
   Plugin,
+  sanitizeHTMLToDom,
 } from "obsidian";
 import { EditorModal } from "./EditorModal";
 import { writeBlockBack } from "./io";
@@ -53,7 +54,8 @@ export const mountMermaidBlock = (
 
 const renderPreview = async (source: string, target: HTMLElement): Promise<void> => {
   try {
-    target.innerHTML = await renderMermaidThemed(source);
+    const svg = await renderMermaidThemed(source);
+    target.replaceChildren(sanitizeHTMLToDom(svg));
   } catch (err) {
     target.empty();
     target.createDiv({

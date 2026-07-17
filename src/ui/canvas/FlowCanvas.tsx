@@ -365,7 +365,7 @@ export const FlowCanvas = () => {
           };
         pendingResizeCenter.current = center;
         canvasSize.current = { width: rect.width, height: rect.height };
-        instance.setViewport({
+        void instance.setViewport({
           x: rect.width / 2 - center.x * center.zoom,
           y: rect.height / 2 - center.y * center.zoom,
           zoom: center.zoom,
@@ -380,7 +380,7 @@ export const FlowCanvas = () => {
       };
       pendingResizeCenter.current = null;
       canvasSize.current = { width: rect.width, height: rect.height };
-      instance.setViewport({
+      void instance.setViewport({
         x: rect.width / 2 - center.x * center.zoom,
         y: rect.height / 2 - center.y * center.zoom,
         zoom: center.zoom,
@@ -388,7 +388,7 @@ export const FlowCanvas = () => {
     };
 
     const observer = new ResizeObserver(() => {
-      requestAnimationFrame(() => updateSize());
+      window.requestAnimationFrame(() => updateSize());
     });
     let transitionSettleTimer: number | null = null;
     const onModalTransitionEnd = () => {

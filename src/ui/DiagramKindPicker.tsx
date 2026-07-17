@@ -304,7 +304,9 @@ export const DiagramKindPicker = ({ onPick, onCancel, renderMermaid }: Props) =>
             ) : (
               <div
                 className="mge-mermaid-preview"
-                // eslint-disable-next-line react/no-danger
+                // eslint-disable-next-line react/no-danger -- SVG comes from
+                // Obsidian's sandboxed mermaid runtime; rendering as innerHTML
+                // matches the postProcessor's behaviour for read view.
                 dangerouslySetInnerHTML={{ __html: svg }}
               />
             )}

@@ -214,12 +214,14 @@ const modalRect = (modalEl: HTMLElement): ModalRect => {
 };
 
 const applyModalRect = (modalEl: HTMLElement, rect: ModalRect): void => {
-  modalEl.style.position = "fixed";
-  modalEl.style.margin = "0";
-  modalEl.style.left = `${rect.left}px`;
-  modalEl.style.top = `${rect.top}px`;
-  modalEl.style.width = `${rect.width}px`;
-  modalEl.style.height = `${rect.height}px`;
+  modalEl.setCssStyles({
+    position: "fixed",
+    margin: "0",
+    left: `${rect.left}px`,
+    top: `${rect.top}px`,
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+  });
 };
 
 const animateModalRect = (modalEl: HTMLElement, rect: ModalRect): void => {
@@ -228,7 +230,7 @@ const animateModalRect = (modalEl: HTMLElement, rect: ModalRect): void => {
   applyModalRect(modalEl, from);
   modalEl.getBoundingClientRect();
 
-  requestAnimationFrame(() => {
+  window.requestAnimationFrame(() => {
     modalEl.addClass("mge-modal-animating");
     applyModalRect(modalEl, rect);
   });

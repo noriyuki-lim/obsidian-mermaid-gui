@@ -104,14 +104,13 @@ class MermaidSourceWidget extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
-    const wrap = document.createElement("span");
-    wrap.className = "mge-cm-source-widget";
+    const wrap = createSpan({ cls: "mge-cm-source-widget" });
 
-    const button = document.createElement("button");
-    button.className = "mge-edit-btn"; // Use the common class
-    button.type = "button";
-    button.textContent = "Edit"; // Consistent text
-    button.setAttribute("aria-label", "Edit Mermaid block in GUI");
+    const button = createEl("button", {
+      cls: "mge-edit-btn", // Use the common class
+      text: "Edit", // Consistent text
+      attr: { type: "button", "aria-label": "Edit Mermaid block in GUI" },
+    });
     button.addEventListener("mousedown", (ev) => ev.preventDefault());
     button.addEventListener("click", (ev) => {
       ev.preventDefault();
@@ -139,8 +138,7 @@ class MermaidEditorButtonPlugin {
     readonly view: EditorView,
     private readonly plugin: Plugin,
   ) {
-    this.overlay = document.createElement("div");
-    this.overlay.className = "mge-cm-overlay";
+    this.overlay = createDiv({ cls: "mge-cm-overlay" });
     this.view.dom.appendChild(this.overlay);
     this.lastLivePreview = this.isLivePreview();
     this.decorations = this.buildSourceDecorations();
@@ -198,12 +196,12 @@ class MermaidEditorButtonPlugin {
         this.overlay.replaceChildren();
         const path = fileFromView(this.view)?.path ?? "";
         for (const { block, top } of positions) {
-          const button = document.createElement("button");
-          button.className = "mge-edit-btn mge-cm-live-preview-btn";
-          button.type = "button";
-          button.textContent = "Edit";
-          button.setAttribute("aria-label", "Edit Mermaid block in GUI");
-          button.style.top = `${top + 6}px`;
+          const button = createEl("button", {
+            cls: "mge-edit-btn mge-cm-live-preview-btn",
+            text: "Edit",
+            attr: { type: "button", "aria-label": "Edit Mermaid block in GUI" },
+          });
+          button.setCssStyles({ top: `${top + 6}px` });
           button.addEventListener("mousedown", (ev) => ev.preventDefault());
           button.addEventListener("click", (ev) => {
             ev.preventDefault();

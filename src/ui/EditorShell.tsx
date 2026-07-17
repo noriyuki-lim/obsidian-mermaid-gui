@@ -267,8 +267,8 @@ export const EditorShell = ({
     };
     root.addEventListener("keydown", onKey);
     return () => root.removeEventListener("keydown", onKey);
-    // undo/redo read mutable refs, so the first-render closures stay correct.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- undo/redo read
+    // mutable refs, so the first-render closures stay correct.
   }, [editable]);
 
   const startSideDrag = (e: ReactPointerEvent<HTMLDivElement>) => {

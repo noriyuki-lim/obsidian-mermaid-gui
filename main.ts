@@ -68,7 +68,7 @@ export default class MermaidGuiPlugin extends Plugin {
     );
   }
 
-  async onunload(): Promise<void> {
+  onunload(): void {
     // Per-block React roots are owned by MarkdownRenderChild instances, which
     // Obsidian unmounts automatically. Modals tear down their roots in onClose.
   }

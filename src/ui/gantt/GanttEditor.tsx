@@ -1133,7 +1133,9 @@ const GanttInteractivePreview = ({
       });
     });
     return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `indexById` is
+    // derived from `baseTimeline.tasks` in the useMemo above, so listing both
+    // is redundant; the explicit deps here are the actual geometry inputs.
   }, [baseTimeline.tasks, indexById, min, max, chartWidth]);
 
   return (
