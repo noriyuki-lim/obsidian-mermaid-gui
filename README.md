@@ -13,24 +13,24 @@ Saving writes back **only the fence content that was edited**; the rest of the n
 > These clips show a sample of what's possible, not the full feature set — and since the plugin keeps evolving, actual behavior may have since diverged from what's shown here.
 
 **Insert a new diagram from the template picker**
-![Inserting a new diagram from the template picker](images/insert-new.gif)
+![Inserting a new diagram from the template picker](https://raw.githubusercontent.com/noriyuki-lim/obsidian-mermaid-gui/main/images/insert-new.gif)
 
 **Flowchart: edit node shapes directly on the canvas**
-![Editing flowchart node shapes on the interactive canvas](images/change-shapes.gif)
+![Editing flowchart node shapes on the interactive canvas](https://raw.githubusercontent.com/noriyuki-lim/obsidian-mermaid-gui/main/images/change-shapes.gif)
 
-**Flowchart: add a subgraph and change its direction**![Flowchart subgraphs, auto-layout, and the edge inspector](images/flowchart-subgraph.gif)
+**Flowchart: add a subgraph and change its direction**![Flowchart subgraphs, auto-layout, and the edge inspector](https://raw.githubusercontent.com/noriyuki-lim/obsidian-mermaid-gui/main/images/flowchart-subgraph.gif)
 
 **Kanban: drag-and-drop cards and columns**
-![Dragging kanban cards between columns](images/kanban.gif)
+![Dragging kanban cards between columns](https://raw.githubusercontent.com/noriyuki-lim/obsidian-mermaid-gui/main/images/kanban.gif)
 
 **Quadrant chart: drag points, source stays in sync**
-![Dragging quadrant chart points with the Mermaid source staying in sync](images/quadrant.gif)
+![Dragging quadrant chart points with the Mermaid source staying in sync](https://raw.githubusercontent.com/noriyuki-lim/obsidian-mermaid-gui/main/images/quadrant.gif)
 
 **XY chart: bar + line series, editable inline**
-![Editing an XY chart with bar and line series](images/xychart-sorted.gif)
+![Editing an XY chart with bar and line series](https://raw.githubusercontent.com/noriyuki-lim/obsidian-mermaid-gui/main/images/xychart-sorted.gif)
 
 **Gantt: manage task dependencies**
-![Managing Gantt chart task dependencies](images/gantt-dependencies.gif)
+![Managing Gantt chart task dependencies](https://raw.githubusercontent.com/noriyuki-lim/obsidian-mermaid-gui/main/images/gantt-dependencies.gif)
 
 ## Features
 
