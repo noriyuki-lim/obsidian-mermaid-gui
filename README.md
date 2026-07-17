@@ -88,9 +88,14 @@ Saving writes back **only the fence content that was edited**; the rest of the n
 
 ## Installation
 
-This plugin is not yet in the Obsidian community plugin directory. Until it's listed, install it one of these ways:
+**Via Community Plugins**
 
-**Via [BRAT](https://github.com/TfTHacker/obsidian42-brat) (recommended — gets you updates automatically)**
+1. In Obsidian, go to **Settings → Community plugins**, turn off Restricted Mode if needed, and select **Browse**.
+2. Search for **Mermaid GUI Editor**, select it, then **Install** and **Enable**.
+
+**Via [BRAT](https://github.com/TfTHacker/obsidian42-brat)**
+
+Useful if you want to track pre-release builds ahead of what's in the community directory.
 
 1. Install the **BRAT** community plugin from Obsidian's plugin browser.
 2. In BRAT's settings, choose **Add Beta plugin** and enter this repository's URL.
