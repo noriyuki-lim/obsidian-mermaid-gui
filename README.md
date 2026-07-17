@@ -146,6 +146,10 @@ New-Item -ItemType Junction `
 
 Run `npm run dev` in the repo and reload Obsidian (`Ctrl/Cmd+R`) to pick up changes.
 
+## Credits
+
+The flowchart editor's architecture — React Flow for the node/edge canvas, Zustand for state, Dagre for auto-layout — follows the approach used by [Mermaid Visual Editor](https://github.com/saketkattu/mermaid-visual-editor). This plugin wouldn't have come together nearly as fast without that reference.
+
 ## License
 
 [MIT](LICENSE)
