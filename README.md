@@ -4,7 +4,7 @@ Edit Mermaid diagrams — flowcharts, sequence diagrams, class diagrams, Gantt c
 
 ## What it does
 
-This plugin adds an **Edit** button to every ` ```mermaid ` code block — in Reading view, in Live Preview, and in Source mode. Clicking it opens a modal with a diagram-specific GUI editor: some diagram types (flowchart, Gantt, kanban, quadrant, XY chart) get a fully interactive canvas you drag and drop directly; the rest (sequence, class, pie, and so on) get a structured form editor next to a live preview that updates as you type. Either way, no hand-written Mermaid syntax is required. Live Preview is where most people will use this day to day, since it's Obsidian's default editing view.
+This plugin adds an **Edit** button to every ` ```mermaid ` code block — in Reading view, in Live Preview, and in Source mode. Live Preview is where most people will use this day to day, since it's Obsidian's default editing view. Clicking it opens a modal with a diagram-specific GUI editor: some diagram types (flowchart, Gantt, kanban, quadrant, XY chart) get a fully interactive canvas you drag and drop directly; the rest (sequence, class, pie, and so on) get a structured form editor next to a live preview that updates as you type. Either way, no hand-written Mermaid syntax is required.
 
 Saving writes back **only the fence content that was edited**; the rest of the note is untouched. Node coordinates and other GUI-only state live for the session only and are never written to the file, so the Mermaid source stays exactly what you'd expect from standard Mermaid — no proprietary metadata, no lock-in.
 
@@ -20,9 +20,6 @@ Saving writes back **only the fence content that was edited**; the rest of the n
 
 **Flowchart: add a subgraph and change its direction**![Flowchart subgraphs, auto-layout, and the edge inspector](images/flowchart-subgraph.gif)
 
-**Gantt: manage task dependencies**
-![Managing Gantt chart task dependencies](images/gantt-dependencies.gif)
-
 **Kanban: drag-and-drop cards and columns**
 ![Dragging kanban cards between columns](images/kanban.gif)
 
@@ -31,6 +28,9 @@ Saving writes back **only the fence content that was edited**; the rest of the n
 
 **XY chart: bar + line series, editable inline**
 ![Editing an XY chart with bar and line series](images/xychart-sorted.gif)
+
+**Gantt: manage task dependencies**
+![Managing Gantt chart task dependencies](images/gantt-dependencies.gif)
 
 ## Features
 
@@ -145,17 +145,6 @@ New-Item -ItemType Junction `
 ```
 
 Run `npm run dev` in the repo and reload Obsidian (`Ctrl/Cmd+R`) to pick up changes.
-
-## Releasing
-
-Cutting a release is what BRAT users (and, eventually, the community plugin directory) pick up — pushing commits to `main` alone does **not** update anyone's installed plugin.
-
-1. `npm version patch` (or `minor` / `major`) — bumps `package.json`, syncs `manifest.json` and `versions.json` to the new version via `version-bump.mjs`, and creates a commit + tag.
-2. `git push && git push --tags`.
-3. The [release workflow](.github/workflows/release.yml) builds the plugin and opens a **draft** GitHub Release with `main.js`, `manifest.json`, `styles.css`, and a zip attached.
-4. Review the draft, then publish it. BRAT (and anyone with **Check for updates**) picks it up from there.
-
-The tag name must exactly match `manifest.json`'s version (e.g. `0.3.0`, no `v` prefix) — the workflow fails the build otherwise. `npm version` handles this automatically as long as you don't tag manually.
 
 ## License
 
