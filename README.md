@@ -20,6 +20,9 @@ Saving writes back **only the fence content that was edited**; the rest of the n
 
 **Flowchart: add a subgraph and change its direction**![Flowchart subgraphs, auto-layout, and the edge inspector](images/flowchart-subgraph.gif)
 
+**Gantt: manage task dependencies**
+![Managing Gantt chart task dependencies](images/gantt-dependencies.gif)
+
 **Kanban: drag-and-drop cards and columns**
 ![Dragging kanban cards between columns](images/kanban.gif)
 
@@ -85,7 +88,15 @@ Saving writes back **only the fence content that was edited**; the rest of the n
 
 ## Installation
 
-This plugin is not yet in the Obsidian community plugin directory. Until it's listed, install it manually:
+This plugin is not yet in the Obsidian community plugin directory. Until it's listed, install it one of these ways:
+
+**Via [BRAT](https://github.com/TfTHacker/obsidian42-brat) (recommended — gets you updates automatically)**
+
+1. Install the **BRAT** community plugin from Obsidian's plugin browser.
+2. In BRAT's settings, choose **Add Beta plugin** and enter this repository's URL.
+3. BRAT installs the latest [Release](../../releases) and checks for new ones periodically (or on demand via BRAT's **Check for updates** command).
+
+**Manually**
 
 1. Clone this repository and run `npm install && npm run build` (see [Development](#development)) to produce `main.js` and `styles.css`.
 2. Copy `main.js`, `styles.css`, and `manifest.json` into `<vault>/.obsidian/plugins/mermaid-gui-editor/`.
@@ -134,6 +145,17 @@ New-Item -ItemType Junction `
 ```
 
 Run `npm run dev` in the repo and reload Obsidian (`Ctrl/Cmd+R`) to pick up changes.
+
+## Releasing
+
+Cutting a release is what BRAT users (and, eventually, the community plugin directory) pick up — pushing commits to `main` alone does **not** update anyone's installed plugin.
+
+1. `npm version patch` (or `minor` / `major`) — bumps `package.json`, syncs `manifest.json` and `versions.json` to the new version via `version-bump.mjs`, and creates a commit + tag.
+2. `git push && git push --tags`.
+3. The [release workflow](.github/workflows/release.yml) builds the plugin and opens a **draft** GitHub Release with `main.js`, `manifest.json`, `styles.css`, and a zip attached.
+4. Review the draft, then publish it. BRAT (and anyone with **Check for updates**) picks it up from there.
+
+The tag name must exactly match `manifest.json`'s version (e.g. `0.3.0`, no `v` prefix) — the workflow fails the build otherwise. `npm version` handles this automatically as long as you don't tag manually.
 
 ## License
 

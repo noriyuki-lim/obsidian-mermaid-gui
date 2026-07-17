@@ -1,0 +1,51 @@
+name: Release Obsidian plugin
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build plugin
+        run: npm run build
+
+      - name: Verify manifest version matches tag
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          manifest_version="$(node -p "require('./manifest.json').version")"
+          if [ "$tag" != "$manifest_version" ]; then
+            echo "::error::Tag '$tag' does not match manifest.json version '$manifest_version'. Run 'npm version <patch|minor|major>' before tagging."
+            exit 1
+          fi
+
+      - name: Package release zip
+        run: |
+          mkdir mermaid-gui-editor
+          cp main.js manifest.json styles.css mermaid-gui-editor/
+          zip -r mermaid-gui-editor.zip mermaid-gui-editor
+
+      - name: Create draft GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          gh release create "$tag" \
+            --title "$tag" \
+            --draft \
+            --generate-notes \
+            main.js manifest.json styles.css mermaid-gui-editor.zip

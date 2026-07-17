@@ -11,7 +11,8 @@
     "build:js": "node esbuild.config.mjs",
     "typecheck": "tsc -noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "version": "node version-bump.mjs && git add manifest.json versions.json"
   },
   "dependencies": {
     "@dagrejs/dagre": "^1.1.4",
