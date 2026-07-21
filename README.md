@@ -6,8 +6,6 @@ Edit Mermaid diagrams — flowcharts, sequence diagrams, class diagrams, Gantt c
 
 This plugin adds an **Edit** button to every ` ```mermaid ` code block — in Reading view, in Live Preview, and in Source mode. Live Preview is where most people will use this day to day, since it's Obsidian's default editing view. Clicking it opens a modal with a diagram-specific GUI editor: some diagram types (flowchart, Gantt, kanban, quadrant, XY chart) get a fully interactive canvas you drag and drop directly; the rest (sequence, class, pie, and so on) get a structured form editor next to a live preview that updates as you type. Either way, no hand-written Mermaid syntax is required.
 
-Saving writes back **only the fence content that was edited**; the rest of the note is untouched. Node coordinates and other GUI-only state live for the session only and are never written to the file, so the Mermaid source stays exactly what you'd expect from standard Mermaid — no proprietary metadata, no lock-in.
-
 ## Demo
 
 > These clips show a sample of what's possible, not the full feature set — and since the plugin keeps evolving, actual behavior may have since diverged from what's shown here.
@@ -31,6 +29,30 @@ Saving writes back **only the fence content that was edited**; the rest of the n
 
 **Gantt: manage task dependencies**
 ![Managing Gantt chart task dependencies](https://raw.githubusercontent.com/noriyuki-lim/obsidian-mermaid-gui/main/images/gantt-dependencies.gif)
+
+## How it works
+
+Obsidian notes are meant to stay plain, portable Markdown, so editing shouldn't cost you that. The plugin parses the Mermaid source into an in-memory intermediate representation (IR) while you edit, then writes back only standard Mermaid syntax on save — GUI-only state like node positions is never part of what gets saved, so the file stays exactly what any other Mermaid tool expects.
+
+```mermaid
+sequenceDiagram
+  participant File as Note File
+  participant Core as Parser / Generator
+  participant GUI as Visual Editor
+
+  File->>Core: Read the Mermaid source
+  Core->>GUI: Provide the parsed intermediate representation (IR)
+
+  loop While the editor is open
+    GUI->>GUI: Handle drag operations and update element positions
+    Note right of GUI: Editor-specific state, such as node positions,<br>is kept only for the current session
+    GUI->>Core: Apply changes to the IR
+    Core->>GUI: Regenerate Mermaid source for the code pane
+  end
+
+  Core->>File: Serialize the IR back into standard Mermaid syntax
+  Note over File: Editor-specific state is not persisted in the file
+```
 
 ## Features
 
