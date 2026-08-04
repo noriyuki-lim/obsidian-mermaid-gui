@@ -34,6 +34,11 @@ This plugin adds an **Edit** button to every ` ```mermaid ` code block — in Re
 
 Obsidian notes are meant to stay plain, portable Markdown, so editing shouldn't cost you that. The plugin parses the Mermaid source into an in-memory intermediate representation (IR) while you edit, then writes back only standard Mermaid syntax on save — GUI-only state like node positions is never part of what gets saved, so the file stays exactly what any other Mermaid tool expects.
 
+![Sequence diagram: Note File reads into the Parser/Generator, which hands the IR to the Visual Editor; while editing, drag operations update the IR and regenerate the Mermaid source, and on close the IR is serialized back to the file without any editor-only state](https://raw.githubusercontent.com/noriyuki-lim/obsidian-mermaid-gui/main/images/howitworks_sequence_mermaid.png)
+
+<details>
+<summary>Mermaid source for the diagram above</summary>
+
 ```mermaid
 sequenceDiagram
   participant File as Note File
@@ -53,6 +58,8 @@ sequenceDiagram
   Core->>File: Serialize the IR back into standard Mermaid syntax
   Note over File: Editor-specific state is not persisted in the file
 ```
+
+</details>
 
 ## Features
 
